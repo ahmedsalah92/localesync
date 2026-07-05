@@ -8,14 +8,20 @@ export default defineConfig([
 	js.configs.recommended,
 	...tseslint.configs.recommended,
 
-globalIgnores(['node_modules/**', 'dist/**', '*.config.{js,ts}', '**/*.d.ts']),
+	globalIgnores(['node_modules/**', 'dist/**', '*.config.{js,ts}', '**/*.d.ts']),
 
 	// Base configuration
 	{
 		languageOptions: {
 			parser: tsParser,
 			parserOptions: {
-				project: true,
+				// projectService (not `project: true`) so files intentionally kept out of the
+				// composite build tsconfigs — e.g. *.test.ts, excluded to keep the ambient-free
+				// `common` build free of vitest's DOM/Node type graph — still get typed linting
+				// via the inferred default project.
+				projectService: {
+					allowDefaultProject: ['src/*/*.test.ts', 'src/*/*/*.test.ts'],
+				},
 				tsconfigRootDir: import.meta.dirname,
 			},
 		},

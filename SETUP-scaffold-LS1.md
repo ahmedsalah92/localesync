@@ -1,6 +1,6 @@
 # LocaleSync — Repo Scaffold Runbook (LS-1)
 
-*Exact steps to stand up the plugin repo with Plugma (React + Vite + TS), configured to the locked Phase-1 decisions. Run top to bottom; this file is meant to live at the repo root as `SETUP.md`. Steps that depend on what the scaffold actually generates are flagged "⚠ confirm" — check the real output rather than assuming.*
+_Exact steps to stand up the plugin repo with Plugma (React + Vite + TS), configured to the locked Phase-1 decisions. Run top to bottom; this file is meant to live at the repo root as `SETUP.md`. Steps that depend on what the scaffold actually generates are flagged "⚠ confirm" — check the real output rather than assuming._
 
 ---
 
@@ -23,6 +23,7 @@ npm create plugma@latest
 ```
 
 At the prompts:
+
 - **Framework:** `React`
 - **Name:** `localesync` (or your preferred dir/plugin name)
 - TypeScript: yes (if asked)
@@ -76,23 +77,24 @@ Open the manifest (root `manifest.json`, or the manifest block in `package.json`
 
 ```jsonc
 {
-  "name": "LocaleSync",
-  // "id" is left blank — Figma assigns it on first publish; paste it back here later
-  "editorType": ["figma"],
-  "documentAccess": "dynamic-page",
-  "networkAccess": {
-    "allowedDomains": ["none"]
-  }
-  // "main" and "ui" keys are managed by the Plugma template — do NOT hand-edit them
+	"name": "LocaleSync",
+	// "id" is left blank — Figma assigns it on first publish; paste it back here later
+	"editorType": ["figma"],
+	"documentAccess": "dynamic-page",
+	"networkAccess": {
+		"allowedDomains": ["none"],
+	},
+	// "main" and "ui" keys are managed by the Plugma template — do NOT hand-edit them
 }
 ```
 
 Why these (decisions already locked):
+
 - `editorType: ["figma"]` — Figma Design only.
 - `documentAccess: "dynamic-page"` — required for the async scene-graph access the plugin uses (`getNodeByIdAsync`, etc.).
 - `networkAccess.allowedDomains: ["none"]` — Phase-1 ships network-free (decision #2); paid-intent routes via `openExternal`, telemetry sits behind a no-op sink.
 
-**⚠ confirm (HMR):** during `plugma dev`, Plugma injects its dev-server domains automatically, so keep the production value at `["none"]`. *If* the dev UI fails to load with a network/CSP error, add a dev-only allowance and re-run:
+**⚠ confirm (HMR):** during `plugma dev`, Plugma injects its dev-server domains automatically, so keep the production value at `["none"]`. _If_ the dev UI fails to load with a network/CSP error, add a dev-only allowance and re-run:
 
 ```jsonc
 "networkAccess": {
@@ -209,6 +211,7 @@ git push -u origin main
 ## What this unblocks
 
 With the tree in place and frozen, the next two plan steps become concrete:
+
 1. **`docs/agent-guidelines.md`** — the cross-cutting conventions + Figma API pins, written once (the close-handler-is-sync rule, never-mutate-missing-font, `figma.mixed` checks, dynamic-page async lookups, the fixture/test conventions).
 2. **`docs/specs/` per-issue specs** for the ready tier (LS-6, LS-9, LS-10, LS-12, thin LS-2/3/5), each linking to the guidelines so they stay short.
 

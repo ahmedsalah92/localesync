@@ -325,26 +325,44 @@ The transport primitives below are **not yet in agent-guidelines §2** — inlin
 
 ## Acceptance
 
-**Fixture:** `src/common/messages.fixtures.ts` — a `readonly AnyMessage[]` (agent must create) with **exactly one canonical value per message type** (all 14), each with a distinct `id`. This is the single source of truth for "one of every type," shared by the unit tests and the in-Figma round-trip command.
+**Fixture:** `src/common/messages.fixtures.ts` — a `readonly AnyMessage[]` (agent creates) with **exactly one canonical value per message type** (all 14), each a distinct `id`. Single source of truth for "one of every type," imported by the unit tests **and** both sides of the round-trip harness.
 
 **Pure unit tests (Vitest, no `figma`, no DOM):** `src/common/messages.test.ts`
 - `isPluginMessage` accepts every fixture value.
-- `isPluginMessage` rejects: `null`, `undefined`, `42`, `{}`, `{ type: 'scan-request' }` (no id), `{ id: 'x' }` (no type), `{ type: 'not-a-real-type', id: 'x' }`, and `{ type: 'scan-request', id: 42 }`.
-- The fixture array covers all 14 types (assert the set of `fixture.map(m => m.type)` equals the known type set — fails if a type is added without a fixture).
+- `isPluginMessage` rejects: `null`, `undefined`, `42`, `{}`, `{ type: 'scan-request' }` (no id), `{ id: 'x' }` (no type), `{ type: 'not-a-real-type', id: 'x' }`, `{ type: 'scan-request', id: 42 }`.
+- The fixture array covers all 14 types (assert `new Set(fixtures.map(m => m.type))` equals the known type set — fails if a type is added without a fixture).
 
-**Compile-time negative tests:** `src/common/messages.type-check.ts` (checked by `npx tsc -b`, not run)
-- `@ts-expect-error` on a message with a misspelled `type`, a missing required field (`scan-request` without `scope`), a wrong field type (`overflow-scan-request` with `targetLanguages: 'en'` scalar), and a `request('scan-request', …)` whose awaited value is assigned to the wrong response type.
-- One positive line per request pair asserting `request(type, …)` resolves the mapped `RequestResponse[type]`.
+**Compile-time type tests (checked by `npx tsc -b`, never executed).** Split by ownership — each type test lives beside the module that owns the signature it asserts, so `common` stays import-clean and no `common → ui` reference (which would invert the ambient split and create a circular `tsc -b` project reference) is introduced:
 
-**Integration test (dev-only plugin command `__test:roundtrip`, against the running plugin):**
-- [ ] For **every** fixture message, drive it across the real bridge and assert the received value **deep-equals** the sent value and narrows on `type` (transport-conformance round trip). For UI→main types, UI `send`s and main echoes the same envelope back for the assertion; for main→UI types, main `send`s and the UI asserts.
+- `src/common/messages.type-check.ts` — **envelope/union negatives only** (all `common`-owned): a misspelled `type`; `scan-request` missing `scope`; `overflow-scan-request` with a scalar `targetLanguages: 'en'`. Imports nothing from `ui`/`main`.
+- `src/ui/bridge.type-check.ts` — **`request()` cases** (owned by `src/ui/bridge.ts`; `ui` already references `common`, so no cycle, no ambient leak): one positive per request pair asserting `request(type, …)` resolves the mapped `RequestResponse[type]`, plus a negative where an awaited response is assigned to the wrong result type. Testing the *real* `request` export — never a re-declared copy of its signature.
+
+Two constraints these files hit (get them right or the gates fail):
+- **`ban-ts-comment`:** every directive needs a reason — `// @ts-expect-error <why>`, never bare (these files are linted by `npx eslint .`).
+- **`noUnusedLocals` (on for `ui`/`main`, off for `common`):** in the `ui` file, wrap the assertions in an exported function that returns them — which also sidesteps top-level `await`:
+
+```ts
+// src/ui/bridge.type-check.ts
+import { request } from './bridge';
+import type { ScanResult, ExtractionResult } from '../common/messages';
+
+export async function _requestTypeChecks() {
+	const scan: ScanResult = await request('scan-request', { scope: 'page' });
+	// @ts-expect-error scan-request resolves ScanResult, not ExtractionResult
+	const wrong: ExtractionResult = await request('scan-request', { scope: 'page' });
+	return { scan, wrong };
+}
+```
+
+**Integration harness — dev-only, in-Figma, `import.meta.env.DEV`-gated (no manifest change).** `__test:roundtrip` is a label, not a Figma `command`. Driver logic lives in dev-only modules (`src/ui/roundtrip.ts`, `src/main/roundtrip.ts`), each imported behind a static `import.meta.env.DEV` check from its entry (`App.tsx` mounts a dev-gated **Run roundtrip** button; `main.ts` registers the gated echo/emit handler). Both sides gated by the same flag means both are tree-shaken out of the production bundle — nothing test-only ships. (Confirm `import.meta.env.DEV` is defined in Plugma's **main** bundle; if it isn't, use a Vite/Plugma `define` constant main-side.) Both drivers import `messages.fixtures.ts`. It must verify:
+- [ ] For **every** fixture message, drive it across the real bridge and assert the received value **deep-equals** the sent value and narrows on `type`. UI→main types: UI `send`s, main echoes the same envelope back; main→UI types: main `send`s, UI asserts.
 - [ ] `request('scan-request', { scope: 'page' })` resolves with the `scan-result` whose `id` matches, and ignores a `scan-result` with a non-matching id.
 - [ ] An `error` carrying a pending request's id **rejects** that request's promise.
-- [ ] A non-conforming inbound message (`{ foo: 1 }`, and a bare Plugma-style `{ type: 'plugma-dev-event' }`) is dropped by both dispatchers — no handler fires, nothing throws.
+- [ ] A non-conforming inbound message (`{ foo: 1 }`, and a bare `{ type: 'plugma-dev-event' }`) is dropped by both dispatchers — no handler fires, nothing throws.
 
-**Run:** `npx tsc -b` (proves compile-time safety incl. `type-check.ts`) → `npm test` (guard + fixture-coverage units) → `npm run dev`, then run `__test:roundtrip` in Figma.
+**Run:** `npx tsc -b` (checks **both** type-check files — proves criterion #1) → `npm test` (guard + fixture-coverage) → `npm run dev`, then click the dev-gated **Run roundtrip** button and read pass/fail.
 
-**Review focus for the developer:** the single-slot multiplex teardown (unsubscribe actually removes the handler), the request/pending map cleanup on both resolve and reject (no leak), and that guard-and-drop is applied on **both** sides before any handler runs.
+**Review focus for the developer:** single-slot multiplex teardown (unsubscribe actually removes the handler); request/pending-map cleanup on **both** resolve and reject (no leak); guard-and-drop applied on **both** sides before any handler runs; and the entire roundtrip harness (UI button + both driver modules + main handler) behind `import.meta.env.DEV` so nothing test-only reaches production.
 
 ---
 

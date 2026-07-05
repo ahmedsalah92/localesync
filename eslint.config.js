@@ -15,7 +15,13 @@ export default defineConfig([
 		languageOptions: {
 			parser: tsParser,
 			parserOptions: {
-				project: true,
+				// projectService (not `project: true`) so files intentionally kept out of the
+				// composite build tsconfigs — e.g. *.test.ts, excluded to keep the ambient-free
+				// `common` build free of vitest's DOM/Node type graph — still get typed linting
+				// via the inferred default project.
+				projectService: {
+					allowDefaultProject: ['src/*/*.test.ts', 'src/*/*/*.test.ts'],
+				},
 				tsconfigRootDir: import.meta.dirname,
 			},
 		},

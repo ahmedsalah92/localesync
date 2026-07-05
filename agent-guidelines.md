@@ -45,7 +45,11 @@ environment mistakes into compile errors instead of runtime crashes.
   (minor asymmetry — hold the same discipline there by hand).
 - **Typecheck is `npx tsc -b`** (no npm alias). Prettier is tabs, width 4, single quotes, semi,
   printWidth 120. Keep `npx tsc -b`, `npx eslint .`, and `npm test` green on every change.
-
+- **A member-less type is a type alias, never an empty interface.** `@typescript-eslint/no-empty-object-type`
+  is on (recommended config, default options), so an interface that only extends another and adds no
+  members — e.g. a payload-free bridge message, `interface RevertPreview extends Envelope<'…'> {}` —
+  **fails `npx eslint .`**. Write it as a type alias instead: `type RevertPreview = Envelope<'revert-preview'>`.
+  
 ### Folder ownership map
 
 Entry files live **inside** their subfolders (Plugma points the manifest at them); our modules
@@ -53,6 +57,9 @@ sit alongside. Folders marked *(new)* don't exist yet — create them when the o
 
 ```
 src/common/messages.ts     LS-2  shared message union (imported by both sides)
+src/common/models.ts       LS-2   shared wire DTOs (both sides import; owned upstream, stubbed here)
+src/main/bridge.ts         LS-2   main-side send/on/respond transport
+src/ui/bridge.ts           LS-2   ui-side send/on/request transport
 src/main/main.ts                 Figma main-thread entry (Plugma)
 src/main/traversal/        LS-3  scene-graph traversal + text-node model            (new)
 src/main/snapshot/         LS-4  font-load + snapshot/restore primitive             (new)
@@ -141,20 +148,31 @@ consult the live docs — never invent API shape from memory.**
   spike** (temp-node clone vs. mutate-and-restore vs. geometry) — do not invent a measurement path;
   consume the one LS-7 resolves.
 
----
+### Message bridge transport (LS-2)
 
-## 3. Message bridge (LS-2)
+The raw `postMessage` plumbing under the typed bridge. The *conventions* (discriminated union,
+correlation id, no raw `postMessage` in feature code) are in §3; these are the API facts.
 
-- All `main` ↔ `ui` traffic goes through the shared **discriminated union** in
-  `src/common/messages.ts`, keyed on `type`, with a **correlation id** on request/response pairs so
-  the UI can match async results.
-- Thin typed `send` / `on` wrappers on each side. **No raw `postMessage` in feature code** — a
-  wrong-shaped message must be a compile error, not a runtime surprise.
-- **Carve-out — overflow-scan payloads use `targetLanguages: string[]`, never a scalar
-  `targetLanguage: string`.** Phase 1 scans one language per pass, but the free/paid boundary is
-  moving toward all-languages-free detection (brief v3.2). The plural shape lets that land without a
-  breaking contract change. Shape it plural now even though the first implementation passes a
-  single-element array.
+- **`figma.ui.postMessage(msg)` sends main → UI.** Only structured-clone-serializable data crosses
+  (see the serializable set below). This is the only send path on the main side.
+- **`figma.ui.onmessage = (message, props) => …` receives UI → main.** `message` is already the
+  value the UI put on its `pluginMessage` property (unwrapped for you); `props.origin` is the sender
+  origin. It is a **single assignable slot** — a bridge owns it and multiplexes to typed handlers;
+  feature code never assigns it directly. (`figma.ui.on('message', handler)` also registers a
+  handler and permits more than one registration — pick one model and hold it.)
+- **UI → main: `parent.postMessage({ pluginMessage: msg }, '*')`.** The `{ pluginMessage }` wrapper
+  **and** the `'*'` second argument are both required — without the wrapper the message never
+  reaches the plugin code.
+- **UI ← main: a `window` `'message'` listener; the payload is `event.data.pluginMessage`.** The
+  wrap/unwrap asymmetry is by design — the plugin side sends and receives bare values, the UI side
+  wraps outgoing and unwraps incoming under `pluginMessage`.
+- **Serializable set:** objects, arrays, numbers, strings, booleans, `null`, `undefined`, `Date`,
+  `Uint8Array`. **`figma.mixed` (a symbol) and live node references are NOT serializable** — so
+  every payload is a plain-data DTO (`src/common/models.ts`), never a live `TextNode` or a value
+  that may be `figma.mixed`. Map to the DTO before sending.
+- **Dev-harness traffic shares the channel.** Under `plugma dev`, Plugma emits its own messages on
+  the same `message` channel; both sides must validate every inbound message against the shared
+  shape guard and **silently drop** non-conforming ones, before any handler runs.
 
 ---
 

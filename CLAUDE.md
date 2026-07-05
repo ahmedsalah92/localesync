@@ -32,6 +32,9 @@ Keep `npx tsc -b`, `npx eslint .`, and `npm test` green on every change.
 
 ```
 src/common/messages.ts     LS-2  shared message union (both sides import)
+src/common/models.ts       LS-2   shared wire DTOs (both sides import; owned upstream, stubbed here)
+src/main/bridge.ts         LS-2   main-side send/on/respond transport
+src/ui/bridge.ts           LS-2   ui-side send/on/request transport
 src/main/main.ts                 Figma main-thread entry
 src/main/traversal/        LS-3  scene-graph traversal + text-node model
 src/main/snapshot/         LS-4  font-load + snapshot/restore primitive (human review before merge)

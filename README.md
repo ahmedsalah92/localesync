@@ -13,19 +13,19 @@ This plugin was created with [Plugma](https://github.com/gavinmcfarland/plugma) 
 
 1. Install dependencies and start the dev server:
 
-   ```bash
-   npm install
-   npm run dev
-   ```
+    ```bash
+    npm install
+    npm run dev
+    ```
 
-   Changes are automatically rebuilt to `dist/` on save.
+    Changes are automatically rebuilt to `dist/` on save.
 
 2. In the Figma desktop app:
 
-   - Open a file.
-   - Press `Cmd/Ctrl + K` to open the [Actions menu](https://help.figma.com/hc/en-us/articles/23570416033943-Use-the-actions-menu-in-Figma-Design).
-   - Search for **“Import plugin from manifest…”**
-   - Select `dist/manifest.json`.
+    - Open a file.
+    - Press `Cmd/Ctrl + K` to open the [Actions menu](https://help.figma.com/hc/en-us/articles/23570416033943-Use-the-actions-menu-in-Figma-Design).
+    - Search for **“Import plugin from manifest…”**
+    - Select `dist/manifest.json`.
 
 After importing, open the Actions menu again to find and run your plugin.
 Keep the dev server running for instant reloads while testing in Figma.

@@ -1,13 +1,13 @@
 {
-	"compilerOptions": {
-		"composite": true,
-		"module": "ESNext",
-		"moduleResolution": "bundler",
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"emitDeclarationOnly": true,
-		"types": [],
-		"outDir": "./node_modules/.tmp/tsc"
-	},
-	"include": ["**/*.ts"]
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "emitDeclarationOnly": true,
+    "types": [],
+    "outDir": "./node_modules/.tmp/tsc"
+  },
+  "include": ["**/*.ts"]
 }

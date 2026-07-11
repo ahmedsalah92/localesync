@@ -115,6 +115,19 @@ consult the live docs — never invent API shape from memory.**
   when the fixed size is smaller than the content. With `"HEIGHT"` or `"WIDTH_AND_HEIGHT"`,
   truncation occurs **only in conjunction with `maxHeight` or `maxLines`**. Overflow measurement
   must account for `maxHeight`, not just `maxLines`.
+- **`TextNode.maxHeight`** — `number | null`; readable on any text node, but "applicable only to
+  auto-layout frames and their direct children", so it is populated only for auto-layout children.
+  <https://developers.figma.com/docs/plugins/api/TextNode/>
+
+### Node geometry & hierarchy
+
+- **`clipsContent` exists on frame-like nodes only** (`FRAME` / `COMPONENT` / `COMPONENT_SET` /
+  `INSTANCE`) — it was **removed from group nodes**. Guard by `node.type`, never
+  `'clipsContent' in node` (Figma's typings do not guarantee `in` checks on group nodes).
+  <https://developers.figma.com/docs/plugins/api/FrameNode/>
+- **`rotation`** — degrees, `-180..180`, measured about the node's **top-left corner**, independent
+  of the node's position.
+  <https://developers.figma.com/docs/plugins/api/properties/nodes-rotation/>
 
 ### Restore mechanics
 
@@ -130,6 +143,11 @@ consult the live docs — never invent API shape from memory.**
 - **`documentAccess: "dynamic-page"`** (set in the manifest): **always `figma.getNodeByIdAsync`**,
   never the synchronous `getNodeById` (which throws under dynamic-page). Traversal and any node
   lookup are async.
+- **Load the current page before traversal.** Under dynamic-page, `PageNode.findAllWithCriteria()`
+  (and the other find methods) throw unless the page is loaded — `await figma.currentPage.loadAsync()`
+  first. Do **not** reach for `figma.loadAllPagesAsync()` for single-page work; that is for
+  cross-page traversal / `documentchange` and forces a full-document load.
+  <https://developers.figma.com/docs/plugins/migrating-to-dynamic-loading/>
 - **`setPluginData(key, value)`**: string values only. The **entire entry (pluginId + key + value)
   cannot exceed 100 kB** — and this limit is now actively enforced (since ~March 2025). Budget
   per-node keys accordingly.

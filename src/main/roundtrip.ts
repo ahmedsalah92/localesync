@@ -1,11 +1,13 @@
 // src/main/roundtrip.ts  (main thread; dev-only scaffold for the __test:roundtrip command)
 //
-// LS-2 transport-conformance harness, main side. Registers a handler for every UiToMain type that
+// LS-2 transport-conformance harness, main side. Registers a handler for every UiToMain type it
+// still owns — scan-request is superseded by the real LS-3 traversal handler (registered first in
+// main.ts), which answers the roundtrip's scan probe with a genuine scan-result. Each handler
 // deep-equals the inbound message against its canonical fixture (payload only — the id is minted
-// UI-side) and reports the outcome on the typed channel: the three request types answer with their
-// *-result fixture (correlated by id); the six commands answer with a `progress` (pass) or `error`
-// (fail). Receipt of the last command additionally emits the five MainToUi fixtures verbatim so the
-// UI can assert the main→UI direction for every result/notification type.
+// UI-side) and reports the outcome on the typed channel: the two remaining request types answer
+// with their *-result fixture (correlated by id); the six commands answer with a `progress` (pass)
+// or `error` (fail). Receipt of the last command additionally emits the five MainToUi fixtures
+// verbatim so the UI can assert the main→UI direction for every result/notification type.
 //
 // This is scaffolding only — real feature handlers (LS-3+) replace these registrations. It is never
 // exercised by Vitest (no `figma` runtime); run it via `npm run dev` and the UI's dev-only button.
@@ -68,10 +70,8 @@ export function registerRoundtrip(): void {
 	};
 
 	// Requests: answer with the matching *-result fixture (respond() attaches the request id).
-	on('scan-request', (msg) => {
-		if (matches('scan-request', msg)) respond<'scan-request'>(msg.id, scanResult);
-		else send(fail(msg.id, 'mismatch:scan-request'));
-	});
+	// scan-request is deliberately absent — the LS-3 handler owns it; a second registration here
+	// would double-answer every real scan.
 	on('extraction-request', (msg) => {
 		if (matches('extraction-request', msg)) respond<'extraction-request'>(msg.id, extractionResult);
 		else send(fail(msg.id, 'mismatch:extraction-request'));

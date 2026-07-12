@@ -15,5 +15,8 @@
     "outDir": "./node_modules/.tmp/tsc"
   },
   "include": ["**/*.ts"],
+  // Same guardrail as src/common: vitest's type graph assumes Node/DOM ambients this main-thread
+  // build must not see. Vitest still runs these (npm test); ESLint types them via projectService.
+  "exclude": ["**/*.test.ts"],
   "references": [{ "path": "../common" }]
 }

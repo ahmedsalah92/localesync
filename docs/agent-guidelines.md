@@ -17,7 +17,7 @@ this file win.
 
 The build is a solution-style root `tsconfig.json` (`files: []`, project references only) over
 three composite projects. The split is a guardrail, not organization for its own sake — it turns
-environment mistakes into compile errors instead of runtime crashes.
+environment mistakes into compile errors insteaVd of runtime crashes.
 
 | Project | Environment | `lib` | `types` | Consumed by |
 |---|---|---|---|---|
@@ -106,11 +106,20 @@ consult the live docs — never invent API shape from memory.**
 
 ### Text resize & truncation
 
-- **`textAutoResize`**: `"WIDTH_AND_HEIGHT"` | `"HEIGHT"` | `"NONE"`. A fourth value `"TRUNCATE"`
-  is **deprecated** and will be removed — **read and preserve it if found, never write it**
-  (prefer `textTruncation`).
+- **`textAutoResize`**: `"WIDTH_AND_HEIGHT"` | `"HEIGHT"` | `"NONE"` | `"TRUNCATE"`. `"TRUNCATE"` is
+  **deprecated for writing but live on read** — a fixed-size node with truncation enabled reports
+  `textAutoResize === "TRUNCATE"` on current Figma, not `"NONE"`. This is not a legacy-file
+  artifact. **Any exhaustive switch on `textAutoResize` must handle four values**, or fixed-size
+  truncating nodes fall through. Read and preserve it; never write it (prefer `textTruncation`).
+  *(Verified live 2026-07-23 against `fixtures/kitchen-sink.fig` row `truncating`.)*
 - **`textTruncation`**: `"DISABLED"` | `"ENDING"`.
-- **`maxLines`**: `number >= 1` | `null`. Meaningful **only when `textTruncation === "ENDING"`**.
+- **`maxLines`**: `number >= 1` | `null`. Meaningful only when `textTruncation === "ENDING"` — and
+  **settable only when resizing is auto-height or auto-width** (or hug, for text in auto-layout
+  frames). On a fixed-size node Figma hides the Max lines field and **silently rejects an API
+  write**, leaving `maxLines === null`. So fixed-size truncation is a box-clip trigger with no line
+  cap; `maxLines` truncation requires a growing node. Overflow verdicts must treat these as two
+  distinct paths. *(Figma docs: "Explore text properties" → Text truncation and max lines.
+  Verified live 2026-07-23.)*
 - **`maxHeight` is a second truncation trigger.** With `textAutoResize` `"NONE"`, text truncates
   when the fixed size is smaller than the content. With `"HEIGHT"` or `"WIDTH_AND_HEIGHT"`,
   truncation occurs **only in conjunction with `maxHeight` or `maxLines`**. Overflow measurement
@@ -137,6 +146,9 @@ consult the live docs — never invent API shape from memory.**
   `textAutoResize` *after* any resize, or avoid resizing a node whose original mode was not
   `"NONE"` — restoring the mode alone re-derives the box. Byte-identical restore depends on
   getting this order right.
+- **Figma floors node dimensions at 0.01 px.** `resize`/`resizeWithoutConstraints` will not produce
+  an exact 0, and the stored float32 lands marginally under (`0.009999999776482582`). Zero-size
+  comparisons must use a `<= 0.01` tolerance, never `=== 0`.
 
 ### Document access & storage
 

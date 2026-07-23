@@ -40,7 +40,9 @@ const golden: GoldenRow[] = [
 	},
 	{ label: 'auto-height', expected: { textAutoResize: 'HEIGHT' } },
 	{ label: 'fixed', expected: { textAutoResize: 'NONE' } },
-	{ label: 'truncating', expected: { textTruncation: 'ENDING', maxLines: 2 } },
+	// Fixed size + truncation reports the deprecated TRUNCATE mode; live-observed, not legacy-file only.
+	{ label: 'truncating', expected: { textAutoResize: 'TRUNCATE', textTruncation: 'ENDING', maxLines: null } },
+	{ label: 'truncating-maxlines', expected: { textAutoResize: 'HEIGHT', textTruncation: 'ENDING', maxLines: 2 } },
 	{ label: 'autolayout-maxheight', expected: { maxHeight: 80 } },
 	{
 		label: 'mixed-font',
@@ -55,7 +57,8 @@ const golden: GoldenRow[] = [
 	{
 		label: 'zero-size',
 		extra: (model) =>
-			model.ownBounds === null || model.ownBounds.width === 0 || model.ownBounds.height === 0
+			// Figma floors resize at 0.01; exact 0 is unauthorable
+			model.ownBounds === null || model.ownBounds.width <= 0.01 || model.ownBounds.height <= 0.01
 				? []
 				: [`ownBounds=${JSON.stringify(model.ownBounds)} (expected null or zero-sized)`],
 	},

@@ -171,7 +171,8 @@ above, per §6 — never hand-typed independently).
 | `auto-width` | `textAutoResize: WIDTH_AND_HEIGHT`, single font, plain frame | `textAutoResize: 'WIDTH_AND_HEIGHT'`, `isMixedFont: false`, `hasMissingFont: false`, `inInstance: false`, `hidden: false`, `locked: false` |
 | `auto-height` | `HEIGHT`, fixed width | `textAutoResize: 'HEIGHT'` |
 | `fixed` | `NONE` | `textAutoResize: 'NONE'` |
-| `truncating` | `NONE`, `textTruncation: ENDING`, `maxLines: 2` | `textTruncation: 'ENDING'`, `maxLines: 2` (raw, uninterpreted) |
+| `truncating` | fixed size, `textTruncation: ENDING` | `textAutoResize: 'TRUNCATE'` (live-observed: fixed size + truncation reports the deprecated TRUNCATE mode, not just legacy files), `textTruncation: 'ENDING'`, `maxLines: null` (Max lines is only exposed when truncation is enabled AND resizing is auto-height/auto-width — hug in auto-layout; unavailable on fixed size, so the write is rejected) |
+| `truncating-maxlines` | `HEIGHT`, `textTruncation: ENDING`, `maxLines: 2` | `textAutoResize: 'HEIGHT'`, `textTruncation: 'ENDING'`, `maxLines: 2` (raw, uninterpreted) |
 | `autolayout-maxheight` | direct child of an auto-layout frame, `HEIGHT`, `maxHeight: 80` | `maxHeight: 80` (raw) |
 | `mixed-font` | two fonts in one node | `isMixedFont: true`, `fonts.length >= 2` |
 | `missing-font` | references an unavailable font | `hasMissingFont: true`; present in output (not dropped), never mutated |

@@ -4,8 +4,9 @@
 //   1. sends a page-scoped scan-request over the real bridge — the LS-3 handler answers it, and
 //      the main-side check (src/main/traversal/check.ts) piggybacks on the same message;
 //   2. asserts the DTO-visible slice of the golden set on the scan-result (rows matched by
-//      `characters` — fixture convention: each labelled node's characters equal its label; the
-//      `empty` row is the single empty:true node);
+//      `containerLabel` — the wire DTO carries no layer name, but generateKitchenSink names each
+//      row's wrapping frame after its label, so the nearest-named-ancestor label always contains
+//      it; `characters` is descriptive lorem text on most rows and cannot be used to match);
 //   3. relays the main-side per-label 'ls3:…' progress notes to the console;
 //   4. after 'ls3:done' (the main check ends with the selection cleared), asserts the wire-level
 //      no-selection error with a selection-scoped request.
@@ -82,9 +83,9 @@ export async function runTraversalCheck(): Promise<void> {
 		const scan = await request('scan-request', { scope: 'page' });
 		log(scan.type === 'scan-result', 'scan-request → scan-result');
 		const rows = scan.nodes;
-		if (rows.some((row) => row.characters === 'auto-width')) {
+		if (rows.some((row) => row.containerLabel.includes('auto-width'))) {
 			for (const { label, expected } of dtoGolden) {
-				const row = rows.find((r) => r.characters === label);
+				const row = rows.find((r) => r.containerLabel.includes(label));
 				if (!row) {
 					log(false, `dto ${label}`, 'row missing from scan-result');
 					continue;

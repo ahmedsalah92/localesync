@@ -1,5 +1,6 @@
 // src/ui/App.tsx
 import { runRoundtrip } from './roundtrip';
+import { runSnapshotCheck } from './snapshot-check';
 import { runTraversalCheck } from './traversal-check';
 
 export default function App() {
@@ -21,6 +22,13 @@ export default function App() {
 						style={{ display: 'block', marginTop: 8 }}
 					>
 						__test:traversal
+					</button>
+					<button
+						type="button"
+						onClick={() => void runSnapshotCheck()}
+						style={{ display: 'block', marginTop: 8 }}
+					>
+						Run LS-4 snapshot check
 					</button>
 				</>
 			)}

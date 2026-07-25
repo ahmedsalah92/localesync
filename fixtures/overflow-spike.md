@@ -81,9 +81,10 @@ the `kitchen-sink.md` procedure (author with a font you then make unavailable), 
 
 ## Done when
 
-- [ ] All buildable rows exist, named exactly per the table, plus the manual `missing-font` row.
-- [ ] **Run LS-7 overflow spike** reports PASS for every present row (SKIP allowed only for rows
-      deliberately not built).
+- [x] All buildable rows exist, named exactly per the table, plus the manual `missing-font` row.
+      *(Proven by the run: `missing-font` returned `unmeasurable`, so the row is real.)*
+- [x] **Run LS-7 overflow spike** reports PASS for every present row — run 3: 14 PASS, 0 FAIL,
+      0 SKIP (2026-07-25).
 - [ ] README frame filled in (missing-font family; truncate-rows-report-TRUNCATE answer; date).
-- [ ] Verdicts and observations recorded in `docs/specs/LS-7.md` §6.
-- [ ] File saved to `fixtures/` (or shared-Figma link recorded in `fixtures/README.md`).
+- [x] Verdicts and observations recorded in `docs/specs/LS-7.md` §6.
+- [x] Shared-Figma link recorded in `fixtures/README.md`.

@@ -20,5 +20,7 @@ Total: 1500 (the generator counts the real total via `findAllWithCriteria` and l
 ## Done when
 
 - [ ] Generator run reports ≈1500 text nodes (anything in 1–2k passes the LS-17 criterion).
-- [ ] File saved and its location recorded in `fixtures/README.md`.
+      *(File exists but the node count was not captured — check the console line on the next run.)*
+- [ ] File renamed from "Untitled" to `large-file.fig`.
+- [x] File saved and its link recorded in `fixtures/README.md`.
 - [ ] LS-15 uses it for scan/measure benchmarking (its acceptance owns the timing targets).

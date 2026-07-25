@@ -173,7 +173,7 @@ async function restoreNodeProperties(node: TextNode, snapshot: TextNodeSnapshot)
 	} catch {
 		throw new SnapshotError('RESTORE_FAILED', node.id, 'Font unavailable at restore time');
 	}
-	applyRestorePlan(node, planRestore(snapshot));
+	applyRestorePlan(node, planRestore(snapshot, { inInstance: isInsideInstance(node) }));
 	node.setPluginData(SNAPSHOT_KEY, '');
 }
 
@@ -274,7 +274,7 @@ async function rollbackBatch(
 	const capturedIds = new Set(captured.map((entry) => entry.node.id));
 	for (const { node, snapshot } of captured) {
 		try {
-			applyRestorePlan(node, planRestore(snapshot));
+			applyRestorePlan(node, planRestore(snapshot, { inInstance: isInsideInstance(node) }));
 			node.setPluginData(SNAPSHOT_KEY, '');
 		} catch (restoreErr) {
 			console.warn(`[snapshot] rollback failed for ${node.id}: ${String(restoreErr)}`);
@@ -372,7 +372,7 @@ export function registerCloseHandler(): void {
 	figma.on('close', () => {
 		for (const { node, snapshot } of liveMutations.values()) {
 			try {
-				applyRestorePlan(node, planRestore(snapshot));
+				applyRestorePlan(node, planRestore(snapshot, { inInstance: isInsideInstance(node) }));
 			} catch {
 				// best-effort only — restore-on-launch is the durable recovery path
 			}

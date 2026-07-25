@@ -30,6 +30,24 @@ export default function App() {
 					>
 						Run LS-4 snapshot check
 					</button>
+					{/* Dev scaffold: raw postMessage of a `__dev:` sentinel intercepted by main.ts's
+					    onmessage wrapper. Intentionally bypasses the typed bridge — not feature code. */}
+					<button
+						type="button"
+						onClick={() =>
+							parent.postMessage({ pluginMessage: { type: '__dev:generate-snapshot-restore' } }, '*')
+						}
+						style={{ display: 'block', marginTop: 8 }}
+					>
+						Generate snapshot-restore
+					</button>
+					<button
+						type="button"
+						onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:apply-batch-leave' } }, '*')}
+						style={{ display: 'block', marginTop: 8 }}
+					>
+						Apply batch (leave applied)
+					</button>
 				</>
 			)}
 		</div>

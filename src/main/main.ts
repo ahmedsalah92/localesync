@@ -1,3 +1,5 @@
+import { applyBatchLeave } from './devtools/applyBatchLeave';
+import { generateSnapshotRestore } from './devtools/generateSnapshotRestore';
 import { registerRoundtrip } from './roundtrip';
 import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
@@ -28,5 +30,46 @@ export default async function () {
 	if (import.meta.env.DEV) {
 		registerTraversalCheck();
 		registerSnapshotCheck();
+
+		// Dev-only harness hooks. bridge.ts claims the single `figma.ui.onmessage` slot at module load
+		// (before this function body runs), so we wrap it here: intercept the `__dev:` sentinels, then
+		// delegate everything else to the bridge. This avoids a 15th message type — the union is frozen
+		// at 14 by messages.test.ts, and the bridge would drop these sentinels as non-conforming anyway.
+		// The `__dev:` prefix marks scaffolding Vite strips from production builds.
+		const bridgeHandler = figma.ui.onmessage;
+		figma.ui.onmessage = (message: unknown, props) => {
+			const devType =
+				typeof message === 'object' && message !== null ? (message as { type?: unknown }).type : undefined;
+
+			if (devType === '__dev:generate-snapshot-restore') {
+				void generateSnapshotRestore()
+					.then((report) => {
+						console.log(`[dev] generateSnapshotRestore: created ${report.created.length} node(s)`, report.created);
+						console.log('[dev] manual steps remaining:', report.manualSteps);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] generateSnapshotRestore failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:apply-batch-leave') {
+				void applyBatchLeave()
+					.then((batch) => {
+						console.log(
+							`[dev] applyBatchLeave: applied ${batch.succeeded.length} node(s) (left on canvas), blocked ${batch.blocked.length}, failed ${batch.failed.length}. ` +
+								'Now press Cmd-Z ONCE — the whole batch should revert as a single undo step. Reload the plugin to clear the durable record before saving.',
+						);
+					})
+					.catch((err: unknown) => {
+						console.error(`[dev] applyBatchLeave failed: ${err instanceof Error ? err.message : String(err)}`);
+					});
+				return;
+			}
+
+			bridgeHandler?.(message, props);
+		};
 	}
 }

@@ -1,5 +1,8 @@
 import { applyBatchLeave } from './devtools/applyBatchLeave';
+import { generateLargeFile } from './devtools/generateLargeFile';
+import { generateOverflowSpike } from './devtools/generateOverflowSpike';
 import { generateSnapshotRestore } from './devtools/generateSnapshotRestore';
+import { runOverflowSpike } from './devtools/overflowSpike';
 import { registerRoundtrip } from './roundtrip';
 import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
@@ -52,6 +55,40 @@ export default async function () {
 							`[dev] generateSnapshotRestore failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
+				return;
+			}
+
+			if (devType === '__dev:generate-overflow-spike') {
+				void generateOverflowSpike()
+					.then((report) => {
+						console.log(`[dev] generateOverflowSpike: created ${report.created.length} node(s)`, report.created);
+						console.log('[dev] manual steps remaining:', report.manualSteps);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] generateOverflowSpike failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:generate-large-file') {
+				void generateLargeFile()
+					.then((report) => {
+						console.log(
+							`[dev] generateLargeFile: ${report.totalTextNodes} text nodes across ${report.frames} frames + ${report.instances} instances. Save as fixtures/large-file.fig.`,
+						);
+					})
+					.catch((err: unknown) => {
+						console.error(`[dev] generateLargeFile failed: ${err instanceof Error ? err.message : String(err)}`);
+					});
+				return;
+			}
+
+			if (devType === '__dev:run-overflow-spike') {
+				void runOverflowSpike().catch((err: unknown) => {
+					console.error(`[dev] runOverflowSpike failed: ${err instanceof Error ? err.message : String(err)}`);
+				});
 				return;
 			}
 

@@ -48,6 +48,29 @@ export default function App() {
 					>
 						Apply batch (leave applied)
 					</button>
+					<button
+						type="button"
+						onClick={() =>
+							parent.postMessage({ pluginMessage: { type: '__dev:generate-overflow-spike' } }, '*')
+						}
+						style={{ display: 'block', marginTop: 8 }}
+					>
+						Generate overflow-spike
+					</button>
+					<button
+						type="button"
+						onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:run-overflow-spike' } }, '*')}
+						style={{ display: 'block', marginTop: 8 }}
+					>
+						Run LS-7 overflow spike
+					</button>
+					<button
+						type="button"
+						onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:generate-large-file' } }, '*')}
+						style={{ display: 'block', marginTop: 8 }}
+					>
+						Generate large-file
+					</button>
 				</>
 			)}
 		</div>

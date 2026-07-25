@@ -64,9 +64,17 @@ export function removeFromManifest(base: Manifest, nodeIds: readonly string[]): 
  *    NONE / HEIGHT       → resize THEN set mode (re-derive the box, then re-assert the mode);
  *    WIDTH_AND_HEIGHT    → set mode only (the box re-derives; a resize would be overwritten);
  *    TRUNCATE (legacy)   → neither (the mode cannot be written back; characters restore suffices).
- *  maxLines is emitted only when the captured truncation is 'ENDING'. */
-export function planRestore(snapshot: TextNodeSnapshot): RestoreStep[] {
+ *  maxLines is emitted only when the captured truncation is 'ENDING'.
+ *
+ *  `inInstance` short-circuits to characters-only: an instance child is eligible ONLY for the
+ *  char-writing ops (the eligibility table above blocks the layout op on `inInstance`), so
+ *  `characters` is the only property those ops can change on one. Geometry/layout writes (x/y,
+ *  resize, textAutoResize) throw "cannot be overridden in an instance", and every non-character
+ *  captured value is provably unchanged — so we neither can nor need to restore them. If a future op
+ *  gains an overridable instance property, expand this per the §9 uncaptured-property note. */
+export function planRestore(snapshot: TextNodeSnapshot, opts: { inInstance?: boolean } = {}): RestoreStep[] {
 	const steps: RestoreStep[] = [{ kind: 'set-characters', characters: snapshot.characters }];
+	if (opts.inInstance) return steps;
 
 	switch (snapshot.textAutoResize) {
 		case 'NONE':

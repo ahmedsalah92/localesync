@@ -176,4 +176,19 @@ describe('planRestore — per-mode step sequence (Resolved Defaults §3)', () =>
 		expect(steps[steps.length - 2]).toEqual({ kind: 'set-position', x: 7, y: 9 });
 		expect(steps[steps.length - 1]).toEqual({ kind: 'set-align', horizontal: 'RIGHT', vertical: 'CENTER' });
 	});
+
+	it('inInstance → characters ONLY (geometry/layout is not overridable on an instance child)', () => {
+		// Any op reaching an instance child is a char-writing op (the layout op is blocked on
+		// `inInstance`), so `characters` is the only property that can differ. Writing x/y/resize would
+		// throw "cannot be overridden in an instance" and restore nothing that changed.
+		const steps = planRestore(makeSnapshot({ textAutoResize: 'NONE', textTruncation: 'ENDING', maxLines: 2 }), {
+			inInstance: true,
+		});
+		expect(steps).toEqual([{ kind: 'set-characters', characters: 'Hello' }]);
+	});
+
+	it('inInstance:false is the default and restores the full property set', () => {
+		expect(kinds(planRestore(makeSnapshot({ textAutoResize: 'NONE' }), { inInstance: false }))).toContain('set-position');
+		expect(kinds(planRestore(makeSnapshot({ textAutoResize: 'NONE' })))).toContain('set-position');
+	});
 });

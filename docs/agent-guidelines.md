@@ -112,6 +112,11 @@ consult the live docs — never invent API shape from memory.**
   artifact. **Any exhaustive switch on `textAutoResize` must handle four values**, or fixed-size
   truncating nodes fall through. Read and preserve it; never write it (prefer `textTruncation`).
   *(Verified live 2026-07-23 against `fixtures/kitchen-sink.fig` row `truncating`.)*
+  **Deprecation is now announced on read:** current Figma logs *"`textAutoResize` will stop
+  returning `TRUNCATE` in a future version — read from `textTruncation` instead."* Branch on
+  `textTruncation === 'ENDING'` for truncation semantics and treat `TRUNCATE` as `NONE` + ENDING
+  internally, so the eventual removal is a no-op. *(Observed live 2026-07-25, LS-7 spike run —
+  LS-7.md §6.)*
 - **`textTruncation`**: `"DISABLED"` | `"ENDING"`.
 - **`maxLines`**: `number >= 1` | `null`. Meaningful only when `textTruncation === "ENDING"` — and
   **settable only when resizing is auto-height or auto-width** (or hug, for text in auto-layout
@@ -127,6 +132,15 @@ consult the live docs — never invent API shape from memory.**
 - **`TextNode.maxHeight`** — `number | null`; readable on any text node, but "applicable only to
   auto-layout frames and their direct children", so it is populated only for auto-layout children.
   <https://developers.figma.com/docs/plugins/api/TextNode/>
+  **The "auto-layout only" restriction governs the *write*, not the *enforcement*:** a set
+  `maxHeight` keeps capping auto-height growth after the node leaves auto-layout — a `clone()` of
+  an auto-layout child parented to the page still stops at exactly `maxHeight`. **Clearing it
+  (`maxHeight = null`) off auto-layout is silently rejected** — like the `maxLines` reject
+  above: LS-7 run 3 still measured exactly `maxHeight` after the null write plus a forced
+  characters-rewrite re-layout. Cap detection must therefore be binding-agnostic: content
+  height *reaching* `maxHeight` ⇒ the cap is active — never rely on observing uncapped growth.
+  *(Verified live 2026-07-25 against `fixtures/overflow-spike.fig` row `autoheight-maxheight` —
+  LS-7.md §6.)*
 
 ### Node geometry & hierarchy
 

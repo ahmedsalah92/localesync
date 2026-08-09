@@ -8,6 +8,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "check:docs": "node scripts/check-doc-twins.mjs",
     "vitest": "npx vitest",
     "test": "vitest run"
   },

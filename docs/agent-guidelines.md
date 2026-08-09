@@ -65,7 +65,7 @@ src/main/traversal/        LS-3  scene-graph traversal + text-node model        
 src/main/snapshot/         LS-4  font-load + snapshot/restore primitive             (new)
 src/ui/ui.tsx                    UI iframe entry (Plugma)
 src/ui/App.tsx                   root React component
-src/ui/styles.css                design-token source of truth (see §7)
+src/ui/styles.css                UI3 token alias layer — names only, no values (see §7)
 src/ui/shell/              LS-5  UI shell + design system                           (new)
 src/ui/export/             LS-6  export serializers (JSON / iOS / Android)          (new)
 fixtures/                        test fixtures (.json generatable, .fig human-built)(new)
@@ -106,17 +106,27 @@ consult the live docs — never invent API shape from memory.**
 
 ### Text resize & truncation
 
-- **`textAutoResize`**: `"WIDTH_AND_HEIGHT"` | `"HEIGHT"` | `"NONE"` | `"TRUNCATE"`. `"TRUNCATE"` is
-  **deprecated for writing but live on read** — a fixed-size node with truncation enabled reports
-  `textAutoResize === "TRUNCATE"` on current Figma, not `"NONE"`. This is not a legacy-file
-  artifact. **Any exhaustive switch on `textAutoResize` must handle four values**, or fixed-size
-  truncating nodes fall through. Read and preserve it; never write it (prefer `textTruncation`).
-  *(Verified live 2026-07-23 against `fixtures/kitchen-sink.fig` row `truncating`.)*
-  **Deprecation is now announced on read:** current Figma logs *"`textAutoResize` will stop
-  returning `TRUNCATE` in a future version — read from `textTruncation` instead."* Branch on
-  `textTruncation === 'ENDING'` for truncation semantics and treat `TRUNCATE` as `NONE` + ENDING
-  internally, so the eventual removal is a no-op. *(Observed live 2026-07-25, LS-7 spike run —
+- **`textAutoResize` has four live values**: `"WIDTH_AND_HEIGHT"` | `"HEIGHT"` | `"NONE"` |
+  `"TRUNCATE"`. **`"TRUNCATE"` is encountered in real files** — a fixed-size node with truncation
+  enabled reports `textAutoResize === "TRUNCATE"` on current Figma, not `"NONE"`. This is not a
+  legacy-file artifact. **Any exhaustive switch on `textAutoResize` must handle four values**, or
+  fixed-size truncating nodes fall through.
+  **`TRUNCATE` measurement mechanics are identical to `NONE`** (unlock the box so content determines
+  size), **but the verdict differs**: `truncates` rather than `overflows`, because the user has
+  truncation enabled — the content would be ellipsized, not clipped silently. An implementation may
+  normalise the mode internally, but it must not normalise the *verdict*. See `docs/specs/LS-7.md`
+  §1–§2 for the per-mode rules. *(§6 of that document states the normalisation more loosely —
+  "treat `TRUNCATE` as `NONE` + ENDING internally" — without the verdict caveat; §1–§2 govern.)*
+  *(Verified live 2026-07-23 against `fixtures/kitchen-sink.fig` row `truncating`, and 2026-07-25
+  against `fixtures/overflow-spike.fig` rows `truncate-fits` / `truncate-overflows` — both pass,
   LS-7.md §6.)*
+  **Writing:** set truncation via `textTruncation = 'ENDING'` on a fixed-size node and Figma derives
+  the reported `TRUNCATE` mode itself — that is the write path the LS-7 fixture generator uses.
+  Read truncation *semantics* from `textTruncation`, and the resize mode from `textAutoResize`.
+  *(Current Figma also logs a notice on the read path — "`textAutoResize` will stop returning
+  `TRUNCATE` in a future version — read from `textTruncation` instead." Observed live 2026-07-25,
+  LS-7 spike run. It is a forward-compatibility notice on how to read truncation state; it does not
+  make `TRUNCATE` absent today, and the four-mode handling above stands.)*
 - **`textTruncation`**: `"DISABLED"` | `"ENDING"`.
 - **`maxLines`**: `number >= 1` | `null`. Meaningful only when `textTruncation === "ENDING"` — and
   **settable only when resizing is auto-height or auto-width** (or hug, for text in auto-layout
@@ -220,6 +230,27 @@ correlation id, no raw `postMessage` in feature code) are in §3; these are the 
 
 ---
 
+## 3. Message bridge (LS-2)
+
+The *conventions* over the transport. The raw `postMessage` API facts are in §2 → *Message bridge
+transport (LS-2)*.
+
+- All `main` ↔ `ui` traffic goes through the shared **discriminated union** in
+  `src/common/messages.ts`, keyed on `type`, with a **correlation id** on request/response pairs so
+  the UI can match async results.
+- Thin typed `send` / `on` wrappers on each side. **No raw `postMessage` in feature code** — a
+  wrong-shaped message must be a compile error, not a runtime surprise.
+- **Carve-out — overflow-scan payloads use `targetLanguages: string[]`, never a scalar
+  `targetLanguage: string`.** Phase 1 scans one language per pass, but the free/paid boundary is
+  moving toward all-languages-free detection (brief v3.2). The plural shape lets that land without a
+  breaking contract change. Shape it plural now even though the first implementation passes a
+  single-element array.
+- **The union is frozen by test.** `messages.test.ts` asserts the fixture count equals the union's
+  member count, so a new message type cannot be added silently. Adding one is a contract change
+  requiring explicit approval, not a developer's judgement call.
+
+---
+
 ## 4. Contracts rule — reference, never redefine
 
 The mechanism that keeps specs consistent across chats:
@@ -277,18 +308,48 @@ missing-font policy (skip + flag), the instance-mutation policy, and the undo-st
 
 ---
 
-## 7. Brand tokens
+## 7. Design tokens — two systems, one boundary
 
-- **Typefaces:** Bricolage Grotesque (display / headings), Hanken Grotesk (body / UI text),
-  JetBrains Mono (keys, code, exported strings, measurements).
-- **Palette token names:** `--canvas`, `--ink`, `--selection`, `--overflow`. These are
-  **provisional** and may change during the DES-1 design pass — especially the colors.
-- **`src/ui/styles.css` is the single source of truth for token *values*.** Code and specs
-  reference token **names** only — never hex literals, anywhere. A token change must be a one-file
-  edit to `styles.css` with nothing to chase elsewhere. (This is why no hex values appear in this
-  document.)
-- The brand tokens are not yet in `styles.css` (it currently holds Plugma defaults) — they're
-  populated in the LS-5 shell work.
+**The plugin surface is UI3.** UI3 is Figma's official design language. Colors, controls,
+typography, icons, badges, density — if it is drivable from UI3, it comes from UI3. This is an
+architectural decision, not a style preference.
+
+**The Clipped Bar brand is separate.** Space Grotesk (display), Inter (UI/body), and the
+Marigold / Charcoal / Cream / Slate palette apply to the logo, marketing site, and brand assets.
+They do **not** apply to plugin chrome. The one exception on the plugin surface is the plugin's own
+mark and name in the header: identity, not chrome.
+
+**Token values come from UI3 and are bound, never copied.** Bind `--figma-color-*` CSS variables.
+**No hex literals anywhere in the plugin surface.** Dark mode is in for Phase 1 *only because the
+variables are bound* — a pasted hex breaks it silently and still looks correct to anyone developing
+in light theme.
+
+**One recorded exception to the no-hex rule**, and it stays a closed set of one: the mirrored
+`Tooltip` on the jump affordance carries literal fill, radius, type and shadow values because the
+UI3 `Tooltip` set is **unpublished** and cannot be instanced — neither `importComponentSetByKeyAsync`
+nor `importComponentByKeyAsync` resolves it. It is mirrored exactly, not approximated, and it is the
+only thing on the surface that will not track a UI3 update; swap it for the real instance if Figma
+publishes the set. *(Rationale and the mirrored values: `design.md` → Jump affordance.)* A new hex
+literal is a defect, not a precedent — anything else needing one is a question for the design pass,
+not a judgement call at the keyboard.
+
+**`src/ui/styles.css` is a thin alias layer.** It maps UI3 variable names to local names and holds
+**no values of its own**. Feature code references local names; the alias file is the single place to
+edit if UI3 renames a token. This preserves the reference-names-never-values discipline under the
+new model.
+
+**Semantic vocabulary in use** (roles and rationale in `design.md`): backgrounds `bg/default`,
+`bg/selected`, `bg/secondary`, `bg/info/default`, `bg/brand`; text `text/default`, `text/secondary`,
+`text/tertiary`, `text/brand`, `text/warning`, `text/danger`, `text/onbrand`; icons
+`icon/secondary`, `icon/success`, `icon/warning`, `icon/danger`, `icon/tertiary`; borders
+`border/default`, `border/menu`, `border/selected-strong`.
+
+**Severity ramp:** `icon/success` fits · `icon/warning` clips · `icon/danger` overflows ·
+`icon/tertiary` un-measurable. Green→amber→red is ordinal, carrying rank by hue; grey sits outside
+the ramp because un-measurable is an absence of measurement, not a severity.
+
+**No custom icons, and no typographic glyphs standing in for icons** (`▾`, `›`, `✕`) — a glyph is a
+custom icon wearing a font. Use UI3 icon components. If UI3 has no icon for the job, use no icon.
 
 ---
 

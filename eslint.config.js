@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import globals from 'globals';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 import tsParser from '@typescript-eslint/parser';
@@ -24,6 +25,16 @@ export default defineConfig([
 				},
 				tsconfigRootDir: import.meta.dirname,
 			},
+		},
+	},
+
+	// Standalone repo scripts — plain Node ESM, deliberately outside the three composite TS
+	// projects, so the typed project service does not apply to them.
+	{
+		files: ['scripts/**/*.mjs'],
+		languageOptions: {
+			parserOptions: { projectService: false },
+			globals: globals.node,
 		},
 	},
 

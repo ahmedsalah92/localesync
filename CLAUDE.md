@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+<!-- Mirrored verbatim in AGENTS.md (read by non-Claude agent harnesses). Any edit here must be applied there. Only the H1 differs. -->
+
 LocaleSync is a Figma plugin for localization QA and developer string handoff. Phase 1 is free
 and client-only (no backend): scene-graph traversal, a snapshot/restore primitive, overflow
 detection (the hero feature), pseudo-localization, RTL mirroring, in-canvas preview, and
@@ -40,7 +42,7 @@ src/main/traversal/        LS-3  scene-graph traversal + text-node model
 src/main/snapshot/         LS-4  font-load + snapshot/restore primitive (human review before merge)
 src/ui/ui.tsx                    UI iframe entry
 src/ui/App.tsx                   root React component
-src/ui/styles.css                design-token source of truth (reference names, never hex)
+src/ui/styles.css                UI3 token alias layer — names only, no values (see agent-guidelines.md §7)
 src/ui/shell/              LS-5  UI shell + design system
 src/ui/export/             LS-6  export serializers
 fixtures/                        test fixtures (.json generatable, .fig human-built)

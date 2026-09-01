@@ -338,6 +338,23 @@ not a judgement call at the keyboard.
 edit if UI3 renames a token. This preserves the reference-names-never-values discipline under the
 new model.
 
+**The alias layer covers type and spacing, not only colour.** UI3's text styles are importable and
+the surface references them rather than raw font sizes: `body/body.medium`, `body/body.medium.strong`,
+`body/body.large`, `heading/heading.small`, `body/body.small`. This is not cosmetic bookkeeping —
+the styles carry letter-spacing (+0.5% at 11px, −0.25% at 13px) that a raw numeric size silently
+drops, so a hand-set `font-size` is visibly wrong even when the number matches. Spacing likewise
+resolves to UI3 `Spacers` (0 / 4 / 8 / 16 / 24 / 32 / 40); no 12px, 10px or 6px value belongs on the
+plugin surface.
+
+**UI3's type ramp is 9 / 11 / 13 / 15 — there is no 12px step.** Any spec calling for 12px text on
+the plugin surface is off-ramp and must be resolved to a real step before it is built. Where two
+lines of a row need hierarchy, both sit at 11px and the distinction is carried by weight and colour,
+the way Figma's own layer list does it — not by inventing an intermediate size.
+
+**One exception to the text-style rule: the mono i18n key.** UI3 ships a `font/family/mono` variable
+but **no mono text style**, so size and line-height for the mono key are set directly. This is a gap
+in the kit, not a licence — every other text element on the surface must reference a UI3 text style.
+
 **Semantic vocabulary in use** (roles and rationale in `design.md`): backgrounds `bg/default`,
 `bg/selected`, `bg/secondary`, `bg/info/default`, `bg/brand`; text `text/default`, `text/secondary`,
 `text/tertiary`, `text/brand`, `text/warning`, `text/danger`, `text/onbrand`; icons
@@ -350,6 +367,10 @@ the ramp because un-measurable is an absence of measurement, not a severity.
 
 **No custom icons, and no typographic glyphs standing in for icons** (`▾`, `›`, `✕`) — a glyph is a
 custom icon wearing a font. Use UI3 icon components. If UI3 has no icon for the job, use no icon.
+
+**Horizontal band rhythm is 40px.** Plugin header, tab bar, control bar and summary bar are all
+fixed 40px. Summary bars previously hugged their content and drifted 29–40px across shells; uniform
+40px is the rule now, and a band that hugs is a defect.
 
 ---
 

@@ -4,8 +4,9 @@
 // PASS/FAIL to the console:
 //   • main→UI — deep-equals each MainToUi fixture (echoed verbatim by main) against the canonical.
 //   • UI→main — sends each of the six commands; main reports pass/fail on the progress/error channel.
-//   • request/response — awaits the three request pairs; main also sends a decoy result with a
-//     non-matching id (must be ignored) before the real answer.
+//   • request/response — awaits the three request pairs. The scan and overflow pairs are answered
+//     by the real LS-3/LS-8 handlers (genuine results, type-only assertion); the extraction stub
+//     also sends a decoy result with a non-matching id (must be ignored) before the real answer.
 //   • guard-and-drop — dispatches malformed inbound window events; the bridge must drop them.
 //
 // Scaffolding only — never run by Vitest (needs a real Figma runtime). Invoke via the dev-only
@@ -57,7 +58,8 @@ export async function runRoundtrip(): Promise<void> {
 		const fixture = fixtures.find((m) => m.type === type);
 		on(type, (msg) => {
 			if (fixture && msg.id === fixture.id) log(deepEqual(msg, fixture), `main→ui ${type}`);
-			// A non-matching overflow id here is the intentional decoy — correctly ignored (no log).
+			// Non-matching ids are correctly ignored (no log): the extraction decoy, and the real
+			// LS-3/LS-8 answers to the request probes below (their ids are minted per request).
 		});
 	}
 
@@ -101,6 +103,8 @@ export async function runRoundtrip(): Promise<void> {
 		log(false, 'request extraction-request (unexpected reject)');
 	}
 	try {
+		// Answered by the real LS-8 handler: a genuine scan of the open page (read-only — it clones
+		// off-canvas), so assert the response type only, like the scan-request probe above.
 		const overflow = await request('overflow-scan-request', { scope: 'page', targetLanguages: ['de'] });
 		log(overflow.type === 'overflow-scan-result', 'request overflow-scan-request → overflow-scan-result');
 	} catch {

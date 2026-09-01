@@ -15,6 +15,7 @@ const ALL_TYPES = [
 	'revert-rtl-mirror',
 	'apply-preview',
 	'revert-preview',
+	'select-node',
 	'scan-result',
 	'extraction-result',
 	'overflow-scan-result',

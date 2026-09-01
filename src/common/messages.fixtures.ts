@@ -1,13 +1,13 @@
 // src/common/messages.fixtures.ts
 //
-// Exactly one canonical value per message type (all 14), each with a distinct `id`. The single
+// Exactly one canonical value per message type (all 15), each with a distinct `id`. The single
 // source of truth for "one of every type," shared by the pure unit tests (messages.test.ts) and
 // the in-Figma round-trip command (__test:roundtrip). Adding a message type without adding a
 // fixture here fails the coverage assertion in messages.test.ts.
 import type { AnyMessage } from './messages';
 
 export const fixtures: readonly AnyMessage[] = [
-	// ── UI → main (9) ──
+	// ── UI → main (10) ──
 	{ type: 'scan-request', id: 'fx-scan-request', scope: 'page' },
 	{ type: 'extraction-request', id: 'fx-extraction-request', scope: 'selection' },
 	{ type: 'overflow-scan-request', id: 'fx-overflow-scan-request', scope: 'page', targetLanguages: ['de'] },
@@ -26,6 +26,7 @@ export const fixtures: readonly AnyMessage[] = [
 		translations: { language: 'de', entries: [{ key: 'home.title', value: 'Startseite' }] },
 	},
 	{ type: 'revert-preview', id: 'fx-revert-preview' },
+	{ type: 'select-node', id: 'fx-select-node', nodeId: '1:2' },
 
 	// ── main → UI (5) ──
 	{
@@ -53,7 +54,20 @@ export const fixtures: readonly AnyMessage[] = [
 	{
 		type: 'overflow-scan-result',
 		id: 'fx-overflow-scan-result',
-		verdicts: [{ nodeId: '1:2', language: 'de', verdict: 'overflows', severity: 'error' }],
+		verdicts: [
+			{
+				nodeId: '1:2',
+				language: 'de',
+				verdict: 'overflows',
+				severity: 'error',
+				reason: 'exceeds-fixed-box',
+				characters: 'Save',
+				containerLabel: 'home / header',
+				candidate: 'SaveSaveSav',
+				measuredWidth: 86,
+				measuredHeight: 19,
+			},
+		],
 	},
 	{ type: 'progress', id: 'fx-progress', completed: 3, total: 3, note: 'done' },
 	{

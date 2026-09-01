@@ -31,14 +31,37 @@ export interface ExtractedString {
 	value: string;
 }
 
-// ── owned by LS-8 (overflow, post-LS-7) — expand here, do not fork ──
-// The `verdict` vocabulary is PROVISIONAL: it encodes the brief §4 per-mode definitions, but the
-// measurement spike (LS-7) and LS-8 tighten it. Widen/narrow this union HERE when LS-8 lands.
+// ── owned by LS-8 (overflow) — expand here, do not fork ──
+// Tightened when LS-8 landed: 'clips' dropped per LS-7 §1 (no user-actionable distinction from
+// 'overflows' in Phase 1). The three display fields (characters/containerLabel/candidate) make
+// `overflow-scan-result` self-sufficient — the panel renders a row without a prior scan-result.
+export type OverflowVerdictValue = 'fits' | 'overflows' | 'truncates' | 'unmeasurable';
+
+export type OverflowReason =
+	| 'missing-font'
+	| 'mixed-font-missing'
+	| 'empty'
+	| 'no-bounds' // unmeasurable paths
+	| 'unsupported-language' // CJK/Thai — refused, not measured (LS-8 §2)
+	| 'exceeds-fixed-box'
+	| 'truncated-fixed-box' // NONE / TRUNCATE
+	| 'maxLines-cap'
+	| 'maxHeight-cap' // growing-mode caps
+	| 'exceeds-container-height'
+	| 'parent-escape'
+	| 'no-container'; // container checks
+
 export interface OverflowVerdict {
 	nodeId: string;
 	language: string;
-	verdict: 'fits' | 'clips' | 'overflows' | 'truncates' | 'unmeasurable';
+	verdict: OverflowVerdictValue;
 	severity?: 'warn' | 'error';
+	reason?: OverflowReason;
+	characters: string; // source string, for the results row
+	containerLabel: string; // display path, for the results row
+	candidate: string; // the string actually measured
+	measuredWidth: number;
+	measuredHeight: number;
 }
 
 // ── owned by LS-4 (snapshot) — expand here, do not fork ──

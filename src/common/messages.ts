@@ -15,6 +15,7 @@ export type ErrorCode =
 	| 'no-text-nodes' // scope contained no eligible text nodes
 	| 'nodes-blocked' // op succeeded but some nodes were skipped; see `blocked` (warning severity)
 	| 'mutation-failed' // batch rolled back; nothing left mutated (LS-4 withSnapshot failure)
+	| 'node-gone' // select-node target deleted or not reachable on the current page
 	| 'internal'; // unexpected
 
 // Every message is an envelope: a `type` discriminant + a correlation `id`. Payload fields sit
@@ -48,6 +49,11 @@ export interface ApplyPreview extends Envelope<'apply-preview'> {
 	translations: PreviewMap;
 }
 export type RevertPreview = Envelope<'revert-preview'>;
+// Command, not request (no RequestResponse entry): failure is reported on `error` (`node-gone`),
+// correlated by id. Shared surface — LS-8's results panel and LS-9's extraction list both send it.
+export interface SelectNode extends Envelope<'select-node'> {
+	nodeId: string;
+}
 
 export type UiToMain =
 	| ScanRequest
@@ -58,7 +64,8 @@ export type UiToMain =
 	| ApplyRtlMirror
 	| RevertRtlMirror
 	| ApplyPreview
-	| RevertPreview;
+	| RevertPreview
+	| SelectNode;
 
 // ── main → UI ────────────────────────────────────────────────────────────────
 export interface ScanResult extends Envelope<'scan-result'> {
@@ -104,6 +111,7 @@ const UI_TO_MAIN_TYPES = [
 	'revert-rtl-mirror',
 	'apply-preview',
 	'revert-preview',
+	'select-node',
 ] as const;
 
 const MAIN_TO_UI_TYPES = ['scan-result', 'extraction-result', 'overflow-scan-result', 'progress', 'error'] as const;

@@ -1,13 +1,14 @@
 // src/main/roundtrip.ts  (main thread; dev-only scaffold for the __test:roundtrip command)
 //
 // LS-2 transport-conformance harness, main side. Registers a handler for every UiToMain type it
-// still owns — scan-request is superseded by the real LS-3 traversal handler (registered first in
-// main.ts), which answers the roundtrip's scan probe with a genuine scan-result. Each handler
-// deep-equals the inbound message against its canonical fixture (payload only — the id is minted
-// UI-side) and reports the outcome on the typed channel: the two remaining request types answer
-// with their *-result fixture (correlated by id); the six commands answer with a `progress` (pass)
-// or `error` (fail). Receipt of the last command additionally emits the five MainToUi fixtures
-// verbatim so the UI can assert the main→UI direction for every result/notification type.
+// still owns — scan-request is superseded by the real LS-3 traversal handler and
+// overflow-scan-request/select-node by the real LS-8 handlers (both registered first in main.ts),
+// which answer the roundtrip's probes with genuine results. Each remaining handler deep-equals the
+// inbound message against its canonical fixture (payload only — the id is minted UI-side) and
+// reports the outcome on the typed channel: the one remaining request type answers with its
+// *-result fixture (correlated by id); the six commands answer with a `progress` (pass) or `error`
+// (fail). Receipt of the last command additionally emits the five MainToUi fixtures verbatim so
+// the UI can assert the main→UI direction for every result/notification type.
 //
 // This is scaffolding only — real feature handlers (LS-3+) replace these registrations. It is never
 // exercised by Vitest (no `figma` runtime); run it via `npm run dev` and the UI's dev-only button.
@@ -70,21 +71,17 @@ export function registerRoundtrip(): void {
 	};
 
 	// Requests: answer with the matching *-result fixture (respond() attaches the request id).
-	// scan-request is deliberately absent — the LS-3 handler owns it; a second registration here
-	// would double-answer every real scan.
+	// scan-request and overflow-scan-request are deliberately absent — the LS-3 and LS-8 handlers
+	// own them; a second registration here would double-answer every real scan.
 	on('extraction-request', (msg) => {
-		if (matches('extraction-request', msg)) respond<'extraction-request'>(msg.id, extractionResult);
-		else send(fail(msg.id, 'mismatch:extraction-request'));
-	});
-	on('overflow-scan-request', (msg) => {
-		if (!matches('overflow-scan-request', msg)) {
-			send(fail(msg.id, 'mismatch:overflow-scan-request'));
+		if (!matches('extraction-request', msg)) {
+			send(fail(msg.id, 'mismatch:extraction-request'));
 			return;
 		}
 		// A decoy with a NON-matching id first — the UI's pending map must ignore it — then the real
 		// answer, whose id matches and resolves the promise.
-		send({ ...overflowResult, id: 'decoy-ignored-id' });
-		respond<'overflow-scan-request'>(msg.id, overflowResult);
+		send({ ...extractionResult, id: 'decoy-ignored-id' });
+		respond<'extraction-request'>(msg.id, extractionResult);
 	});
 
 	// Commands: fire-and-forget; report pass/fail on the progress/error channel, correlated by id.

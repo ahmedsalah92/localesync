@@ -2,7 +2,8 @@ import { applyBatchLeave } from './devtools/applyBatchLeave';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
 import { generateSnapshotRestore } from './devtools/generateSnapshotRestore';
-import { runOverflowSpike } from './devtools/overflowSpike';
+import { registerOverflow } from './overflow';
+import { registerOverflowCheck } from './overflow/check';
 import { registerRoundtrip } from './roundtrip';
 import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
@@ -25,20 +26,26 @@ export default async function () {
 
 	// LS-3: the real scan-request handler (traverse → ScannedTextNode projection).
 	registerTraversal();
+	// LS-8: the real overflow-scan-request + select-node handlers (scan → clone-measure → verdicts).
+	registerOverflow();
 	// LS-2 dev scaffold: transport round-trip handlers for the remaining message types. Idle until
-	// the UI's dev-only __test:roundtrip button drives them; scan-request is owned by LS-3 above.
+	// the UI's dev-only __test:roundtrip button drives them; scan-request is owned by LS-3 and
+	// overflow-scan-request/select-node by LS-8 above.
 	registerRoundtrip();
-	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks
-	// and the LS-4 snapshot apply→restore acceptance cycle. Both piggyback on page scan-request.
+	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
+	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
+	// the LS-8 overflow acceptance passes (piggybacks on page overflow-scan-request + select-node).
 	if (import.meta.env.DEV) {
 		registerTraversalCheck();
 		registerSnapshotCheck();
+		registerOverflowCheck();
 
 		// Dev-only harness hooks. bridge.ts claims the single `figma.ui.onmessage` slot at module load
 		// (before this function body runs), so we wrap it here: intercept the `__dev:` sentinels, then
-		// delegate everything else to the bridge. This avoids a 15th message type — the union is frozen
-		// at 14 by messages.test.ts, and the bridge would drop these sentinels as non-conforming anyway.
-		// The `__dev:` prefix marks scaffolding Vite strips from production builds.
+		// delegate everything else to the bridge. This avoids minting real message types for dev
+		// scaffolding — the union is guarded by messages.test.ts, and the bridge would drop these
+		// sentinels as non-conforming anyway. The `__dev:` prefix marks scaffolding Vite strips from
+		// production builds.
 		const bridgeHandler = figma.ui.onmessage;
 		figma.ui.onmessage = (message: unknown, props) => {
 			const devType =
@@ -82,13 +89,6 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(`[dev] generateLargeFile failed: ${err instanceof Error ? err.message : String(err)}`);
 					});
-				return;
-			}
-
-			if (devType === '__dev:run-overflow-spike') {
-				void runOverflowSpike().catch((err: unknown) => {
-					console.error(`[dev] runOverflowSpike failed: ${err instanceof Error ? err.message : String(err)}`);
-				});
 				return;
 			}
 

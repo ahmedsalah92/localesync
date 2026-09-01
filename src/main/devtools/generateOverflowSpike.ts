@@ -1,6 +1,7 @@
 // src/main/devtools/generateOverflowSpike.ts
-// Dev-only fixture bootstrapper for fixtures/overflow-spike.fig (LS-7 §3 validation fixture).
-// Builds 13 of the 14 rows in docs/specs/LS-7.md §3; one row CANNOT be scripted:
+// Dev-only fixture bootstrapper for fixtures/overflow-spike.fig (LS-7 §3 validation fixture,
+// promoted to the LS-8 acceptance fixture — fixtures/overflow-spike.md).
+// Builds 13 of the 14 rows; one row CANNOT be scripted:
 //   • `missing-font` — loadFontAsync fails for unavailable fonts by definition; follow the manual
 //     procedure in fixtures/kitchen-sink.md §"missing-font" after running this.
 // The two truncate-* rows are authored as NONE + textTruncation ENDING, which current Figma REPORTS
@@ -13,8 +14,13 @@
 const REGULAR: FontName = { family: 'Inter', style: 'Regular' };
 const BOLD: FontName = { family: 'Inter', style: 'Bold' };
 
-// Authored source text only — the spike runner measures hard-coded candidate strings, not these.
+// Default authored text for rows whose characters don't matter (the LS-8 pass-1 check measures
+// explicit candidate strings against clones). Three rows carry AUTHORED characters instead — the
+// LS-8 §3 pass-2 table drives the real scanOverflow path through them (fixtures/overflow-spike.md).
 const SOURCE = 'Source label';
+const AUTHORED_FIXED_FITS = 'Your changes have been saved automatically.'; // 43 chars, de ratio 1.575 → 68
+const AUTHORED_FIXED_OVERFLOWS = 'Save'; // 4 chars, de ratio 2.725 → 11 — the launch-narrative row
+const AUTHORED_MAXLINES = 'Continue to checkout'; // 20 chars, de ratio 2.035 → 41
 
 export interface OverflowSpikeReport {
 	created: string[];
@@ -71,12 +77,30 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 		return text;
 	}
 
-	// ── fixed-fits / fixed-overflows — NONE, 200×40, parent 300×100 ────────────
-	for (const name of ['fixed-fits', 'fixed-overflows']) {
-		const f = makeFrame(name);
-		const t = makeText(name, f);
+	// ── fixed-fits — NONE, box 600×40 (room for the 68-char de candidate, ≈530 px at Inter 16),
+	// frame 640 wide = two grid slots. The box must have room for the EXPANDED string, or this
+	// pass-2 `fits` row would overflow (LS-8 §3).
+	{
+		const f = makeFrame('fixed-fits');
+		f.resize(2 * COL_W + GAP, ROW_H);
+		slot++; // the wide frame consumes the neighbouring grid slot
+		const t = makeText('fixed-fits', f);
+		t.characters = AUTHORED_FIXED_FITS;
 		t.textAutoResize = 'NONE';
-		t.resize(200, 40);
+		t.resize(600, 40);
+	}
+
+	// ── fixed-overflows — NONE, box cut snug to the English word (LS-8 §3: the four-letter button
+	// that breaks in German; at the old 200×40 the 11-char candidate would FIT). Author auto-width
+	// to capture the snug size, then pin it as a fixed box.
+	{
+		const f = makeFrame('fixed-overflows');
+		const t = makeText('fixed-overflows', f);
+		t.characters = AUTHORED_FIXED_OVERFLOWS;
+		const snugWidth = t.width;
+		const snugHeight = t.height;
+		t.textAutoResize = 'NONE';
+		t.resize(snugWidth, snugHeight);
 	}
 
 	// ── truncate-fits / truncate-overflows — fixed box + truncation enabled ────
@@ -97,12 +121,16 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 		t.resize(200, t.height);
 	}
 
-	// ── autoheight-maxlines — HEIGHT, maxLines 2, truncation ENDING ────────────
+	// ── autoheight-maxlines — HEIGHT, maxLines 2, truncation ENDING, width 140 ─
+	// Width 140, not 200: at 200 the 41-char de candidate wraps into exactly the 2 permitted lines
+	// (capped == free ⇒ `fits`); at 140 free growth needs 3 lines, so the cap detection fires
+	// (LS-8 §3 pass 2). The authored 20-char label itself still lays out in 2 lines at 140.
 	{
 		const f = makeFrame('autoheight-maxlines');
 		const t = makeText('autoheight-maxlines', f);
+		t.characters = AUTHORED_MAXLINES;
 		t.textAutoResize = 'HEIGHT';
-		t.resize(200, t.height);
+		t.resize(140, t.height);
 		t.textTruncation = 'ENDING';
 		t.maxLines = 2;
 	}
@@ -167,7 +195,7 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 		"truncate-fits / truncate-overflows: confirm the generate-time console lines reported textAutoResize = 'TRUNCATE' for both. If not, note it below and in docs/specs/LS-7.md §6.",
 		'Fill in: missing-font family = ________, truncate rows report TRUNCATE = ________, generated on = ________.',
 		'Save as fixtures/overflow-spike.fig (or record the shared-Figma link in fixtures/README.md).',
-		'Run the spike: npm run dev → open this file → click "Run LS-7 overflow spike" → record verdicts + observations in docs/specs/LS-7.md §6.',
+		'Run the check: npm run dev → open this file → click "Run LS-8 overflow check" → expect pass 1 14/14, pass 2 3/3 + the ja refusal, pass 3 selection + node-gone (fixtures/overflow-spike.md).',
 	];
 	{
 		const readme = figma.createFrame();
@@ -180,7 +208,7 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 		t.name = '_readme-text';
 		t.fontName = REGULAR;
 		t.characters =
-			'overflow-spike.fig — LS-7 spike validation fixture. Build sheet: docs/specs/LS-7.md §3;\n' +
+			'overflow-spike.fig — LS-8 acceptance fixture (ex-LS-7 spike). Build sheet: docs/specs/LS-8.md §3;\n' +
 			'authoring doc: fixtures/overflow-spike.md.\n' +
 			'Generated by generateOverflowSpike (dev-only). MANUAL STEPS REMAINING:\n\n' +
 			manualSteps.map((s, i) => `${i + 1}. ${s}`).join('\n');

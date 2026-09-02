@@ -91,7 +91,15 @@ that back to `=== 0` — the row would become permanently red.
 
 ## Done when
 
-- [ ] All 17 labelled nodes exist, named exactly per the table, plus the `selection-scope` frame.
-- [ ] `__test:traversal` reports 21 PASS, no FAIL, no SKIP on the main-side checks.
+- [x] All 17 labelled nodes exist, named exactly per the table, plus the `selection-scope` frame.
+      *(Verified 2026-09-02 via Figma metadata inspection of the live file — all 17 row labels,
+      `selection-scope`, the hidden `_masters` frame, and correct `hidden`/nesting flags are
+      present. Deep node properties — truncation mode, `maxLines`, actual mixed-font/missing-font
+      resolution, override characters — are not visible to metadata inspection; only the running
+      `__test:traversal` harness can confirm those.)*
+- [x] `__test:traversal` reports 21 PASS, no FAIL, no SKIP on the main-side checks.
+      *(Confirmed by the user, 2026-09-02, via an interactive `npm run dev` session in Figma desktop.)*
 - [ ] README frame filled in (incl. the missing-font family name).
-- [ ] File saved to `fixtures/` (or shared-Figma link recorded in `fixtures/README.md`).
+      *(Text content isn't exposed by metadata inspection — needs a manual check in-file.)*
+- [x] File saved to `fixtures/` (or shared-Figma link recorded in `fixtures/README.md`).
+      *(Link present in `fixtures/README.md`.)*

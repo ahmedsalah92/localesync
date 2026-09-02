@@ -80,8 +80,15 @@ asserts against the pre-mutation re-scan, not the authored values. Do not expect
 
 ## Done when
 
-- [ ] All buildable rows exist, named exactly per the table, including the **`instance-child`** sentinel.
+- [x] All buildable rows exist, named exactly per the table, including the **`instance-child`** sentinel.
+      *(Verified 2026-09-02 via Figma metadata inspection of the live file — all 11 row labels are
+      present, including the required `instance-child` sentinel and `legacy-truncate` (not
+      skipped). Deep properties — actual `textAutoResize`/`maxLines` values, missing/mixed-font
+      resolution — aren't visible to metadata inspection; only the running harness can confirm those.)*
 - [ ] **Run LS-4 snapshot check** reports PASS for every present row, no FAIL (SKIP allowed for
       `legacy-truncate` and for `injected-failure` if <3 eligible nodes).
+      *(Needs an interactive `npm run dev` session inside Figma desktop — not run from here.)*
 - [ ] README frame filled in (missing-font family; how `truncating` was authored).
-- [ ] File saved to `fixtures/` (or shared-Figma link recorded in `fixtures/README.md`).
+      *(Text content isn't exposed by metadata inspection — needs a manual check in-file.)*
+- [x] File saved to `fixtures/` (or shared-Figma link recorded in `fixtures/README.md`).
+      *(Link present in `fixtures/README.md`.)*

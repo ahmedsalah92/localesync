@@ -1,4 +1,4 @@
-# LocaleSync — Design (design.md) v3
+# LocaleSync — Design (design.md) v3.1
 
 *The UI/UX design state of the **plugin** — what exists, what's left, and the concrete mocks to produce. Scope is the plugin's product surface only. Brand identity, marketing, and validation design are complete and live outside this doc.*
 

@@ -361,7 +361,7 @@ in the kit, not a licence — every other text element on the surface must refer
 `icon/secondary`, `icon/success`, `icon/warning`, `icon/danger`, `icon/tertiary`; borders
 `border/default`, `border/menu`, `border/selected-strong`.
 
-**Severity ramp:** `icon/success` fits · `icon/warning` clips · `icon/danger` overflows ·
+**Severity ramp:** `icon/success` fits · `icon/warning` truncates · `icon/danger` overflows · (`truncates`, not `clips` — `OverflowVerdictValue` has no `'clips'` member; the canvas variant was renamed to match on 2026-09-03. User-facing copy may still say "clips"; that is LS-14's call.)
 `icon/tertiary` un-measurable. Green→amber→red is ordinal, carrying rank by hue; grey sits outside
 the ramp because un-measurable is an absence of measurement, not a severity.
 

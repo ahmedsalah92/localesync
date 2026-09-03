@@ -1,7 +1,9 @@
-# LocaleSync — Design (design.md) v3.1
+# LocaleSync — Design (design.md) v3.2
 
 *The UI/UX design state of the **plugin** — what exists, what's left, and the concrete mocks to produce. Scope is the plugin's product surface only. Brand identity, marketing, and validation design are complete and live outside this doc.*
 
+> **v3.2 (2026-09-03) — canvas reconciliation.** Six divergences found by reading the canvas during LS-5 spec prep. Corrected: control bar 43px → 40px; severity vocabulary `clips` → `truncates`, matching `OverflowVerdictValue`, which carries no `'clips'`; Results Row, Extract Row and Applied Banner type corrected from Inter 12 to the 11px `body/body.medium` ramp. Recorded as built: the four LS-13 Pro stubs, the Applied Banner's `Restored` variant, and the seventh shell state (`Operation failed`). Component-set inventory corrected to four sets. Also corrected: the jump affordance is `icon.16.arrow`, not `icon.24.select`, and its rationale is replaced rather than re-keyed — the target metaphor was explicitly rejected on canvas (`301:1549`, 2026-08-21) because concentric circles read as a selected radio button inside a row that already carries a `Selected` state. **No design decision changed** — this pass records what is on canvas and repairs stale transcription.
+>
 > **v3.1 (2026-09-01) — canonical-source pass.** `docs/design.md` in the repo is now the **single source of truth** for the plugin design; the Figma file is the artifact, this doc is the record. Four corrections verified against the canvas: summary bar 36px → **40px** (padding 6 → 8, both off the `Spacers` scale); the resize affordance corrected from a nonexistent "native corner cursor" to **edge-drag** with the scrollbar-clearance rule; the LS-15 threshold revised from a provisional `2,000` to an **advisory `500`** pending benchmark, expressed as a time budget; and the v3 shell-count caveat closed — **nine shells confirmed**, all `400×720`.
 >
 > **v3 (2026-08-09) — consistency pass.** No design content changed. Version bumped from v2; the deliverables summary corrected (it still said the panel controls were open and blocking LS-8, contradicting the body); LS-14 restated as wiring-only in both places it appeared as illustration replacement; completed sections moved out of *To be done*; shell count normalised to 9 (*confirmed on canvas 2026-09-01* — the doc previously said 7, 8 and 9 in different places); the no-hex-literals claim reconciled with the mirrored `Tooltip`; and the three items awaiting Ahmed consolidated under *Open design decisions*.
@@ -26,7 +28,7 @@
 | Plugin Shell — Extract Empty | Extract first-run |
 | Plugin Shell — Preview / Pseudo-loc / RTL Mirror Applied | Apply/revert pattern ×3 |
 
-**3 component sets:** `Results Row` (8 variants) · `Extract Row` (2) · `Plugin Shell — States` (6, `289:1420`)
+**4 component sets:** `Results Row` (8 variants, `184:96`) · `Extract Row` (2, `199:244`) · `Applied Banner` (2, `321:1613`) · `Plugin Shell — States` (7, `289:1420`)
 
 ---
 
@@ -115,7 +117,7 @@
 | `icon.16.chevron.right` | `af9f3d00455a37f1c1dcba495ad583eaac59d17f` | Export link disclosure |
 | `icon.16.chevron.down` | `ff0c4fdf34401994a32ade80aafcabf167ca17d8` | Language select, scope select, Show filter, Sort |
 | `icon.16.close` | `f77bb0945a70fdadc33529de4af22c0adc33b98f` | Plugin Header close — swapped at the **master**, so all 9 instances inherit |
-| `icon.24.select` | `6e47230f7b144f3411de3be194fcea54a4c51cbf` | Row jump affordance (at 16px) — replaces `chevron.right` |
+| `icon.16.arrow` | `d99ed641d875285340ff451b948261110fac0b70` | Jump affordance — Results Row and Extract Row |
 | `Menu row/Checkmark` | `8af38b6322d312e947b0745f6b5fdf938b0c3c6c` | Dropdown menu rows, single-select |
 
 **Composite labels.** Sort, Show and Export were single text nodes carrying their own trailing glyph (`Sort: severity  ▾`, `Export  ▸`). Each is now a label text plus an icon instance in a 2px auto-layout wrapper, so the icon tokenises independently of the label. Export's chevron binds to `text/brand`, not `icon/secondary` — it's part of the link, not neutral chrome.
@@ -141,9 +143,9 @@
 
 **Sort gains `Overflow amount`.** With a px delta on every row, sorting by magnitude is the ordering that answers "what breaks worst" — the question the product exists for.
 
-### Jump affordance — `icon.24.select`
+### Jump affordance — `icon.16.arrow`
 
-The row affordance was `chevron.right`, which means *go forward* — generic navigation that says nothing about what happens. `icon.24.select` renders as a concentric target (◎) and reads as *locate this node*, which is the actual behaviour: select the node and bring it into view on canvas. Used at 16px, bound to `icon/secondary`, across all 8 Results Row and 2 Extract Row variants.
+**Jump affordance — `icon.16.arrow`** (key `d99ed641d875285340ff451b948261110fac0b70`), bound to `icon/secondary`. The diagonal arrow signals that the action **leaves the panel**: it moves canvas selection and the viewport, rather than navigating within the list. Rejected: `icon.24.select` — concentric circles, which at row scale read as a selected radio button and collide with the row's own `Selected` state; chevron-right, **including `icon.16.navigate.forward`, which renders the same glyph**, both reading as drill-in; and `icon.24.zoom.in.small` — a magnifier reads as a zoom control, a viewport tool rather than a per-node action. The library ships no 16px select icon (`icon.24.select` and `icon.24.select.matching.small` are both 24px), so keeping the target metaphor at the row's 11px type scale was never available. Decided 2026-08-21 by Muhammed Hesham; recorded on canvas at `301:1549`.
 
 **Verified by measurement, not by eye** — 13 geometric and token checks pass (tooltip and arrow clear of the icon, both centred on it, fill/radius/shadows/typography matching the UI3 source). Not yet visually reviewed; `get_screenshot` was locked to another document.
 
@@ -160,7 +162,6 @@ The row affordance was `chevron.right`, which means *go forward* — generic nav
 - **Custom resize-grip vector.** A hand-drawn three-stroke diagonal grip was built for the resizable-window work and **removed** — it was a custom icon, which the kit rule prohibits. UI3 ships no resize-grip icon; `icon.24.expand` exists but means zoom / maximise / full-screen, so borrowing it would attach wrong semantics to the control. The grip is gone from all 9 shells with nothing in its place. *(Corrected 2026-09-01: this previously said the affordance is "the native corner cursor, which the browser provides on a resizable iframe" — **no such affordance exists**. Corner-drag is not native to Figma; a plugin implements it by tracking pointer movement and calling `figma.ui.resize()`. Removing the grip removed the capability. Resolved as edge-drag — see Window dimensions.)*
 - **Typographic glyphs as icons** (`▾`, `›`). Replaced with UI3 icon instances. Glyphs can't bind to `icon/*` tokens, don't scale with the kit, and render inconsistently across platforms.
 - **`Combo input` for the selects.** It is UI3's *numeric* input-with-dropdown — default value `16`, "Selected input" states for typing. It also ships a `#0D99FF` ring in its resting state that had to be overridden, and a grey `#F5F5F5` input fill. Replaced with `Dropdown`, which is the picker, renders white on `border/default`, exposes `Disabled`, and needs no overrides. *The override requirement was the signal that the component was wrong.*
-- **`icon.24.zoom.in.small` for the jump affordance.** A magnifier reads as a zoom control — a viewport tool rather than a per-node action. `icon.24.select` (target) says *locate this node*.
 
 ### Implementation notes
 
@@ -198,7 +199,7 @@ Per the strict kit rule the states get Figma icons where one is needed and no il
 ### LS-9 — Extraction list + shell — DONE
 Built on the `🧩 Plugin — Phase 1` page, reusing the LS-19 shell structure (header + tab bar + apply/revert scaffolding) with Extract tab active.
 
-- **Extract Row component set** (2 variants: Selected=True/False): 3px `border/menu` neutral strip (no severity concept in extraction) + content stack + jump target (`icon.24.select`). String on top (Inter 12, `text/default`), i18n key below with `fontFamily` bound to UI3 `font/family/mono` (resolves to Roboto Mono) and `text/tertiary` color.
+- **Extract Row component set** (2 variants: Selected=True/False): 3px `border/menu` neutral strip (no severity concept in extraction) + content stack + jump target (`icon.16.arrow`). String on top (`body/body.medium`, 11px, `text/default`), i18n key below with `fontFamily` bound to UI3 `font/family/mono` (resolves to Roboto Mono) and `text/tertiary` color — the key line is 11px with a custom 1.3 line-height, since `font/family/mono` has no UI3 text style behind it. Verified against `199:230`.
 - **Populated Extract Shell**: Extract tab active. Summary bar shows `12 strings extracted` + `Export ▸` action link in `text/brand`. 8 sample rows with i18next-style keys (`auth.signin.button`, `home.welcome`, `checkout.success.delivery`, etc.); row 4 selected to demonstrate state.
 - **Empty state**: Centered `No strings extracted` + hint `Run Scan to extract translatable strings.` Same treatment as Overflow empty state.
   - *Scope-neutral by design.* The hint previously ended "…from this page", which contradicts the scope selector the moment it reads `Selection`. Copy must not restate a value the user controls.
@@ -228,10 +229,10 @@ Built on the `🧩 Plugin — Phase 1` page in the LocaleSync Figma file (root `
 **Deliverable A — Overflow results-panel anatomy (LS-5 + LS-8):**
 - **Plugin Header** (40px, persistent at top of every shell): `Mark / Dark` logo (24×24 compact variant, purpose-built for small sizes with solid boundary where the dashed line would otherwise vanish) + "LocaleSync" name (Inter 13 Semi Bold) on the left, `✕` close button (24×24) on the right. This is **identity, not chrome** — the UI3 rule applies to controls/tokens/patterns, not to the plugin's own logo and name.
 - **Plugin Shell** (`400×720`, min `340×480`, resizable): 5-tab feature nav (Overflow · Extract · Preview · Pseudo · RTL). Tab Bar and tabs are `FILL`, so they distribute — 80px each at default width, 68px at minimum. Active shows `border/selected-strong` 2px underline + `text/default`; inactive `text/secondary`. Nine standalone shells plus the `Plugin Shell — States` set.
-- **Results Row component set** (8 variants: 4 severity × 2 selected): 3px severity strip + string + container•status + jump target (`icon.24.select`). 56px tall, two-line content (Inter 12 string, Inter 11 meta).
+- **Results Row component set** (8 variants: 4 severity × 2 selected): 3px severity strip + string + container•status + jump target (`icon.16.arrow`). 56px tall, two-line content — **both lines `body/body.medium`** (11px / 16px line-height / +0.5% letter-spacing); hierarchy is carried by colour alone, not size, because UI3's ramp has no 12px step. 3px strip, 16px horizontal / 8px vertical content padding, 8px gap, 4px between the two text lines. Verified against `184:68`.
 - **Row string truncation** (review item 6): single-line ellipsis at row width — `textTruncation: ENDING`, `maxLines: 1`, `layoutSizingHorizontal: FILL`. The row does not grow, wrap, or clip mid-glyph. Full string is reachable via jump-to-node. **Meta line truncates on the same rule** — container names in real files get long too.
   - **Demonstrated, not just specified.** Both overflow shells carry a 141-character consent string (`ConsentBanner • overflows 96px`) whose natural width is 770px against a 349px box — a 421px overshoot. The properties were set from the start, but until this row existed no frame on the canvas actually triggered them, so a reviewer had nothing to check the behaviour against. A truncation rule that never fires in the mock is an assertion, not a decision.
-- **Severity strip tokens** (review item 4): `icon/success` fits · `icon/warning` clips · `icon/danger` overflows · `icon/tertiary` un-measurable.
+- **Severity strip tokens** (review item 4): `icon/success` fits · `icon/warning` truncates · `icon/danger` overflows · `icon/tertiary` un-measurable.
   - *The defect.* `border/menu` (`#383838`) originally sat on Fits, putting the heaviest mark on the row in the safest state. Worse, black isn't a position on a severity scale at all — it read as *different* and *heavier*, not as a rank. A severity strip is a pre-attentive channel; if the mark doesn't track severity the channel actively misleads.
   - *Interim fix, superseded.* The strip was first removed entirely, leaving an unfilled gutter. That corrected the inversion but introduced a subtler problem: **absence conflates "checked and safe" with "not evaluated."** Un-measurable is already grey — honestly "couldn't check" — so a blank Fits row and a grey un-measurable row both said "no signal here" in slightly different ways.
   - *Resolution — green.* `icon/success` makes Fits mean *checked, passes*. Green → yellow → red is a proper ordinal ramp where **hue** carries the order, so weight parity across the three is correct rather than a problem. Grey stays outside the ramp, which is right: it isn't a severity, it's an absence of measurement. This also gives LS-8's *"every safe node is not flagged"* criterion something affirmative for a reviewer to look at.
@@ -241,7 +242,9 @@ Built on the `🧩 Plugin — Phase 1` page in the LocaleSync Figma file (root `
   - *Not a contrast argument.* UI3's text tints are already darkened for small text — `text/warning` `#B86200` and `text/danger` `#DC3412` are far darker than their `#FFCD29` / `#F24822` strip counterparts, and `text/success` would be tuned the same way. Green meta would pass AA; it's simply redundant.
   - *Redundant coding.* Hue is not the only channel — the meta line states `fits` / `clips 8px` / `overflows 22px` in words, so red-green colour vision deficiency doesn't cost the user the signal.
 - **Row selected state**: `bg/selected` across the whole row.
-- **Meta text tokens**: `text/secondary` fits · `text/warning` clips · `text/danger` overflows · `text/tertiary` un-measurable.
+- **Meta text tokens**: `text/secondary` fits · `text/warning` truncates · `text/danger` overflows · `text/tertiary` un-measurable.
+
+> **Vocabulary note (v3.2):** `truncates` matches `OverflowVerdictValue` in `src/common/models.ts`, which has no `'clips'` member. The canvas variant value was renamed `Clips` → `Truncates` on `184:96` on 2026-09-03. **User-facing copy is deliberately not renamed** — the `Show` filter option and the row meta string still read "clips", which is better English for the reader. The variant name is implementer-facing and must match the union; the copy is LS-14's to settle.
 - **Meta vocabulary matches the variant name.** Fits rows read `fits`, not `OK` — the master carried `OK` while every instance said `fits`. One state, one word.
 - **Sort control**: text-based dropdown ("Sort: severity ▾"), Figma-native pattern.
 - **Empty state**: centered text only, no illustration. `No issues found` / `All 32 nodes fit their containers.`
@@ -250,7 +253,9 @@ Built on the `🧩 Plugin — Phase 1` page in the LocaleSync Figma file (root `
   - *Safe to assert "all fit" here* because un-measurable rows list under `issues` too. If any node couldn't be measured, the list is not empty and this state never renders.
 
 **Deliverable B — Apply/revert affordance pattern (LS-10 + LS-11 + LS-12):**
-- **Applied Banner component**: `bg/info/default` background (subtle light-blue info tint — `bg/assistive` was tried first but UI3 defines it as the hot-pink AI-assistant color), 3px `border/selected-strong` left border, message on left (`text/default`) + Revert text-button (Inter 12 Semi Bold, `text/brand`) on right.
+- **Applied Banner component set** (`321:1613`, 2 variants on a `Type` property): `bg/info/default` background (subtle light-blue info tint — `bg/assistive` was tried first but UI3 defines it as the hot-pink AI-assistant colour), 3px `border/selected-strong` left border, 40px tall, 16px horizontal / 8px vertical padding.
+  - **`Type=Applied`** (`185:31`) — message left (`text/default`) + `Revert` right (`body/body.medium.strong`, `text/brand`).
+  - **`Type=Restored`** (`321:1610`) — message only, no action: *"Restored your canvas from an interrupted session."* This is LS-4's restore-on-launch surfacing itself; a Revert affordance would be meaningless, because the restore is what already ran.
 - **Positioned above the tab bar** — persistent, plugin-wide, not tab-specific. This is the semantic call: apply state is global, not per-tab.
 - **Pattern proven identical** across three feature shells (Preview, Pseudo-loc, RTL Mirror) side-by-side.
 
@@ -270,7 +275,7 @@ Built as one bar rather than three controls, because they share horizontal space
 
 **Placement — below the tab bar, at the top of the content area.** State is global (tab switches preserve both selections), but the bar renders where its *output* lands. This is deliberately unlike the Applied Banner, which sits **above** the tab bar: the banner reports a mutation to the user's file, so it belongs outside the tab region; the control bar is the input that produces the list directly beneath it.
 
-**Anatomy** — 43px, `bg/default`, 1px `border/default` bottom only, 16px horizontal padding, 8px gap:
+**Anatomy** — 40px, `bg/default`, 1px `border/default` bottom only, 16px horizontal padding, 8px gap:
 
 | Control | Sizing | Notes |
 |---|---|---|
@@ -336,7 +341,7 @@ Closes LS-19 Deliverable 3 and the LS-15 progress requirement.
 
 #### ✅ Deliverable 3 — DES-1 state matrix — `289:1420`
 
-Built as **one component set with a `State` variant**, not six standalone frames. With nine shells already on the page, six more standalone copies would mean fifteen surfaces drifting independently the next time the header, tab bar or control bar changes. The variant set is also what makes the states consumable by the feature panels — LS-14's second half.
+Built as **one component set with a `State` variant**, not as standalone frames per state. With nine shells already on the page, six more standalone copies would mean fifteen surfaces drifting independently the next time the header, tab bar or control bar changes. The variant set is also what makes the states consumable by the feature panels — LS-14's second half.
 
 | `State` | Copy | Notes |
 |---|---|---|
@@ -346,6 +351,7 @@ Built as **one component set with a `State` variant**, not six standalone frames
 | Fonts unavailable | *Fonts unavailable* / 3 fonts could not be loaded. Text using them will be listed as un-measurable. | Degrades rather than blocks — ties to the un-measurable severity |
 | Large file | *Large file — 3,410 nodes* / Scanning may take a moment. You can stop at any time. | **Not blocked on the LS-15 threshold** — the number governs *when* this fires, which is engine logic; the state only reports the count |
 | Scan stopped | *Stopped at 1,284 of 3,410* · `6 found` | **Keeps its partial results** |
+| Operation failed | *Couldn't complete* / The operation failed and your canvas was restored. Nothing was left changed. | Added after DES-1. Reports the LS-4 mid-batch rollback — the point of the copy is that **nothing was left changed**. The only state in the set carrying an action: `Try Again` (`321:1606`) |
 
 **Three of the six are empty states and had to be made distinguishable.** Each needs a different next action — select something, switch page, press Scan — so the work was actionable copy, not three variations of an empty panel.
 
@@ -416,7 +422,7 @@ The only route to five is **detaching** a `Tabs` instance — which produces a d
 
 ## 🔲 To be done
 
-The LS-19 panel control cluster is built and no longer blocks the LS-8 spec. What remains is the P1 supporting feature surfaces (each reuses the shell and results-list row), LS-14's wiring of the state set into those panels, and the paid-intent affordance (LS-13).
+The LS-19 panel control cluster is built and no longer blocks the LS-8 spec. What remains is the P1 supporting feature surfaces (each reuses the shell and results-list row) and LS-14's wiring of the state set into those panels.
 
 ### P1 — Supporting feature surfaces (LS-6, LS-10, LS-11, LS-12)
 Lower lift — these reuse the shell and the results list — but each needs layout decisions:
@@ -428,8 +434,13 @@ Lower lift — these reuse the shell and the results list — but each needs lay
 ### 🔲 State matrix (LS-14) — design done, wiring remains
 Originally a two-part job. Part (1), replacing the Clipped Bar illustration compositions on the DES-1 frames, **no longer exists** — those frames were lost with the deleted legacy Page 1, and the six states were rebuilt from the surviving copy as `Plugin Shell — States` (`289:1420`) with no illustrations, per the strict kit rule. Part (2) is all that remains: wire the state set into the appropriate feature panels. The Linear ticket still carries the original two-part wording and should be updated to match.
 
-### P2 — Paid-intent capture affordance (LS-13)
-Small but needs deliberate, **honest** design (no dark patterns). How a paid-tier affordance for AI-powered measurement and the exportable QA report reads — visible enough to capture the willingness-to-pay signal, not nagging or deceptive.
+### ✅ Paid-intent affordance (LS-13) — placed
+
+All four paid pillars are stubbed on the surface as a 40px band pinned to the bottom of Content Area, below the rows list: `Pro Stub / Matrix` (`350:1404`) on the populated overflow shell, `Pro Stub / Report` (`350:1420`) on Extract, `Pro Stub / Translate` (`350:1412`) on Preview Applied, `Pro Stub / Sync` (`351:1411`) on RTL Applied.
+
+**One pillar per panel**, so the willingness-to-pay signal stays per-pillar rather than collapsing into one blurred upgrade click. Pseudo-loc carries no stub — there is no fifth pillar, so the absence is principled, not an omission. Absent also from both empty states, All Nodes and Scanning, which is exactly why those shells need the scroll-clearance rule recorded under *Window dimensions*.
+
+Copy and the `openExternal` wiring remain LS-13's.
 
 ---
 
@@ -493,9 +504,9 @@ All four LS-19 deliverables are built on the design side; **Linear remains the s
 | Extraction list + shell | LS-9 | P1 | ✅ **DONE** — Extract Row component set + populated + empty state |
 | Supporting surfaces | LS-6, LS-12, LS-10, LS-11 | **P1** | Layouts reusing shell + results list |
 | State matrix — wiring into feature panels | LS-14 | **P1** | Six states built as `Plugin Shell — States` (`289:1420`); remaining work is wiring, not illustration replacement — the original frames no longer exist |
-| Paid-intent affordance | LS-13 | **P2** | Honest paid-tier signal capture for AI measurement + QA report |
+| Paid-intent affordance | LS-13 | **P2** | ✅ **DONE** — four Pro stubs placed: `Pro Stub / Matrix` (`350:1404`), `Pro Stub / Report` (`350:1420`), `Pro Stub / Translate` (`350:1412`), `Pro Stub / Sync` (`351:1411`) |
 
-Brand identity (Clipped Bar) is done and DES-1 copy carries forward. LS-19's anatomy, apply/revert pattern, panel control cluster and state matrix are all built — **the LS-8 spec is unblocked**, because the panel's inputs are now enumerated and the spec can state what the UI sends. Remaining: the P1 supporting layouts that reuse the shell + row, LS-14's wiring of the state set into the feature panels, and the paid-intent affordance — smaller pieces, each squarely in the founder's lane.
+Brand identity (Clipped Bar) is done and DES-1 copy carries forward. LS-19's anatomy, apply/revert pattern, panel control cluster and state matrix are all built — **the LS-8 spec is unblocked**, because the panel's inputs are now enumerated and the spec can state what the UI sends. Remaining: the P1 supporting layouts that reuse the shell + row and LS-14's wiring of the state set into the feature panels — smaller pieces, each squarely in the founder's lane.
 
 ---
 

@@ -1,3 +1,4 @@
+import { SHELL_DEFAULT_SIZE } from '../common/shell';
 import { applyBatchLeave } from './devtools/applyBatchLeave';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
@@ -11,7 +12,10 @@ import { registerTraversal } from './traversal';
 import { registerTraversalCheck } from './traversal/check';
 
 export default async function () {
-	figma.showUI(__html__, { width: 300, height: 260, themeColors: true });
+	// `title` is set explicitly rather than left to its plugin-name default: Figma's own window
+	// title bar is the only place the product name and close control now live — the shell no
+	// longer draws a duplicate Plugin Header band (docs/specs/LS-5.md §5.7).
+	figma.showUI(__html__, { ...SHELL_DEFAULT_SIZE, themeColors: true, title: 'LocaleSync' });
 
 	// LS-4 safety guarantee: restore-on-launch. A non-empty mutation manifest means a previous
 	// session ended mid-mutation — heal it BEFORE any handler can start a new one (Design model §3).

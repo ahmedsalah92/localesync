@@ -51,7 +51,7 @@ exactly one: `OverflowVerdictValue` from `src/common/models.ts`.
 
 ```typescript
 // src/common/shell.ts — NEW. Env-neutral, ambient-free (§1). Imported by main and ui.
-export const SHELL_DEFAULT_SIZE = { width: 400, height: 720 } as const;
+export const SHELL_DEFAULT_SIZE = { width: 400, height: 680 } as const;
 ```
 
 Lives in `common` rather than `main` because LS-21 needs the same numbers on both sides of the

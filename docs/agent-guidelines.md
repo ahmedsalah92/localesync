@@ -35,6 +35,21 @@ environment mistakes into compile errors insteaVd of runtime crashes.
 - Both `main` and `ui` reference `../common`. Build order is resolved by those references, not by
   the array order in the root file.
 
+**Test files need their own configs, and ESLint needs to be told about them separately.** Each
+project excludes `*.test.ts(x)`, so tests belong to sibling `src/<project>/tsconfig.test.json`
+files that extend the production config, set `include` to that directory's tests, and **must set
+`"exclude": []`** — the inherited `exclude` otherwise silently re-excludes the files `include`
+just added back, producing a config that covers nothing and passes identically to one that works.
+One test config per project, never a single shared one: a merged `lib`/`types` union would let a
+`main` test reference `document` and a `ui` test reference `figma` and still compile, discarding
+the guardrail this table exists to enforce.
+
+typescript-eslint's `projectService` cannot find these files. It resolves a file's project through
+tsserver's ancestor search, which looks for a file literally named `tsconfig.json` and never
+considers a sibling `tsconfig.test.json`, regardless of what the root solution file references.
+Test globs therefore need a targeted override using the classic `project` array pointing directly
+at the three test configs. (LS-22, 2026-09-04.)
+
 ### Emit, strictness, formatting
 
 - All three projects are `composite: true` + `emitDeclarationOnly: true`, emitting `.d.ts` to
@@ -201,6 +216,15 @@ consult the live docs — never invent API shape from memory.**
   hypothetical text without changing the node. The measurement strategy is the **output of the LS-7
   spike** (temp-node clone vs. mutate-and-restore vs. geometry) — do not invent a measurement path;
   consume the one LS-7 resolves.
+- **`figma.showUI(html, opts)` injects colour variables only.** With `themeColors: true`, Figma
+  inserts a `<style id="figma-style">` block of `--figma-color-*` variables and sets a
+  `figma-light` / `figma-dark` class on the iframe's `<html>`. **No typography or spacing variables
+  reach the iframe** — UI3's text styles and `Spacers` live in Figma design files, which is a
+  different system. This is why `src/ui/styles.css` binds colour but *declares* type and spacing
+  (see `docs/specs/LS-5.md` §2.5). The options object is exactly `{ visible, width, height, title,
+  position, themeColors }`; `title` defaults to the plugin name and is the only control over
+  Figma's own window bar, which is always drawn above an iframe UI and cannot be suppressed.
+  Verified against the live plugin docs 2026-09-04.
 
 ### Message bridge transport (LS-2)
 

@@ -3,6 +3,9 @@
   "references": [
     { "path": "src/main/tsconfig.json" },
     { "path": "src/ui/tsconfig.json" },
-    { "path": "src/common/tsconfig.json" }
+    { "path": "src/common/tsconfig.json" },
+    { "path": "src/main/tsconfig.test.json" },
+    { "path": "src/ui/tsconfig.test.json" },
+    { "path": "src/common/tsconfig.test.json" }
   ]
 }

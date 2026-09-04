@@ -22,6 +22,9 @@ export default defineConfig([
 				// via the inferred default project.
 				projectService: {
 					allowDefaultProject: ['src/*/*.test.ts', 'src/*/*/*.test.ts'],
+					// LS-5 adds four *.test.ts files under src/ui/shell/, pushing the repo total past
+					// the default cap of 8. Still a small, fixed set, not an unbounded glob.
+					maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 16,
 				},
 				tsconfigRootDir: import.meta.dirname,
 			},

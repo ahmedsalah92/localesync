@@ -23,5 +23,6 @@
     "outDir": "./node_modules/.tmp/tsc"
   },
   "include": ["**/*.ts", "**/*.tsx", "../vite-env.d.ts"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"],
   "references": [{ "path": "../common" }]
 }

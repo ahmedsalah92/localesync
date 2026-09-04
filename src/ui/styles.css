@@ -5,10 +5,10 @@
 }
 
 html {
-	background-color: var(--figma-color-bg);
-	color: var(--figma-color-text);
+	background-color: var(--ls-bg-default);
+	color: var(--ls-text-default);
 	scrollbar-width: thin;
-	scrollbar-color: var(--figma-color-bg-tertiary) var(--figma-color-bg);
+	scrollbar-color: var(--ls-bg-tertiary) var(--ls-bg-default);
 }
 
 body {
@@ -50,4 +50,78 @@ i18n-text {
 	--spacer-4: 1.5rem;
 	--spacer-5: 2rem;
 	--spacer-6: 2.5rem;
+}
+
+/*
+ * UI3 colour aliases — the single place code binds a `--figma-color-*` variable. Everything
+ * else in src/ui references a `--ls-*` name; tokens.test.ts enforces that. A UI3 rename is a
+ * one-line edit here (docs/agent-guidelines.md §7).
+ *
+ * `--ls-bg-info` and `--ls-bg-tooltip` / `--ls-text-tooltip` do not have a literal UI3 counterpart:
+ * `bg/info/default` and `bg/menu/default` are local to the Figma design file that built the canvas
+ * mockup (bound there to file-local variables, not to anything Figma injects into a live plugin
+ * iframe — confirmed against the file directly and against Figma's published CSS-variable list
+ * during LS-5 planning). The bindings below are the nearest real injected variable for each role,
+ * not a literal transcription — see docs/specs/LS-5.md §3 for the reasoning.
+ */
+:root {
+	--ls-bg-default: var(--figma-color-bg);
+	--ls-bg-selected: var(--figma-color-bg-selected);
+	--ls-bg-secondary: var(--figma-color-bg-secondary);
+	--ls-bg-tertiary: var(--figma-color-bg-tertiary);
+	--ls-bg-info: var(--figma-color-bg-brand-tertiary);
+	--ls-bg-brand: var(--figma-color-bg-brand);
+	--ls-bg-tooltip: var(--figma-color-bg-inverse);
+
+	--ls-text-default: var(--figma-color-text);
+	--ls-text-secondary: var(--figma-color-text-secondary);
+	--ls-text-tertiary: var(--figma-color-text-tertiary);
+	--ls-text-brand: var(--figma-color-text-brand);
+	--ls-text-warning: var(--figma-color-text-warning);
+	--ls-text-danger: var(--figma-color-text-danger);
+	--ls-text-onbrand: var(--figma-color-text-onbrand);
+	--ls-text-tooltip: var(--figma-color-text-oninverse);
+
+	--ls-icon-secondary: var(--figma-color-icon-secondary);
+	--ls-icon-warning: var(--figma-color-icon-warning);
+	--ls-icon-danger: var(--figma-color-icon-danger);
+	--ls-icon-success: var(--figma-color-icon-success);
+	--ls-icon-tertiary: var(--figma-color-icon-tertiary);
+
+	--ls-border-default: var(--figma-color-border);
+	--ls-border-selected-strong: var(--figma-color-border-selected-strong);
+	--ls-border-neutral: var(--figma-color-border-strong);
+}
+
+/*
+ * Type scale — declared, not bound. figma.showUI's themeColors option injects colour variables
+ * only; typography and spacing never reach the iframe (docs/agent-guidelines.md §2, "Message
+ * bridge transport" pin). Values are UI3's `body/body.medium` and `heading/heading.small` text
+ * styles, read off the live Figma file (docs/specs/LS-5.md §3).
+ */
+:root {
+	--ls-text-size: 11px;
+	--ls-text-line: 16px;
+	--ls-text-tracking: 0.055em;
+	--ls-text-weight: 450;
+	--ls-text-weight-strong: 550;
+
+	--ls-heading-size: 13px;
+	--ls-heading-line: 22px;
+	--ls-heading-tracking: -0.0325em;
+	--ls-heading-weight: 550;
+
+	--ls-mono-family: 'Roboto Mono', monospace;
+	--ls-mono-line: 1.3;
+}
+
+/*
+ * The jump-affordance Tooltip's elevation. Not a colour, not bound — Figma injects no shadow/
+ * elevation variable, so these are declared the same way the Spacers/radius scale is.
+ */
+:root {
+	--ls-tooltip-shadow:
+		0 1px 3px rgba(0, 0, 0, 0.1),
+		0 5px 12px rgba(0, 0, 0, 0.13),
+		0 0 0.5px rgba(0, 0, 0, 0.15);
 }

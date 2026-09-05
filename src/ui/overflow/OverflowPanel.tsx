@@ -123,7 +123,7 @@ export function OverflowPanel() {
 
 	const scanning = state.phase === 'scanning';
 	const rows = visibleVerdicts(state);
-	const emptyState = resolveState(state.phase, state.verdicts, rows, nodeCount);
+	const emptyState = resolveState(state.phase, state.errorCode, state.verdicts, rows, nodeCount);
 	// Hidden in every StateView state and throughout scanning; shown only in the working states.
 	const hasFooter = emptyState === null && !scanning;
 
@@ -280,6 +280,7 @@ function Yield(props: { count: number }) {
  */
 function resolveState(
 	phase: ScanPhase,
+	errorCode: ErrorCode | null,
 	verdicts: readonly OverflowVerdict[],
 	rows: readonly OverflowVerdict[],
 	nodeCount: number | null,
@@ -289,6 +290,11 @@ function resolveState(
 			// Pre-scan only, and it never blocks: the Scan button stays live underneath it.
 			return nodeCount !== null && nodeCount >= LARGE_FILE_NODES ? 'large-file' : 'first-run';
 		case 'failed':
+			// A selection-scoped scan with nothing selected has its own designed surface — telling the
+			// user to select something is actionable where "that didn't work" is not. Only the codes
+			// §2.7 names as failures fall through to `operation-failed`.
+			if (errorCode === 'no-selection') return 'no-selection';
+			if (errorCode === 'no-text-nodes') return 'no-text-on-page';
 			return 'operation-failed';
 		case 'scanning':
 			return null;
@@ -297,8 +303,10 @@ function resolveState(
 			return verdicts.length === 0 ? 'scan-stopped' : null;
 		case 'done':
 			if (verdicts.length === 0) return 'no-text-on-page';
-			// Every node was refused or unreadable — the fonts-unavailable surface is more useful
-			// than "no issues", which would be false.
+			// Only when fonts are the WHOLE story. A partly-unloadable scan needs no state view: those
+			// nodes ride the verdict array as `unmeasurable`/`missing-font` and show as ordinary rows,
+			// which is the LS-8.1 contract ("unmeasurable is not blocked") and more informative than a
+			// banner that would hide the rows behind it.
 			if (verdicts.every((verdict) => verdict.reason === 'missing-font' || verdict.reason === 'mixed-font-missing'))
 				return 'fonts-unavailable';
 			if (rows.length === 0) return 'no-issues';

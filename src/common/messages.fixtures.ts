@@ -1,13 +1,13 @@
 // src/common/messages.fixtures.ts
 //
-// Exactly one canonical value per message type (all 15), each with a distinct `id`. The single
+// Exactly one canonical value per message type (all 17), each with a distinct `id`. The single
 // source of truth for "one of every type," shared by the pure unit tests (messages.test.ts) and
 // the in-Figma round-trip command (__test:roundtrip). Adding a message type without adding a
 // fixture here fails the coverage assertion in messages.test.ts.
 import type { AnyMessage } from './messages';
 
 export const fixtures: readonly AnyMessage[] = [
-	// ── UI → main (10) ──
+	// ── UI → main (11) ──
 	{ type: 'scan-request', id: 'fx-scan-request', scope: 'page' },
 	{ type: 'extraction-request', id: 'fx-extraction-request', scope: 'selection' },
 	{ type: 'overflow-scan-request', id: 'fx-overflow-scan-request', scope: 'page', targetLanguages: ['de'] },
@@ -27,8 +27,9 @@ export const fixtures: readonly AnyMessage[] = [
 	},
 	{ type: 'revert-preview', id: 'fx-revert-preview' },
 	{ type: 'select-node', id: 'fx-select-node', nodeId: '1:2' },
+	{ type: 'overflow-scan-cancel', id: 'fx-overflow-scan-cancel' },
 
-	// ── main → UI (5) ──
+	// ── main → UI (6) ──
 	{
 		type: 'scan-result',
 		id: 'fx-scan-result',
@@ -52,8 +53,29 @@ export const fixtures: readonly AnyMessage[] = [
 		entries: [{ key: 'home.title', nodeId: '1:2', value: 'Home' }],
 	},
 	{
+		// One chunk, not the running total — the UI accumulates across partials (LS-8.2 §1.2).
+		type: 'overflow-scan-partial',
+		id: 'fx-overflow-scan-partial',
+		verdicts: [
+			{
+				nodeId: '1:3',
+				language: 'de',
+				verdict: 'truncates',
+				severity: 'warn',
+				reason: 'maxLines-cap',
+				characters: 'Continue to checkout',
+				containerLabel: 'checkout / summary',
+				candidate: 'ContinuetocheckoutContinuetocheckoutConti',
+				measuredWidth: 320,
+				measuredHeight: 48,
+				overflowPx: 16,
+			},
+		],
+	},
+	{
 		type: 'overflow-scan-result',
 		id: 'fx-overflow-scan-result',
+		stopped: false,
 		verdicts: [
 			{
 				nodeId: '1:2',
@@ -64,8 +86,11 @@ export const fixtures: readonly AnyMessage[] = [
 				characters: 'Save',
 				containerLabel: 'home / header',
 				candidate: 'SaveSaveSav',
+				// measuredWidth/Height are the unlocked read; overflowPx is the constrained one.
+				// They are deliberately not commensurable — see models.ts.
 				measuredWidth: 86,
 				measuredHeight: 19,
+				overflowPx: 50,
 			},
 		],
 	},

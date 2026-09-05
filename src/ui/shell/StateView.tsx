@@ -1,12 +1,18 @@
 /**
- * The seven-state empty/error view, per docs/specs/LS-5.md §1.7 and the `Plugin Shell — States`
- * component set (canvas `289:1420`). Copy (headline/body/action label) is always caller-supplied —
- * LS-5 owns none of it (docs/specs/LS-5.md §0).
+ * The empty/error view, per docs/specs/LS-5.md §1.7 and the `Plugin Shell — States` component set
+ * (canvas `289:1420`). Copy (headline/body/action label) is always caller-supplied — LS-5 owns
+ * none of it (docs/specs/LS-5.md §0).
+ *
+ * `no-issues` was added by LS-8.2 §2.7. It is a designed surface with its own canvas shell, and it
+ * cannot reuse `no-text-on-page`: one says thirty-two nodes were checked and passed, the other says
+ * there was nothing to check, and collapsing them undoes the distinction the green `fits` strip
+ * exists to make.
  */
 export type ShellState =
 	| 'first-run'
 	| 'no-selection'
 	| 'no-text-on-page'
+	| 'no-issues'
 	| 'fonts-unavailable'
 	| 'large-file'
 	| 'scan-stopped'

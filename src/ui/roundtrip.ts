@@ -32,6 +32,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
 const MAIN_TO_UI_TYPES: MainToUi['type'][] = [
 	'scan-result',
 	'extraction-result',
+	'overflow-scan-partial',
 	'overflow-scan-result',
 	'progress',
 	'error',

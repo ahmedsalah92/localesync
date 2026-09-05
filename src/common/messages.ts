@@ -54,6 +54,10 @@ export type RevertPreview = Envelope<'revert-preview'>;
 export interface SelectNode extends Envelope<'select-node'> {
 	nodeId: string;
 }
+// Command, not a request: no RequestResponse entry, matching `select-node`. Carries the correlation
+// id of the scan it cancels; the outcome is that scan's eventual `overflow-scan-result` with
+// `stopped: true` (LS-8.2 §1.2).
+export type OverflowScanCancel = Envelope<'overflow-scan-cancel'>;
 
 export type UiToMain =
 	| ScanRequest
@@ -65,7 +69,8 @@ export type UiToMain =
 	| RevertRtlMirror
 	| ApplyPreview
 	| RevertPreview
-	| SelectNode;
+	| SelectNode
+	| OverflowScanCancel;
 
 // ── main → UI ────────────────────────────────────────────────────────────────
 export interface ScanResult extends Envelope<'scan-result'> {
@@ -74,8 +79,16 @@ export interface ScanResult extends Envelope<'scan-result'> {
 export interface ExtractionResult extends Envelope<'extraction-result'> {
 	entries: ExtractedString[];
 }
+// Streamed mid-scan on the 25-node progress tick, under the scan request's own correlation id.
+export interface OverflowScanPartial extends Envelope<'overflow-scan-partial'> {
+	verdicts: OverflowVerdict[]; // THIS CHUNK ONLY — the UI accumulates.
+}
 export interface OverflowScanResult extends Envelope<'overflow-scan-result'> {
-	verdicts: OverflowVerdict[];
+	verdicts: OverflowVerdict[]; // the complete set, including everything already streamed
+	// True when the scan ended via `overflow-scan-cancel`. On the result rather than inferred
+	// UI-side because a cancel sent in the same tick a scan finishes naturally would otherwise
+	// leave the panel asserting a stop that did not happen (LS-8.2 §1.2).
+	stopped?: boolean;
 }
 export interface ProgressMessage extends Envelope<'progress'> {
 	completed: number;
@@ -89,7 +102,13 @@ export interface ErrorMessage extends Envelope<'error'> {
 	blocked?: BlockedNode[]; // present for `nodes-blocked` (flag 4: apply/revert skip channel)
 }
 
-export type MainToUi = ScanResult | ExtractionResult | OverflowScanResult | ProgressMessage | ErrorMessage;
+export type MainToUi =
+	| ScanResult
+	| ExtractionResult
+	| OverflowScanPartial
+	| OverflowScanResult
+	| ProgressMessage
+	| ErrorMessage;
 
 export type AnyMessage = UiToMain | MainToUi;
 
@@ -100,6 +119,20 @@ export interface RequestResponse {
 	'extraction-request': ExtractionResult;
 	'overflow-scan-request': OverflowScanResult;
 }
+
+/**
+ * Runtime twin of `RequestResponse`: the message type each request settles on, as a value.
+ *
+ * `src/ui/bridge.ts` settles a pending request on this type rather than on a bare correlation-id
+ * match. Progress ticks and streamed `overflow-scan-partial` chunks deliberately share their
+ * request's id (LS-2 correlation design), so an id-only match resolved the promise with the wrong
+ * message — see LS-8.2 §1.4. The mapped type makes a wrong entry here a compile error.
+ */
+export const RESPONSE_TYPE: { [T in keyof RequestResponse]: RequestResponse[T]['type'] } = {
+	'scan-request': 'scan-result',
+	'extraction-request': 'extraction-result',
+	'overflow-scan-request': 'overflow-scan-result',
+};
 
 const UI_TO_MAIN_TYPES = [
 	'scan-request',
@@ -112,9 +145,17 @@ const UI_TO_MAIN_TYPES = [
 	'apply-preview',
 	'revert-preview',
 	'select-node',
+	'overflow-scan-cancel',
 ] as const;
 
-const MAIN_TO_UI_TYPES = ['scan-result', 'extraction-result', 'overflow-scan-result', 'progress', 'error'] as const;
+const MAIN_TO_UI_TYPES = [
+	'scan-result',
+	'extraction-result',
+	'overflow-scan-partial',
+	'overflow-scan-result',
+	'progress',
+	'error',
+] as const;
 
 const ALL_TYPES: ReadonlySet<string> = new Set<string>([...UI_TO_MAIN_TYPES, ...MAIN_TO_UI_TYPES]);
 

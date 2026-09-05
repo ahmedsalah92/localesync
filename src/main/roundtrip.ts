@@ -7,7 +7,7 @@
 // inbound message against its canonical fixture (payload only — the id is minted UI-side) and
 // reports the outcome on the typed channel: the one remaining request type answers with its
 // *-result fixture (correlated by id); the six commands answer with a `progress` (pass) or `error`
-// (fail). Receipt of the last command additionally emits the five MainToUi fixtures verbatim so
+// (fail). Receipt of the last command additionally emits the six MainToUi fixtures verbatim so
 // the UI can assert the main→UI direction for every result/notification type.
 //
 // This is scaffolding only — real feature handlers (LS-3+) replace these registrations. It is never
@@ -15,6 +15,7 @@
 import type {
 	ErrorMessage,
 	ExtractionResult,
+	OverflowScanPartial,
 	OverflowScanResult,
 	ProgressMessage,
 	ScanResult,
@@ -46,6 +47,7 @@ function matches(type: string, msg: { id: string }): boolean {
 
 const scanResult = fixtures.find((m) => m.type === 'scan-result') as ScanResult;
 const extractionResult = fixtures.find((m) => m.type === 'extraction-result') as ExtractionResult;
+const overflowPartial = fixtures.find((m) => m.type === 'overflow-scan-partial') as OverflowScanPartial;
 const overflowResult = fixtures.find((m) => m.type === 'overflow-scan-result') as OverflowScanResult;
 const progressFx = fixtures.find((m) => m.type === 'progress') as ProgressMessage;
 const errorFx = fixtures.find((m) => m.type === 'error') as ErrorMessage;
@@ -55,10 +57,11 @@ function fail(id: string, message: string): ErrorMessage {
 }
 
 // Emit every MainToUi fixture verbatim (with its own fixture id) so the UI can deep-equal the
-// main→UI transport for all five result/notification types.
+// main→UI transport for all six result/notification types.
 function emitVerbatim(): void {
 	send(scanResult);
 	send(extractionResult);
+	send(overflowPartial);
 	send(overflowResult);
 	send(progressFx);
 	send(errorFx);

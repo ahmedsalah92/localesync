@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { FooterStub } from './FooterStub';
+import { OverflowPanel } from '../overflow/OverflowPanel';
 import { ResultsList } from './ResultsList';
 import { StateView } from './StateView';
 
@@ -38,7 +39,7 @@ function makeStubPanel(label: string, footer: string | null): ComponentType {
 
 /** Registry order is tab order, left to right. One entry per feature issue. */
 export const PANELS: readonly PanelDef[] = [
-	{ id: 'overflow', label: 'Overflow', Panel: makeStubPanel('Overflow', 'Matrix') },
+	{ id: 'overflow', label: 'Overflow', Panel: OverflowPanel },
 	{ id: 'extract', label: 'Extract', Panel: makeStubPanel('Extract', 'Report') },
 	{ id: 'preview', label: 'Preview', Panel: makeStubPanel('Preview', 'Translate') },
 	// No fifth paid pillar — the absence is principled, not an omission (LS-5 §2.2).

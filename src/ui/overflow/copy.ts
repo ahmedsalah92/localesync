@@ -1,0 +1,153 @@
+// src/ui/overflow/copy.ts
+//
+// Every user-facing string the overflow panel renders, plus the menu data behind them. LS-8.2 owns
+// the *format*; LS-14 owns the *words* and edits this one file (LS-8.2 §2.9).
+import type { OverflowFilter, OverflowSort } from '../../common/overflow';
+import type { OverflowVerdict, OverflowVerdictValue } from '../../common/models';
+import type { DropdownOption } from '../shell/primitives/Dropdown';
+import type { ScanScope } from '../../common/messages';
+
+/**
+ * Twelve selectable, five refused.
+ *
+ * Values are bare subtags and labels are English names with no regional tag: after normalisation
+ * the canvas's `fr-FR` advertises a distinction the engine deliberately discards.
+ *
+ * The refused five are SHOWN, disabled, with their reason — hiding them would waste the sharpest
+ * available statement of engine depth. The menu is not the enforcement, though:
+ * `isUnsupportedLanguage` is, and it stays load-bearing because LS-12 can feed `ja` in from an
+ * imported translation file (LS-8.2 §2.2).
+ */
+export const LANGUAGES: readonly DropdownOption[] = [
+	{ value: 'de', label: 'German' },
+	{ value: 'es', label: 'Spanish' },
+	{ value: 'fi', label: 'Finnish' },
+	{ value: 'nl', label: 'Dutch' },
+	{ value: 'pl', label: 'Polish' },
+	{ value: 'ru', label: 'Russian' },
+	{ value: 'pt', label: 'Portuguese' },
+	{ value: 'fr', label: 'French' },
+	{ value: 'it', label: 'Italian' },
+	{ value: 'he', label: 'Hebrew' },
+	{ value: 'tr', label: 'Turkish' },
+	{ value: 'ar', label: 'Arabic' },
+	{ value: 'ja', label: 'Japanese', disabled: true, group: 'Not measurable yet — glyph width' },
+	{ value: 'ko', label: 'Korean', disabled: true, group: 'Not measurable yet — glyph width' },
+	{ value: 'zh-Hans', label: 'Chinese (Simplified)', disabled: true, group: 'Not measurable yet — glyph width' },
+	{ value: 'zh-Hant', label: 'Chinese (Traditional)', disabled: true, group: 'Not measurable yet — glyph width' },
+	{ value: 'th', label: 'Thai', disabled: true, group: 'Not measurable yet — glyph width' },
+];
+
+export const SCOPES: readonly { value: ScanScope; label: string }[] = [
+	{ value: 'page', label: 'Page' },
+	{ value: 'selection', label: 'Selection' },
+];
+
+/** `Clips` rather than `Truncates`: the variant name matches `OverflowVerdictValue`, the copy is
+ *  better English. Settled, not drift — see VERDICT_WORD. */
+export const FILTERS: readonly { value: OverflowFilter; label: string }[] = [
+	{ value: 'issues', label: 'Issues' },
+	{ value: 'all', label: 'All nodes' },
+	{ value: 'overflows', label: 'Overflows' },
+	{ value: 'truncates', label: 'Clips' },
+	{ value: 'unmeasurable', label: 'Un-measurable' },
+	{ value: 'fits', label: 'Fits' },
+];
+
+export const SORTS: readonly { value: OverflowSort; label: string }[] = [
+	{ value: 'severity', label: 'Severity' },
+	{ value: 'document', label: 'Document order' },
+	{ value: 'container', label: 'Container' },
+	{ value: 'amount', label: 'Overflow amount' },
+];
+
+export const LABELS = {
+	language: 'Language',
+	scope: 'Scope',
+	show: 'Show',
+	sort: 'Sort',
+	scan: 'Scan',
+	stop: 'Stop',
+	jump: 'Zoom to node',
+	tryAgain: 'Try Again',
+	footer: 'Matrix',
+} as const;
+
+/**
+ * The row's status word. The component set's variant reads `Severity=Truncates`, matching
+ * `OverflowVerdictValue`; the text inside that variant reads `clips 8px`. The variant name is
+ * implementer-facing and must match the union; the copy is better English. That divergence is
+ * settled, not drift (LS-8.2 §2.6).
+ */
+export const VERDICT_WORD: Record<OverflowVerdictValue, string> = {
+	fits: 'fits',
+	truncates: 'clips',
+	overflows: 'overflows',
+	unmeasurable: 'un-measurable',
+};
+
+/**
+ * `${containerLabel}  •  ${word}${amount}` — a double space either side of the bullet.
+ *
+ * The amount is ceiled at render, not on the wire: a 0.4px overshoot rounding to `overflows 0px`
+ * would restate the very problem the delta exists to make visible, and `1px` is at least true.
+ * Sorting uses the raw value (LS-8.2 §2.1).
+ */
+export function rowMeta(verdict: OverflowVerdict): string {
+	const amount = verdict.overflowPx === undefined ? '' : ` ${Math.ceil(verdict.overflowPx)}px`;
+	return `${verdict.containerLabel}  •  ${VERDICT_WORD[verdict.verdict]}${amount}`;
+}
+
+/** `shown of scanned` — true under every filter state, unlike `N issues` (design.md). */
+export function summaryCount(shown: number, scanned: number): string {
+	return `${shown.toLocaleString()} of ${scanned.toLocaleString()}`;
+}
+
+export function scanningCount(completed: number, total: number): string {
+	return `Scanning… ${completed.toLocaleString()} of ${total.toLocaleString()} nodes`;
+}
+
+export function foundYield(found: number): string {
+	return `${found.toLocaleString()} found`;
+}
+
+export function stoppedCount(shown: number, scanned: number): string {
+	return `Stopped — ${summaryCount(shown, scanned)}`;
+}
+
+/** Headline/body for each state the panel can surface. `StateView` holds no copy of its own
+ *  (LS-5 §0), so every string it renders comes from here. */
+export const STATES = {
+	firstRun: {
+		headline: 'Check for overflow',
+		body: 'Pick a target language and scan the page to see which strings break their containers.',
+	},
+	noSelection: {
+		headline: 'Nothing selected',
+		body: 'Select at least one layer, or switch the scope to Page.',
+	},
+	noTextOnPage: {
+		headline: 'No text to check',
+		body: 'This scope has no eligible text layers.',
+	},
+	noIssues: (scanned: number) => ({
+		headline: 'No issues found',
+		body: `All ${scanned.toLocaleString()} nodes fit their containers.`,
+	}),
+	fontsUnavailable: {
+		headline: 'Some fonts are unavailable',
+		body: 'Those layers were skipped and flagged rather than measured — install the fonts and scan again.',
+	},
+	largeFile: {
+		headline: 'This is a large file',
+		body: 'The scan may take a while. Rows appear as they are found, and you can stop at any point.',
+	},
+	scanStopped: {
+		headline: 'Scan stopped',
+		body: 'Nothing had been checked yet. Scan again to start over.',
+	},
+	operationFailed: {
+		headline: "That didn't work",
+		body: 'Something went wrong. Try again.',
+	},
+} as const;

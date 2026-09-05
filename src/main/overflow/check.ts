@@ -11,8 +11,8 @@
 //
 // Pass 3 (LS-8.2 §3.2) adds the magnitude assertions to the same walk: field presence and sign on
 // every row, `maxHeight-cap` asserted to carry NO delta, and — for fixed-box rows — an independent
-// constrained re-read that must agree with the engine's own. The observed deltas are printed and go
-// in the PR description as the first-run baseline.
+// wrapped re-read that must agree with the engine's own. The observed deltas are printed and go in
+// the PR description as the first-run baseline.
 //
 // It also piggybacks 'select-node' (pass 4): after the real handler runs in the same dispatch, a
 // bounded poll asserts the selection landed on the target. The fabricated-id case asserts nothing
@@ -31,6 +31,9 @@ const SHORT = 'OK';
 // The 160-character sentence carried over from the LS-7 spike harness.
 const LONG =
 	'The quick brown fox jumps over the lazy dog while the five boxing wizards jump quickly over it again and again, and then the fox jumps over the lazy dog once more.';
+// 43 chars: too wide for the `fixed-wraps-fits` 200px box on one line, so it wraps to two — which
+// fit the 60px box height. The regression candidate for the horizontal-overflow defect.
+const WRAPS = 'The quick brown fox jumps over the lazy dog';
 
 interface CheckRow {
 	label: string;
@@ -45,6 +48,10 @@ interface CheckRow {
 const rows: CheckRow[] = [
 	{ label: 'fixed-fits', candidate: SHORT, expected: 'fits' },
 	{ label: 'fixed-overflows', candidate: LONG, expected: 'overflows', reason: 'exceeds-fixed-box' },
+	// Wraps to two lines and fits. Figma never overflows text horizontally — it character-wraps — so
+	// a box narrower than its content is not by itself an overflow. This row fails loudly if the
+	// fixed-box branch ever goes back to measuring an unwrapped width.
+	{ label: 'fixed-wraps-fits', candidate: WRAPS, expected: 'fits' },
 	{ label: 'truncate-fits', candidate: SHORT, expected: 'fits' },
 	{ label: 'truncate-overflows', candidate: LONG, expected: 'truncates', reason: 'truncated-fixed-box' },
 	{ label: 'autoheight-fits', candidate: SHORT, expected: 'fits' },
@@ -121,14 +128,16 @@ async function runChecks(): Promise<string[]> {
 /**
  * Independent re-derivation of `overflowPx` for fixed-box rows (LS-8.2 §3.2).
  *
- * The engine's second read is verified against a second, separately written constrained read of the
- * same node — never against a hand-typed constant. A wrong golden and a wrong implementation can
- * agree and both pass (agent-guidelines §6), and these numbers could not be hand-typed anyway: they
- * depend on the metrics of whatever Inter build the machine has.
+ * The engine's arithmetic is verified against a separately written read of the same node — never
+ * against a hand-typed constant. A wrong golden and a wrong implementation can agree and both pass
+ * (agent-guidelines §6), and these numbers could not be hand-typed anyway: they depend on the
+ * metrics of whatever Inter build the machine has. What this actually catches is the engine
+ * measuring against the wrong reference — `ownBounds.height` (the rotated AABB) rather than the
+ * node's local height, which is a silent wrong number rather than a crash.
  *
  * Growing-mode rows are not re-derived: their deltas are plain subtractions of numbers the
- * measurement already returns, with no second read to get wrong. Their observed value is printed
- * instead — that print is the first-run baseline the PR description records.
+ * measurement already returns. Their observed value is printed instead — that print is the
+ * first-run baseline the PR description records.
  */
 async function checkMagnitude(
 	row: CheckRow,
@@ -169,7 +178,7 @@ async function checkMagnitude(
 		return;
 	}
 
-	// Fixed box: re-derive from our own constrained read, on our own clone.
+	// Fixed box: re-derive from our own wrapped read, on our own clone.
 	const clone = node.clone();
 	try {
 		figma.currentPage.appendChild(clone);
@@ -178,11 +187,12 @@ async function checkMagnitude(
 		for (const font of clone.getRangeAllFontNames(0, clone.characters.length)) {
 			await figma.loadFontAsync(font);
 		}
+		// The inherited width is kept, exactly as the engine does — the width is what forces the wrap
+		// and can never itself be exceeded.
 		clone.textAutoResize = 'HEIGHT';
-		clone.resize(node.width, clone.height);
 		clone.textTruncation = 'DISABLED';
 		clone.characters = row.candidate;
-		const expected = Math.max(clone.width - node.width, clone.height - node.height);
+		const expected = clone.height - node.height;
 		const agrees = Math.abs(expected - px) <= 0.01;
 		notes.push(
 			agrees

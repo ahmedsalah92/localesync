@@ -17,12 +17,12 @@ export interface Measurement {
 	candidate: string;
 	verdict: OverflowVerdictValue;
 	reason?: OverflowReason;
-	/** The FIRST read. For `NONE`/`TRUNCATE` this is the *unlocked* clone, which stops wrapping —
-	 *  not commensurable with `overflowPx` and never to be cross-checked against it. */
 	measuredWidth: number;
 	measuredHeight: number;
 	/** Overflow magnitude in px, unrounded. Omitted wherever it is not derivable — see the §2.1
-	 *  table in docs/specs/LS-8.2.md, and `OverflowVerdict.overflowPx` in src/common/models.ts. */
+	 *  table in docs/specs/LS-8.2.md, and `OverflowVerdict.overflowPx` in src/common/models.ts.
+	 *  For fixed boxes it is `measuredHeight − node.height`, from the same read: the numbers are
+	 *  commensurable, and a consumer may check one against the other. */
 	overflowPx?: number;
 }
 
@@ -35,68 +35,6 @@ function readBounds(clone: TextNode): { width: number; height: number } {
 	const box = clone.absoluteBoundingBox;
 	if (box === null) return { width: clone.width, height: clone.height };
 	return { width: box.width, height: box.height };
-}
-
-/**
- * The second read for `NONE` / `TRUNCATE` nodes: the magnitude pass (LS-8.2 §1.1.2).
- *
- * The verdict pass above unlocks the clone to `WIDTH_AND_HEIGHT`, which is correct for answering
- * "does the content fit" but useless for "by how much" — an unlocked clone stops wrapping. The LS-7
- * run recorded `fixed-overflows` at 1244.0 × 19.0 against a 200 × 40 box: a single unwrapped line.
- * Subtracting gives 1044px, the length of a line the user will never see, where the real overshoot
- * of the wrapped text is on the order of tens of pixels.
- *
- * So the clone is re-constrained to the original's width in `HEIGHT` mode and every non-`fits`
- * candidate re-read. Both axes are compared, not height alone: a wrapped phrase overshoots the box
- * height, while a single unbroken token — exactly what `expand.ts` produces for any source of 20
- * characters or fewer, the German compound-noun case the feature exists for — cannot wrap and
- * overshoots the box *width*.
- *
- * Runs as a second pass, never interleaved with the verdict loop. Verdicts are all computed and
- * pushed before the first write here lands, so the reconfiguration cannot retro-corrupt them.
- *
- * Reference is `node.width`/`node.height`, NOT `model.ownBounds`. `ownBounds` is
- * `absoluteBoundingBox` — an axis-aligned box, so for the `rotated-fixed` fixture row (30°) it is
- * `w·|cosθ| + h·|sinθ|`, inflated. Constraining to that width would measure the wrong box and
- * compare against the wrong reference, and the delta can come out ≤ 0 on a row whose verdict is
- * `overflows`. `node.width`/`clone.width` are unrotated layout dimensions on both sides, and are
- * identical to `ownBounds` for every unrotated node. (LS-8.2 §2.1 says "at `ownBounds.width`"; this
- * is a precision fix proposed back to the spec.)
- *
- * No `await` anywhere: the pass cannot yield to `figma.ui.onmessage` mid-clone, and the caller's
- * `finally { clone.remove() }` still covers it.
- */
-function applyFixedBoxMagnitude(
-	clone: TextNode,
-	node: TextNode,
-	candidates: readonly string[],
-	results: Measurement[],
-): void {
-	if (node.width <= EPS) return;
-	if (!results.some((result) => result.verdict !== 'fits')) return; // nothing to measure
-
-	// Mode BEFORE resize. Setting `HEIGHT` first pins the clone as auto-height/fixed-width, which is
-	// the documented resizable configuration; resizing a still-hugging node is not a pinned surface.
-	// Plain `resize()` and not `resizeWithoutConstraints()`, which resets `textAutoResize` and would
-	// undo the line above (agent-guidelines §2) — constraint re-application is a non-issue because a
-	// TEXT node has no children and the clone is parented to the page.
-	clone.textAutoResize = 'HEIGHT';
-	clone.resize(node.width, clone.height);
-	// Re-assert: the verdict pass cleared truncation, and a TRUNCATE clone must not re-cap here.
-	clone.textTruncation = 'DISABLED';
-
-	// If the resize was silently rejected the way `maxHeight = null` is off auto-layout, the reads
-	// below would be the ~1044px unwrapped line this pass exists to avoid. Omitting the field beats
-	// reporting a confident wrong number — the same posture `maxHeight-cap` takes.
-	if (Math.abs(clone.width - node.width) > EPS) return;
-
-	for (const [i, candidate] of candidates.entries()) {
-		const target = results[i];
-		if (target === undefined || target.verdict === 'fits') continue;
-		clone.characters = candidate;
-		const overflowPx = Math.max(clone.width - node.width, clone.height - node.height);
-		if (overflowPx > EPS) target.overflowPx = overflowPx;
-	}
 }
 
 /** Off-canvas clone, per-mode rule, `clone.remove()` in `finally`. Never mutates a user node.
@@ -163,20 +101,34 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 		const mode = model.textAutoResize;
 		if (mode === 'NONE' || mode === 'TRUNCATE') {
 			const truncationEnabled = mode === 'TRUNCATE' || model.textTruncation === 'ENDING';
-			// Unlock the fixed box once so content determines size; drop truncation so the natural
-			// (untruncated) content size is what gets measured.
-			clone.textAutoResize = 'WIDTH_AND_HEIGHT';
+			// Keep the inherited width and let height grow, so the clone wraps exactly as the real
+			// node does. Truncation off so the natural (untruncated) content height is what is read.
+			//
+			// This is a HEIGHT read, not the WIDTH_AND_HEIGHT unlock this branch used to do.
+			// Figma never overflows text horizontally — it character-wraps, so an unlocked clone
+			// answers a question the layout never asks. Probed live: a 36px box given a 102px
+			// unbreakable token kept `.width` at 36 and grew to 76px tall. Comparing that unwrapped
+			// width against the box reported `overflows` for any fixed box whose text wrapped to two
+			// lines and fitted — a false positive on the most ordinary case there is.
+			clone.textAutoResize = 'HEIGHT';
 			clone.textTruncation = 'DISABLED';
 			for (const candidate of candidates) {
 				clone.characters = candidate;
-				const measured = readBounds(clone);
-				const exceeds = measured.width > ownBounds.width + EPS || measured.height > ownBounds.height + EPS;
-				if (!exceeds) results.push(measurement(candidate, 'fits', undefined, measured));
+				// Local dims, not `absoluteBoundingBox`: rotation drops out of both sides, so the
+				// `rotated-fixed` row needs no special handling. Probed to update synchronously after
+				// a `characters` write, so no yield is needed between the write and the read.
+				const needed = clone.height;
+				// Height axis only — the width can never be exceeded, it is what forces the wrap.
+				// `node.height`, never `ownBounds.height`: the latter is the axis-aligned box, which
+				// for a rotated node is `w·|sinθ| + h·|cosθ|` and would understate the overshoot.
+				const overshoot = needed - node.height;
+				const measured = { width: clone.width, height: needed };
+				if (overshoot <= EPS) results.push(measurement(candidate, 'fits', undefined, measured));
 				// Truncation active on a fixed box → content would be ellipsized, not clipped silently.
-				else if (truncationEnabled) results.push(measurement(candidate, 'truncates', 'truncated-fixed-box', measured));
-				else results.push(measurement(candidate, 'overflows', 'exceeds-fixed-box', measured));
+				else if (truncationEnabled)
+					results.push(measurement(candidate, 'truncates', 'truncated-fixed-box', measured, overshoot));
+				else results.push(measurement(candidate, 'overflows', 'exceeds-fixed-box', measured, overshoot));
 			}
-			applyFixedBoxMagnitude(clone, node, candidates, results);
 			return results;
 		}
 

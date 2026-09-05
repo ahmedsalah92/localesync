@@ -1,7 +1,7 @@
 // src/main/devtools/generateOverflowSpike.ts
 // Dev-only fixture bootstrapper for fixtures/overflow-spike.fig (LS-7 §3 validation fixture,
 // promoted to the LS-8 acceptance fixture — fixtures/overflow-spike.md).
-// Builds 13 of the 14 rows; one row CANNOT be scripted:
+// Builds 14 of the 15 rows; one row CANNOT be scripted:
 //   • `missing-font` — loadFontAsync fails for unavailable fonts by definition; follow the manual
 //     procedure in fixtures/kitchen-sink.md §"missing-font" after running this.
 // The two truncate-* rows are authored as NONE + textTruncation ENDING, which current Figma REPORTS
@@ -21,6 +21,9 @@ const SOURCE = 'Source label';
 const AUTHORED_FIXED_FITS = 'Your changes have been saved automatically.'; // 43 chars, de ratio 1.575 → 68
 const AUTHORED_FIXED_OVERFLOWS = 'Save'; // 4 chars, de ratio 2.725 → 11 — the launch-narrative row
 const AUTHORED_MAXLINES = 'Continue to checkout'; // 20 chars, de ratio 2.035 → 41
+// 43 chars — at ~7.8 px/char and Inter Regular 16 that is ≈335px of text, so it CANNOT fit the
+// 200px box on one line and must wrap. Two lines ≈38px, comfortably inside the 60px box height.
+const WRAPS_FITS = 'The quick brown fox jumps over the lazy dog';
 
 export interface OverflowSpikeReport {
 	created: string[];
@@ -101,6 +104,22 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 		const snugHeight = t.height;
 		t.textAutoResize = 'NONE';
 		t.resize(snugWidth, snugHeight);
+	}
+
+	// ── fixed-wraps-fits — NONE, box 200×60. The regression test for the horizontal-overflow
+	// defect: the candidate is far too wide for the box on one line, so Figma character-wraps it to
+	// two, and two lines fit the height. The verdict must be `fits`.
+	//
+	// The old branch unlocked the clone to WIDTH_AND_HEIGHT, which stops wrapping, and compared that
+	// unwrapped ~335px width against the 200px box — reporting `overflows` for a box that visibly
+	// fits. Geometry is load-bearing here: widen the box past ~340 and the string stops wrapping,
+	// or shorten it below ~50px and it stops fitting, and either way the row tests nothing.
+	{
+		const f = makeFrame('fixed-wraps-fits');
+		const t = makeText('fixed-wraps-fits', f);
+		t.characters = WRAPS_FITS;
+		t.textAutoResize = 'NONE';
+		t.resize(200, 60);
 	}
 
 	// ── truncate-fits / truncate-overflows — fixed box + truncation enabled ────

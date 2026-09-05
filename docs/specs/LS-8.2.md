@@ -61,6 +61,24 @@ panel can match a verdict back to the menu selection that produced it.
 
 #### 1.1.2 Fixed-box modes need a second measurement
 
+> **Superseded 2026-09-05 by a live probe — this subsection is kept as the record, not the
+> instruction.** The premise below is wrong: it assumes a fixed box can be overflowed horizontally.
+> It cannot. **Figma never overflows text horizontally — it character-wraps.** Probed live: a 36 px
+> box given a 102 px unbreakable token kept `.width` at 36 and grew to 76 px tall.
+>
+> That makes the *verdict* logic this subsection preserves ("the verdict still comes from the first
+> read") a false-positive generator, not just an unusable source of magnitude: any fixed box whose
+> text wrapped to two lines and fitted was reported `overflows`, because the unlocked clone's
+> unwrapped width was compared against the box.
+>
+> **What ships instead: one read, height axis only.** The clone goes to `HEIGHT` keeping its
+> inherited width, so it wraps exactly as the real node does; the verdict is `clone.height >
+> node.height + EPS` and `overflowPx` is `clone.height − node.height` from that same read. No second
+> read, no width comparison, no rotation special-case — local dims are unrotated on both sides, so
+> the `rotated-fixed` row needs nothing. The regression is the `fixed-wraps-fits` fixture row.
+>
+> The rest of §1.1 (the `overflowPx` field, tag resolution, streaming) is unaffected.
+
 `measure.ts` currently unlocks the clone to `WIDTH_AND_HEIGHT` and clears truncation. That is
 correct for the *verdict* — it answers "does the content fit" — but the numbers it yields cannot
 produce the magnitude, because an unlocked clone stops wrapping. The LS-7 run recorded
@@ -326,6 +344,13 @@ The reducer is pure and DOM-free so it unit-tests under Vitest without jsdom
 Use exactly these. No choice below is left open.
 
 ### 2.1 `overflowPx` arithmetic
+
+> **Amended 2026-09-05 — see §1.1.2's note.** The two fixed-box rows below are wrong on both the
+> reference and the axis. `exceeds-fixed-box` and `truncated-fixed-box` are **`measuredHeight −
+> node.height`**, from the single wrapped read, with **no second read**; the width axis cannot be
+> exceeded because it is what forces the wrap. The reference is the node's LOCAL height, never
+> `ownBounds`, which is the axis-aligned box and understates a rotated node's overshoot. Every
+> growing-mode row below is unchanged and correct.
 
 Let `own` be the node's own bounds, `container` the immediate parent's bounds, `available` the
 offset-aware container height already computed by `measure.ts`.

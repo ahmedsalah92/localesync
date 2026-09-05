@@ -19,7 +19,7 @@ candidates (bypassing expansion), pass 2 drives the real `scanOverflow('page', [
 through the authored characters plus the `['ja']` refusal probe, pass 3 exercises `select-node`.
 
 Most rows are scriptable: dev-only **Generate overflow-spike** button on a fresh empty file/page
-builds 13 of the 14 rows and a README frame listing the manual steps. Only `missing-font` must be
+builds 14 of the 15 rows and a README frame listing the manual steps. Only `missing-font` must be
 authored by hand. (Regenerating means redoing the manual `missing-font` row — for the LS-8 update,
 hand-editing the three changed rows in the live file is less work.)
 
@@ -47,6 +47,7 @@ hand-editing the three changed rows in the live file is less work.)
 |---|---|---|
 | `fixed-fits` | Resizing **Fixed size** (`NONE`), box **600×40**, frame 640×100. Authored characters below. | `fits` |
 | `fixed-overflows` | Fixed size, box **cut snug to the word** (author auto-width, then switch to Fixed size ≈ 36×19). Authored characters below. | `overflows` / `exceeds-fixed-box` |
+| `fixed-wraps-fits` | Fixed size (`NONE`), box **200×60**. Characters `The quick brown fox jumps over the lazy dog` (43 chars ≈ 335 px on one line) — far too wide for the box, so it **wraps to two lines** (≈38 px) and fits the height. | `fits` |
 | `truncate-fits` | Fixed size 200×40 + **Truncate text** on — reports `textAutoResize: TRUNCATE` (see note). | `fits` |
 | `truncate-overflows` | Same as `truncate-fits`. | `truncates` / `truncated-fixed-box` |
 | `autoheight-fits` | Fixed width 200, resizing **Auto height** (`HEIGHT`), in a 300×100 frame. | `fits` |
@@ -74,11 +75,15 @@ verdict projection together. Hand-edits to the live file:
 
 - Ratios are the exact values (`1 + bandGrowth × 1.15`); the spec's §3 table shows them
   display-rounded (2.73 / 1.90 — the latter also omits the de factor).
-- Geometry is load-bearing, not cosmetic: at the old 200×40, `fixed-fits` would **overflow** (the
-  68-char candidate measures ≈ 530 px unlocked) and `fixed-overflows` would **fit** (86 px in a
-  200-px box). `fixed-overflows` is the launch-narrative row — a four-letter English button that
-  breaks in German — and the regression test for the flat-1.35 model defect: under the old flat
+- Geometry is load-bearing, not cosmetic. At the old 200×40, `fixed-fits`'s 68-char candidate would
+  wrap to ≈3 lines (≈57 px) and **overflow** the 40 px height, and `fixed-overflows`'s 11-char
+  candidate would sit on one line (≈19 px) and **fit**. Both rows would assert the opposite of what
+  they exist to assert. `fixed-overflows` is the launch-narrative row — a four-letter English button
+  that breaks in German — and the regression test for the flat-1.35 model defect: under the old flat
   ratio it returned `fits`. It must stay in the short band.
+  *(Reasoning restated 2026-09-05: it used to be argued on unwrapped **width**. Figma never overflows
+  text horizontally — it character-wraps — so the comparison is on height. The conclusion is
+  unchanged; the arithmetic behind it was not.)*
 - At width 200, `autoheight-maxlines`'s 41-char candidate wraps into exactly the 2 permitted lines
   (capped == free ⇒ `fits`); at 140 free growth needs 3 lines, so `maxLines-cap` fires. The
   authored label itself still lays out in 2 lines at 140.
@@ -124,7 +129,7 @@ the `kitchen-sink.md` procedure (author with a font you then make unavailable), 
   `try/finally`.
 
 **Not on this fixture:** the LS-8.2 §3.3 bridge regression. It needs a file of more than 25 nodes
-(`PROGRESS_EVERY`) to reach the first progress tick, and this fixture has 14 rows — which is exactly
+(`PROGRESS_EVERY`) to reach the first progress tick, and this fixture has 15 rows — which is exactly
 why the `progress`-settles-`request()` defect went unnoticed. Run *Run LS-8.2 bridge regression*
 against `fixtures/large-file.fig` instead.
 

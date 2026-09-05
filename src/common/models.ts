@@ -67,11 +67,9 @@ export interface OverflowVerdict {
 	 * derivable — see LS-8.2 §2.1. Absent on `fits`, on every `unmeasurable`, and on
 	 * `maxHeight-cap`, where the hidden amount cannot be measured.
 	 *
-	 * NOT derivable from `measuredWidth`/`measuredHeight`. For `NONE`/`TRUNCATE` nodes those come
-	 * from a clone unlocked to `WIDTH_AND_HEIGHT`, which stops wrapping: LS-7 recorded 1244×19 for
-	 * a 200×40 box — one unwrapped line the user never sees. `overflowPx` comes from a second,
-	 * width-constrained read (LS-8.2 §1.1.2), so the two are not commensurable and must not be
-	 * cross-checked against each other.
+	 * Always a HEIGHT overshoot. Figma never overflows text horizontally — it character-wraps — so
+	 * the width axis cannot be exceeded; it is what forces the wrap. Measured against the node's
+	 * LOCAL height, so rotation drops out.
 	 */
 	overflowPx?: number;
 }

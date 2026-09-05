@@ -62,6 +62,16 @@ export interface OverflowVerdict {
 	candidate: string; // the string actually measured
 	measuredWidth: number;
 	measuredHeight: number;
+	/**
+	 * Overflow magnitude in px, unrounded. Present only where a magnitude is both meaningful and
+	 * derivable — see LS-8.2 §2.1. Absent on `fits`, on every `unmeasurable`, and on
+	 * `maxHeight-cap`, where the hidden amount cannot be measured.
+	 *
+	 * Always a HEIGHT overshoot. Figma never overflows text horizontally — it character-wraps — so
+	 * the width axis cannot be exceeded; it is what forces the wrap. Measured against the node's
+	 * LOCAL height, so rotation drops out.
+	 */
+	overflowPx?: number;
 }
 
 // ── owned by LS-4 (snapshot) — expand here, do not fork ──

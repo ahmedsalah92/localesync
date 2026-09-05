@@ -16,16 +16,27 @@ export default defineConfig([
 		languageOptions: {
 			parser: tsParser,
 			parserOptions: {
-				// projectService (not `project: true`) so files intentionally kept out of the
-				// composite build tsconfigs — e.g. *.test.ts, excluded to keep the ambient-free
-				// `common` build free of vitest's DOM/Node type graph — still get typed linting
-				// via the inferred default project.
-				projectService: {
-					allowDefaultProject: ['src/*/*.test.ts', 'src/*/*/*.test.ts'],
-					// LS-5 adds four *.test.ts files under src/ui/shell/, pushing the repo total past
-					// the default cap of 8. Still a small, fixed set, not an unbounded glob.
-					maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 16,
-				},
+				projectService: true,
+				tsconfigRootDir: import.meta.dirname,
+			},
+		},
+	},
+
+	// Test files: projectService discovers a file's project by walking up for a file literally
+	// named "tsconfig.json" — it never considers the sibling tsconfig.test.json (LS-22), no
+	// matter what the solution file references. Point the classic `project` resolver at the
+	// three test configs directly instead; every *.test.ts(x) now belongs to one of them, so no
+	// default-project allowance is needed.
+	{
+		files: ['src/*/*.test.ts', 'src/*/*/*.test.ts'],
+		languageOptions: {
+			parserOptions: {
+				projectService: false,
+				project: [
+					'src/common/tsconfig.test.json',
+					'src/main/tsconfig.test.json',
+					'src/ui/tsconfig.test.json',
+				],
 				tsconfigRootDir: import.meta.dirname,
 			},
 		},

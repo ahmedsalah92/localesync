@@ -9,7 +9,30 @@
 > **authored characters and new geometry** for the pass-2 end-to-end scan — see "LS-8 pass-2
 > authored rows" below. **The live .fig needs a hand-edit pass to match** (three rows).
 
-Human-built in Figma. **Source of truth for expected verdicts: `docs/specs/LS-8.md` §3** (pass-1
+> ### ⚠ Read the row names correctly — they are not scan predictions
+>
+> **A row's name states the verdict for the candidate the pass-1 harness *injects*, not the verdict
+> for a scan of the text authored in the node.** Pass 1 bypasses expansion and measures its own
+> explicit SHORT/LONG candidates against each box; that is the whole point of the row names.
+>
+> Only four rows carry meaningful authored characters — `fixed-fits`, `fixed-overflows`,
+> `fixed-wraps-fits` and `autoheight-maxlines` (the pass-2 set, plus the wrap regression row).
+> **Every other row holds the twelve-character placeholder `Source label`**, which is short enough
+> to fit its box in every language.
+>
+> The consequence, and it looks alarming until you know: opening this file and pressing **Scan** in
+> the panel makes `truncate-overflows`, `autoheight-overflows` and `hug-overflows` report **`fits`**.
+> That is **correct**. `Source label` genuinely does fit those boxes; the names describe what the
+> harness proves about the *rule*, not what a real scan finds in *this* file. Anyone reading the
+> panel without this paragraph will file three engine bugs that do not exist.
+>
+> They are deliberately **not renamed**: the names are load-bearing in `docs/specs/LS-8.1.md` §3's
+> pass-1 table, in `src/main/overflow/check.ts`'s name matching, and in the generator — renaming is
+> a four-place change to acceptance criteria for a labelling problem, so it is documented instead
+> (LS-8.2 §5 carry-forward 6). Panel-facing verdict validation needs a purpose-built
+> `known-overflow` file with authored strings on every row; that stays an LS-17 item.
+
+Human-built in Figma. **Source of truth for expected verdicts: `docs/specs/LS-8.1.md` §3** (pass-1
 and pass-2 tables); the tables below restate the node inventory with authoring steps only. If the
 two ever disagree, the spec wins.
 
@@ -19,7 +42,7 @@ candidates (bypassing expansion), pass 2 drives the real `scanOverflow('page', [
 through the authored characters plus the `['ja']` refusal probe, pass 3 exercises `select-node`.
 
 Most rows are scriptable: dev-only **Generate overflow-spike** button on a fresh empty file/page
-builds 13 of the 14 rows and a README frame listing the manual steps. Only `missing-font` must be
+builds 14 of the 15 rows and a README frame listing the manual steps. Only `missing-font` must be
 authored by hand. (Regenerating means redoing the manual `missing-font` row — for the LS-8 update,
 hand-editing the three changed rows in the live file is less work.)
 
@@ -47,6 +70,7 @@ hand-editing the three changed rows in the live file is less work.)
 |---|---|---|
 | `fixed-fits` | Resizing **Fixed size** (`NONE`), box **600×40**, frame 640×100. Authored characters below. | `fits` |
 | `fixed-overflows` | Fixed size, box **cut snug to the word** (author auto-width, then switch to Fixed size ≈ 36×19). Authored characters below. | `overflows` / `exceeds-fixed-box` |
+| `fixed-wraps-fits` | Fixed size (`NONE`), box **200×60**. Characters `The quick brown fox jumps over the lazy dog` (43 chars ≈ 335 px on one line) — far too wide for the box, so it **wraps to two lines** (≈38 px) and fits the height. | `fits` |
 | `truncate-fits` | Fixed size 200×40 + **Truncate text** on — reports `textAutoResize: TRUNCATE` (see note). | `fits` |
 | `truncate-overflows` | Same as `truncate-fits`. | `truncates` / `truncated-fixed-box` |
 | `autoheight-fits` | Fixed width 200, resizing **Auto height** (`HEIGHT`), in a 300×100 frame. | `fits` |
@@ -74,11 +98,15 @@ verdict projection together. Hand-edits to the live file:
 
 - Ratios are the exact values (`1 + bandGrowth × 1.15`); the spec's §3 table shows them
   display-rounded (2.73 / 1.90 — the latter also omits the de factor).
-- Geometry is load-bearing, not cosmetic: at the old 200×40, `fixed-fits` would **overflow** (the
-  68-char candidate measures ≈ 530 px unlocked) and `fixed-overflows` would **fit** (86 px in a
-  200-px box). `fixed-overflows` is the launch-narrative row — a four-letter English button that
-  breaks in German — and the regression test for the flat-1.35 model defect: under the old flat
+- Geometry is load-bearing, not cosmetic. At the old 200×40, `fixed-fits`'s 68-char candidate would
+  wrap to ≈3 lines (≈57 px) and **overflow** the 40 px height, and `fixed-overflows`'s 11-char
+  candidate would sit on one line (≈19 px) and **fit**. Both rows would assert the opposite of what
+  they exist to assert. `fixed-overflows` is the launch-narrative row — a four-letter English button
+  that breaks in German — and the regression test for the flat-1.35 model defect: under the old flat
   ratio it returned `fits`. It must stay in the short band.
+  *(Reasoning restated 2026-09-05: it used to be argued on unwrapped **width**. Figma never overflows
+  text horizontally — it character-wraps — so the comparison is on height. The conclusion is
+  unchanged; the arithmetic behind it was not.)*
 - At width 200, `autoheight-maxlines`'s 41-char candidate wraps into exactly the 2 permitted lines
   (capped == free ⇒ `fits`); at 140 free growth needs 3 lines, so `maxLines-cap` fires. The
   authored label itself still lays out in 2 lines at 140.
@@ -97,13 +125,24 @@ fixed-size node with truncation enabled *reports* `TRUNCATE`. The generator logs
 for both rows on generate; the LS-8 engine treats `TRUNCATE` as `NONE` + `textTruncation: ENDING`
 internally, so the eventual removal from reads is a no-op.
 
-### Note: `missing-font` (manual)
+### Note: `missing-font` (manual, and **standing** — it does not stay fixed)
 
 `loadFontAsync` fails for unavailable fonts by definition, so this row cannot be scripted. Follow
 the `kitchen-sink.md` procedure (author with a font you then make unavailable), name the node
-`missing-font`, and record the family in the README frame.
+`missing-font`, and record the family in the README frame. The family in the live file is
+**Fontine**.
 
-## What the check asserts (LS-8.md §3)
+**This is a standing manual step, not a one-time one.** The generator cannot create a node in a
+family the environment does not have, so **every regeneration of this fixture wipes this row**, and
+`pass 1` then fails on `missing-font` — currently **34/35** — until it is rebuilt by hand. Budget
+the hand-rebuild into any regeneration, and read a 34/35 as "the manual row is outstanding", not as
+a regression.
+
+A check that always fails is a check people stop reading (LS-8.2 §5 carry-forward 4), so if this
+row is knowingly outstanding, say so in the PR rather than leaving the reader to guess which of the
+35 failed.
+
+## What the check asserts (LS-8.1.md §3)
 
 - **Pass 1** (main side, streamed as `ls8:` progress notes): one `PASS`/`FAIL` line per labelled
   node — verdict **and** reason vs the pass-1 column, explicit SHORT/LONG candidates, expansion
@@ -111,16 +150,31 @@ the `kitchen-sink.md` procedure (author with a font you then make unavailable), 
 - **Pass 2** (UI side): the three authored rows through a genuine `overflow-scan-request` round
   trip, matched by their authored characters, plus the self-sufficiency fields
   (`characters`/`containerLabel`/`candidate`/measured dims) and the `['ja']` refusal probe.
-- **Pass 3**: `select-node` selection assertion (main side) and the fabricated-id → `node-gone`
+- **Pass 3 — magnitude** (LS-8.2 §3.2): `overflowPx` present on every `overflows`/`truncates` row
+  **except** `maxHeight-cap`, which must carry none; absent on every `fits` and `unmeasurable`;
+  every present value `> 0`; `hug-page-parent` still `fits`/`no-container` with no delta. For each
+  `NONE`/`TRUNCATE` row the check re-derives `max(w − own.w, h − own.h)` from its **own**
+  constrained read and asserts agreement — the second read is verified against itself, never
+  against a hand-typed constant. The observed delta per row is printed and recorded in the PR
+  description as the first-run baseline.
+- **Pass 4**: `select-node` selection assertion (main side) and the fabricated-id → `node-gone`
   correlated error (UI side).
 - The user's document is never mutated — measurement touches off-canvas clones only, removed in
   `try/finally`.
 
+**Not on this fixture:** the LS-8.2 §3.3 bridge regression. It needs a file of more than 25 nodes
+(`PROGRESS_EVERY`) to reach the first progress tick, and this fixture has 15 rows — which is exactly
+why the `progress`-settles-`request()` defect went unnoticed. Run *Run LS-8.2 bridge regression*
+against `fixtures/large-file.fig` instead.
+
 ## Done when (LS-8 promotion pass)
 
 - [ ] The three pass-2 rows hand-edited in the live .fig (characters + geometry per the table).
-- [ ] **Run LS-8 overflow check**: pass 1 14/14 (verdict + reason), pass 2 3/3 + ja refusal,
-      pass 3 selection PASS + `node-gone`.
+- [ ] **Run LS-8 overflow check**: pass 1 (verdict + reason), pass 2 3/3 + ja refusal,
+      pass 3 selection PASS + `node-gone`. A freshly *generated* file scores **34/35** on pass 1
+      until the manual `missing-font` row is rebuilt — see its note above.
+- [ ] `missing-font` rebuilt by hand (**required after every regeneration**) and its family
+      recorded in the README frame.
 - [ ] README frame updated (authored-rows note; date).
 - [x] Shared-Figma link recorded in `fixtures/README.md` (unchanged from LS-7).
 

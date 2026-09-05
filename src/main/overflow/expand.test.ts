@@ -5,6 +5,8 @@ import {
 	UNSUPPORTED_LANGUAGES,
 	expandForLanguage,
 	expansionRatio,
+	isUnsupportedLanguage,
+	normalizeLanguageTag,
 	transform,
 } from './expand';
 
@@ -48,11 +50,53 @@ describe('expansionRatio', () => {
 		expect(DEFAULT_LANGUAGE_FACTOR).toBe(1.0);
 		expect(expansionRatio(4, 'tlh')).toBeCloseTo(expansionRatio(4, 'es'), 10);
 	});
+
+	// A regional tag must resolve to its primary subtag's factor, not silently to the European
+	// average — 'de-AT' at 1.0 instead of 1.15 under-reports the canonical expansion case.
+	it.each([
+		['fr-FR', 'fr'],
+		['de-AT', 'de'],
+		['PT-br', 'pt'],
+	])('%s resolves to the same factor as %s', (regional, primary) => {
+		expect(expansionRatio(30, regional)).toBeCloseTo(expansionRatio(30, primary), 10);
+	});
+
+	it('still falls back to DEFAULT_LANGUAGE_FACTOR for an unknown regional tag', () => {
+		expect(expansionRatio(30, 'tlh-Latn')).toBeCloseTo(expansionRatio(30, 'es'), 10);
+	});
+});
+
+describe('normalizeLanguageTag', () => {
+	it.each([
+		['fr-FR', 'fr'],
+		['ZH-Hant', 'zh'],
+		['de', 'de'],
+		['JA', 'ja'],
+		['', ''],
+	])('%s → %s', (tag, expected) => {
+		expect(normalizeLanguageTag(tag)).toBe(expected);
+	});
 });
 
 describe('UNSUPPORTED_LANGUAGES', () => {
 	it('refuses exactly the Phase-1 CJK/Thai set', () => {
 		expect(new Set(UNSUPPORTED_LANGUAGES)).toEqual(new Set(['ja', 'ko', 'zh', 'zh-Hans', 'zh-Hant', 'th']));
+	});
+});
+
+describe('isUnsupportedLanguage', () => {
+	// The regional-tag hole is the point of these cases: exact-match `.has()` let 'ja-JP' and
+	// 'zh-TW' past the refusal and hand them confident pixel verdicts from a character-count model
+	// that is wrong for those scripts (LS-8.2 §1.1.3).
+	it.each(['ja', 'ja-JP', 'JA', 'zh', 'zh-TW', 'zh-Hans', 'ZH-HANT', 'ko-KR', 'th-TH', 'th'])(
+		'%s is refused',
+		(tag) => {
+			expect(isUnsupportedLanguage(tag)).toBe(true);
+		},
+	);
+
+	it.each(['de', 'de-AT', 'fr-FR', 'es', 'ar', 'he', 'tlh', ''])('%s is measured', (tag) => {
+		expect(isUnsupportedLanguage(tag)).toBe(false);
 	});
 });
 

@@ -159,7 +159,51 @@ export async function runOverflowCheck(): Promise<void> {
 			log(false, 'ja refusal scan', String(err));
 		}
 
-		// 5: pass 3 — jump-to-node on a real row, then a fabricated id.
+		// 4b: pass 3 — magnitude, asserted over the real de scan (LS-8.2 §3.2). The per-row
+		// re-derivation is main-side (it needs a constrained read); these are the field-level rules
+		// that hold across every row the wire carried, plus the printed baseline.
+		if (verdicts.length > 0) {
+			const missing = verdicts.filter(
+				(v) =>
+					(v.verdict === 'overflows' || v.verdict === 'truncates') &&
+					v.reason !== 'maxHeight-cap' &&
+					v.overflowPx === undefined,
+			);
+			log(missing.length === 0, 'pass3 every flagged row carries overflowPx', missing.map((v) => v.characters).join('; '));
+
+			const capped = verdicts.filter((v) => v.reason === 'maxHeight-cap' && v.overflowPx !== undefined);
+			log(capped.length === 0, 'pass3 maxHeight-cap rows carry no delta', `${capped.length} violation(s)`);
+
+			const unflagged = verdicts.filter(
+				(v) => (v.verdict === 'fits' || v.verdict === 'unmeasurable') && v.overflowPx !== undefined,
+			);
+			log(unflagged.length === 0, 'pass3 no fits/unmeasurable row carries a delta', `${unflagged.length} violation(s)`);
+
+			const nonPositive = verdicts.filter((v) => v.overflowPx !== undefined && !(v.overflowPx > 0));
+			log(nonPositive.length === 0, 'pass3 every present overflowPx is > 0', `${nonPositive.length} violation(s)`);
+
+			// LS-7's immediate-parent rule must survive the amendment.
+			const hugPageParent = verdicts.find((v) => v.reason === 'no-container');
+			if (hugPageParent) {
+				log(
+					hugPageParent.verdict === 'fits' && hugPageParent.overflowPx === undefined,
+					'pass3 hug-page-parent stays fits/no-container with no delta',
+					`verdict=${hugPageParent.verdict} px=${String(hugPageParent.overflowPx)}`,
+				);
+			}
+
+			// The first-run baseline — copy this block into the PR description.
+			console.log('[overflow] pass3 observed deltas:');
+			for (const v of verdicts) {
+				if (v.overflowPx === undefined) continue;
+				console.log(
+					`[overflow]   ${v.containerLabel} — ${v.verdict}/${v.reason ?? 'none'} ` +
+						`${v.overflowPx.toFixed(2)}px (renders ${Math.ceil(v.overflowPx)}px) — "${v.characters}"`,
+				);
+			}
+		}
+
+		// 5: pass 4 — jump-to-node on a real row, then a fabricated id.
 		const firstOverflow = verdicts.find((v) => v.verdict === 'overflows');
 		if (!firstOverflow) {
 			if (!fixtureMissing) log(false, 'select-node', 'no overflows row in the de scan to select');
@@ -189,4 +233,63 @@ export async function runOverflowCheck(): Promise<void> {
 	}
 
 	console.log(`[overflow] complete — ${checks} checks logged`);
+}
+
+/**
+ * The bridge regression (LS-8.2 §3.3), run separately against `fixtures/large-file.fig`.
+ *
+ * `request()` used to settle on any correlation-id match, so the first `progress` tick resolved the
+ * scan promise with a ProgressMessage and the real result arrived to find nothing waiting. It
+ * cannot be caught by Vitest — `bridge.ts` touches `window` at module scope and agent-guidelines §6
+ * rules out jsdom — and it cannot be caught on `overflow-spike.fig` either: PROGRESS_EVERY is 25
+ * and the spike has 14 rows, so it never reaches the first tick. That is precisely why the defect
+ * went unnoticed. This needs a file of MORE than 25 nodes; large-file.fig has ~1500.
+ *
+ * It also exercises the streaming path end to end — partials must arrive, and their accumulated
+ * count must reconcile with the final result.
+ */
+export async function runBridgeRegression(): Promise<void> {
+	let checks = 0;
+	const log = (ok: boolean, label: string, detail = '') => {
+		checks++;
+		console.log(`[bridge] ${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? ` — ${detail}` : ''}`);
+	};
+
+	let ticks = 0;
+	let streamed = 0;
+	let lastTotal = 0;
+	const offProgress = on('progress', (msg) => {
+		if (msg.note !== undefined) return; // dev-harness notes, not scan progress
+		ticks++;
+		lastTotal = msg.total;
+	});
+	const offPartial = on('overflow-scan-partial', (msg) => {
+		streamed += msg.verdicts.length;
+	});
+
+	try {
+		const result = await request('overflow-scan-request', { scope: 'page', targetLanguages: ['de'] });
+
+		// The assertion that would have failed before the fix: a settled promise carrying real rows.
+		log(Array.isArray(result.verdicts), 'request() resolved with a verdicts array', typeof result.verdicts);
+		log(result.verdicts.length > 0, 'verdicts is populated', `${result.verdicts.length} rows`);
+		log(result.type === 'overflow-scan-result', 'settled on the result, not a progress tick', result.type);
+
+		// Proof the file was big enough to trip the old defect.
+		log(lastTotal > 25, 'the scan exceeded PROGRESS_EVERY', `total=${lastTotal} (need > 25 — use large-file.fig)`);
+		log(ticks > 0, 'progress ticks reached on() rather than settling the request', `${ticks} ticks`);
+		log(streamed > 0, 'partials streamed while the scan ran', `${streamed} rows streamed`);
+		log(
+			result.verdicts.length >= streamed,
+			'the final result is a superset of what was streamed',
+			`${result.verdicts.length} final vs ${streamed} streamed`,
+		);
+	} catch (err) {
+		log(false, 'overflow scan on a large file', String(err));
+	} finally {
+		offProgress();
+		offPartial();
+	}
+
+	console.log(`[bridge] complete — ${checks} checks logged`);
 }

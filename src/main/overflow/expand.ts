@@ -40,13 +40,45 @@ export const LANGUAGE_FACTORS: Readonly<Record<string, number>> = {
 export const DEFAULT_LANGUAGE_FACTOR = 1.0;
 
 /** Languages Phase 1 cannot synthesise a candidate for (LS-8 §2: CJK/Thai glyph width makes a
- *  character-count candidate wrong on rendered width — honest refusal beats a wrong verdict). */
+ *  character-count candidate wrong on rendered width — honest refusal beats a wrong verdict).
+ *  Canonical casing; every match goes through `isUnsupportedLanguage`, never `.has()` directly. */
 export const UNSUPPORTED_LANGUAGES: ReadonlySet<string> = new Set(['ja', 'ko', 'zh', 'zh-Hans', 'zh-Hant', 'th']);
 
-/** ratio = 1 + bandGrowth(source.length) × languageFactor(language). Pure, deterministic. */
+// Lowercased match indices, built from the exported constants so the two can never drift. The
+// exports keep their canonical casing for display; matching is case-insensitive (LS-8.2 §1.1.3).
+const UNSUPPORTED_INDEX: ReadonlySet<string> = new Set([...UNSUPPORTED_LANGUAGES].map((tag) => tag.toLowerCase()));
+
+const FACTOR_INDEX: ReadonlyMap<string, number> = new Map(
+	Object.entries(LANGUAGE_FACTORS).map(([tag, factor]) => [tag.toLowerCase(), factor]),
+);
+
+/** Lowercased primary subtag: 'fr-FR' → 'fr', 'ZH-Hant' → 'zh'. */
+export function normalizeLanguageTag(tag: string): string {
+	return (tag.split('-')[0] ?? '').toLowerCase();
+}
+
+/**
+ * The single refusal check. Matches on the full tag first, then the primary subtag, both
+ * case-insensitively — so 'ja-JP' and 'zh-TW' are refused, not silently measured.
+ *
+ * Exact-match `.has()` let any regional tag walk straight past the refusal and collect confident
+ * pixel verdicts from a character-count model that is wrong for those scripts — the exact failure
+ * LS-8.1 §2 refuses in order to avoid.
+ */
+export function isUnsupportedLanguage(tag: string): boolean {
+	return UNSUPPORTED_INDEX.has(tag.toLowerCase()) || UNSUPPORTED_INDEX.has(normalizeLanguageTag(tag));
+}
+
+/**
+ * ratio = 1 + bandGrowth(source.length) × languageFactor(language). Pure, deterministic.
+ *
+ * Factor resolves by full tag, then primary subtag, then `DEFAULT_LANGUAGE_FACTOR`, so 'de-AT'
+ * gets German's 1.15 rather than silently falling back to the European average.
+ */
 export function expansionRatio(sourceLength: number, language: string): number {
 	const growth = LENGTH_BANDS.find((band) => sourceLength <= band.maxChars)?.growth ?? FINAL_BAND_GROWTH;
-	const factor = LANGUAGE_FACTORS[language] ?? DEFAULT_LANGUAGE_FACTOR;
+	const key = language.toLowerCase();
+	const factor = FACTOR_INDEX.get(key) ?? FACTOR_INDEX.get(normalizeLanguageTag(language)) ?? DEFAULT_LANGUAGE_FACTOR;
 	return 1 + growth * factor;
 }
 
@@ -112,7 +144,10 @@ export function transform(source: string, options: PseudoLocOptions): string {
 }
 
 /** Overflow-path wrapper: banded ratio, accent and brackets off.
- *  Throws nothing — callers must check UNSUPPORTED_LANGUAGES first. */
+ *  Throws nothing — callers must check `isUnsupportedLanguage` first, and must do so BEFORE the
+ *  factor lookup here. Without that ordering a refused tag walks straight past the CJK refusal and
+ *  receives a confident candidate from a character-count model that is wrong for those scripts
+ *  (LS-8.2 §1.1.3). `scanOverflow`'s `supported` filter is what enforces it. */
 export function expandForLanguage(source: string, language: string): string {
 	if (source.length === 0) return '';
 	const ratio = expansionRatio(source.length, language);

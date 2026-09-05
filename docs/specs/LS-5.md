@@ -51,7 +51,7 @@ exactly one: `OverflowVerdictValue` from `src/common/models.ts`.
 
 ```typescript
 // src/common/shell.ts — NEW. Env-neutral, ambient-free (§1). Imported by main and ui.
-export const SHELL_DEFAULT_SIZE = { width: 400, height: 720 } as const;
+export const SHELL_DEFAULT_SIZE = { width: 400, height: 680 } as const;
 ```
 
 Lives in `common` rather than `main` because LS-21 needs the same numbers on both sides of the
@@ -120,6 +120,14 @@ export function SummaryBar(props: {
   progress?: number | null;      // 0–1 → 2px bar on the band's bottom edge; null = none
 }): JSX.Element;
 ```
+
+> **Shipping note (2026-09-05, LS-8.2 §5 carry-forward 14).** `bands.tsx` shipped with **no exports
+> at all**. The file also carried the shell's own Plugin Header band, which was deleted during
+> LS-5 visual QA because it duplicated Figma's non-suppressible window chrome (§5.7) — and
+> `ControlBar` / `SummaryBar` went with it as collateral, not by decision. Neither duplicates
+> anything Figma provides. LS-8.2 §1.5 builds the file, with `SummaryBar.count` narrowed from
+> `React.ReactNode` to `string` plus a `tone` prop: the bare-`ReactNode` signature above would
+> have made every caller restate the type ramp. The header stays deleted and canvas-only.
 
 ### 1.6 Results list and row
 

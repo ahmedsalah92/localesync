@@ -1,7 +1,7 @@
 // src/main/devtools/generateOverflowSpike.ts
 // Dev-only fixture bootstrapper for fixtures/overflow-spike.fig (LS-7 §3 validation fixture,
 // promoted to the LS-8 acceptance fixture — fixtures/overflow-spike.md).
-// Builds 13 of the 14 rows; one row CANNOT be scripted:
+// Builds 14 of the 15 rows; one row CANNOT be scripted:
 //   • `missing-font` — loadFontAsync fails for unavailable fonts by definition; follow the manual
 //     procedure in fixtures/kitchen-sink.md §"missing-font" after running this.
 // The two truncate-* rows are authored as NONE + textTruncation ENDING, which current Figma REPORTS
@@ -21,6 +21,24 @@ const SOURCE = 'Source label';
 const AUTHORED_FIXED_FITS = 'Your changes have been saved automatically.'; // 43 chars, de ratio 1.575 → 68
 const AUTHORED_FIXED_OVERFLOWS = 'Save'; // 4 chars, de ratio 2.725 → 11 — the launch-narrative row
 const AUTHORED_MAXLINES = 'Continue to checkout'; // 20 chars, de ratio 2.035 → 41
+// 43 chars — at ~7.8 px/char and Inter Regular 16 that is ≈335px of text, so it CANNOT fit the
+// 200px box on one line and must wrap. Two lines ≈38px, comfortably inside the 60px box height.
+const WRAPS_FITS = 'The quick brown fox jumps over the lazy dog';
+
+// Stamped onto the README frame. A row's name states the verdict for the candidate the pass-1
+// harness INJECTS, not for a scan of the authored text — and since every row outside the pass-2 set
+// holds the 12-character SOURCE placeholder, three of them legitimately report `fits` in the panel.
+// Without this on the canvas, the next person to open the file and press Scan files three engine
+// bugs that do not exist (LS-8.2 §5 carry-forward 6).
+const READ_THE_ROW_NAMES =
+	'*** READ THE ROW NAMES CORRECTLY — THEY ARE NOT SCAN PREDICTIONS ***\n' +
+	'A row name states the verdict for the candidate the pass-1 harness INJECTS, not the verdict for\n' +
+	'a scan of the text authored in the node. Only fixed-fits, fixed-overflows, fixed-wraps-fits and\n' +
+	'autoheight-maxlines carry meaningful authored characters; every other row holds the placeholder\n' +
+	`"${SOURCE}", which fits its box in every language.\n` +
+	'So opening this file and pressing Scan in the panel makes truncate-overflows,\n' +
+	'autoheight-overflows and hug-overflows report "fits". THAT IS CORRECT — not an engine bug.\n' +
+	'Panel-facing verdict validation needs a purpose-built known-overflow file (LS-17).';
 
 export interface OverflowSpikeReport {
 	created: string[];
@@ -31,6 +49,13 @@ export interface OverflowSpikeReport {
 const COL_W = 300;
 const ROW_H = 100;
 const GAP = 40;
+
+// The README frame's reserved height, and the single source of the row grid's top offset. Frames
+// clip their content by default, so a README taller than this box would silently hide its own
+// tail — which is exactly where the manual steps live. Sized for the current text (~24 lines at
+// Inter Regular 16 across a 1280px measure) with headroom; the frame also has clipping turned off
+// below, so overrunning it degrades to overlap rather than to invisible text.
+const README_H = 560;
 
 export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 	if (figma.currentPage.children.length > 0) {
@@ -45,7 +70,7 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 	let slot = 0;
 
 	function slotXY(): { x: number; y: number } {
-		const xy = { x: (slot % 4) * (COL_W + GAP), y: Math.floor(slot / 4) * (ROW_H + GAP) + 340 }; // room for README
+		const xy = { x: (slot % 4) * (COL_W + GAP), y: Math.floor(slot / 4) * (ROW_H + GAP) + README_H + GAP };
 		slot++;
 		return xy;
 	}
@@ -101,6 +126,22 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 		const snugHeight = t.height;
 		t.textAutoResize = 'NONE';
 		t.resize(snugWidth, snugHeight);
+	}
+
+	// ── fixed-wraps-fits — NONE, box 200×60. The regression test for the horizontal-overflow
+	// defect: the candidate is far too wide for the box on one line, so Figma character-wraps it to
+	// two, and two lines fit the height. The verdict must be `fits`.
+	//
+	// The old branch unlocked the clone to WIDTH_AND_HEIGHT, which stops wrapping, and compared that
+	// unwrapped ~335px width against the 200px box — reporting `overflows` for a box that visibly
+	// fits. Geometry is load-bearing here: widen the box past ~340 and the string stops wrapping,
+	// or shorten it below ~50px and it stops fitting, and either way the row tests nothing.
+	{
+		const f = makeFrame('fixed-wraps-fits');
+		const t = makeText('fixed-wraps-fits', f);
+		t.characters = WRAPS_FITS;
+		t.textAutoResize = 'NONE';
+		t.resize(200, 60);
 	}
 
 	// ── truncate-fits / truncate-overflows — fixed box + truncation enabled ────
@@ -191,7 +232,7 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 
 	// ── README frame ───────────────────────────────────────────────────────────
 	const manualSteps = [
-		'missing-font: create a text node named "missing-font" inside the missing-font frame using an unavailable font family (see fixtures/kitchen-sink.md §missing-font for the procedure). Record the font family below.',
+		'missing-font: create a text node named "missing-font" inside the missing-font frame using an unavailable font family (see fixtures/kitchen-sink.md §missing-font for the procedure). Record the font family below. STANDING STEP — this generator cannot author a node in a family this environment does not have, so EVERY regeneration wipes this row and pass 1 scores 34/35 until it is rebuilt by hand. A 34/35 means "manual row outstanding", not a regression. The family in the live file was Fontine.',
 		"truncate-fits / truncate-overflows: confirm the generate-time console lines reported textAutoResize = 'TRUNCATE' for both. If not, note it below and in docs/specs/LS-7.md §6.",
 		'Fill in: missing-font family = ________, truncate rows report TRUNCATE = ________, generated on = ________.',
 		'Save as fixtures/overflow-spike.fig (or record the shared-Figma link in fixtures/README.md).',
@@ -202,15 +243,18 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 		readme.name = 'README';
 		readme.x = 0;
 		readme.y = 0;
-		readme.resize(4 * (COL_W + GAP) - GAP, 300);
+		readme.resize(4 * (COL_W + GAP) - GAP, README_H);
+		// Never clip the README: a hidden manual-steps list is worse than an untidy frame.
+		readme.clipsContent = false;
 		figma.currentPage.appendChild(readme);
 		const t = figma.createText();
 		t.name = '_readme-text';
 		t.fontName = REGULAR;
 		t.characters =
-			'overflow-spike.fig — LS-8 acceptance fixture (ex-LS-7 spike). Build sheet: docs/specs/LS-8.md §3;\n' +
-			'authoring doc: fixtures/overflow-spike.md.\n' +
-			'Generated by generateOverflowSpike (dev-only). MANUAL STEPS REMAINING:\n\n' +
+			'overflow-spike.fig — LS-8 acceptance fixture (ex-LS-7 spike). Build sheet: docs/specs/LS-8.1.md §3;\n' +
+			'authoring doc: fixtures/overflow-spike.md.\n\n' +
+			READ_THE_ROW_NAMES +
+			'\n\nGenerated by generateOverflowSpike (dev-only). MANUAL STEPS REMAINING:\n\n' +
 			manualSteps.map((s, i) => `${i + 1}. ${s}`).join('\n');
 		readme.appendChild(t);
 		t.textAutoResize = 'HEIGHT';

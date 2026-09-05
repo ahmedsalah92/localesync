@@ -1,7 +1,12 @@
-# LS-8 — Basic overflow detection (HERO)
+# LS-8.1 — Basic overflow detection (HERO), measurement engine
 
 **Epic:** Features · **Blocked by:** LS-7 (Done — `docs/specs/LS-7.md`), FIX-1 (satisfied:
-`fixtures/overflow-spike.fig`) · **Consumed by:** LS-14, LS-15, and the deferred panel spec.
+`fixtures/overflow-spike.fig`) · **Consumed by:** LS-14, LS-15, and `docs/specs/LS-8.2.md`.
+
+> **Renamed `LS-8.md` → `LS-8.1.md`.** LS-8 is one Linear issue with two specs: this one (the
+> measurement engine, merged) and `docs/specs/LS-8.2.md` (the results panel). The deferred panel
+> spec this document refers to below is LS-8.2, and it **amends the measurement protocol** — see
+> the pointer in §2. LS-8.2 §5 carry-forward 4 records the rename.
 
 **Scope split (decided at spec time).** This spec covers the **main-thread measurement engine and
 its message wiring only** — the new `src/main/overflow/` folder. The results panel is deferred to a
@@ -44,8 +49,16 @@ export interface OverflowVerdict {
 	candidate: string;       // the string actually measured
 	measuredWidth: number;
 	measuredHeight: number;
+	overflowPx?: number;     // magnitude; presence table in LS-8.2.md §2.1
 }
 ```
+
+`overflowPx` is the overflow magnitude in px, unrounded, and is **always a height overshoot** —
+Figma never overflows text horizontally, it character-wraps (see §2, "Per-mode rules", delta 4). It
+is present only where a magnitude is both meaningful and derivable: absent on `fits`, on every
+`unmeasurable`, and on `maxHeight-cap`, where the hidden amount cannot be measured. The full
+per-reason presence table and the arithmetic live in `docs/specs/LS-8.2.md` §2.1; the rounding rule
+(ceil at render, never on the wire) is §2.1 as well.
 
 `'clips'` is dropped from the union per LS-7 §1: in Phase 1 there is no user-actionable distinction
 between "clips" and "overflows". The three display fields (`characters`, `containerLabel`,
@@ -162,10 +175,20 @@ rejected. An `import` from `../snapshot` in this folder is a spec violation, not
 
 ## 2. Resolved Defaults (use exactly these — do not choose)
 
+> **Amended by `docs/specs/LS-8.2.md` §1.1 — read it alongside this section.** The panel spec adds
+> `overflowPx` to `OverflowVerdict`, **replaces the fixed-box (`NONE` / `TRUNCATE`) measurement
+> rule** — see delta 4 under "Per-mode rules" below, which is normative and supersedes LS-7 §2 for
+> those two modes — makes the language-tag match regional-aware so `ja-JP` and `zh-TW` are refused
+> rather than measured, and adds streaming, cancellation and a final progress tick to
+> `scanOverflow`. The verdict rules for the two **growing** modes (`HEIGHT`, `WIDTH_AND_HEIGHT`)
+> are unchanged. LS-8.2 §2.1 holds the per-reason magnitude table; LS-8.2 §1.1.2 holds the
+> reasoning and the live probe results behind delta 4.
+
 ### Per-mode rules
 
-Consume `docs/specs/LS-7.md` §2 as written. Three deltas from the live run (LS-7 §6) are normative
-here because §2's prose predates them:
+Consume `docs/specs/LS-7.md` §2, subject to the four deltas below — these are normative here
+because §2's prose predates them. Deltas 1–3 refine §2 from the live run (LS-7 §6); delta 4
+**supersedes** §2's fixed-box rule entirely (LS-7 carries a pointer at its own mode tables).
 
 1. **`containerAvailableHeight` is offset-aware.** For `HEIGHT` mode, the room left is
    node-top → container-bottom: `container.y + container.height − ownBounds.y`. Not the container's
@@ -174,6 +197,35 @@ here because §2's prose predates them:
    `truncates`. Never rely on observing uncapped growth: clearing `maxHeight` off auto-layout is
    silently rejected, so a "free" read may still be capped.
 3. **`ownBounds === null` is a fifth unmeasurable path** (`'no-bounds'`), absent from §2's table.
+4. **Fixed boxes (`NONE` / `TRUNCATE`) are measured on the height axis alone, under constraint.**
+   This replaces LS-7 §2's unlocked two-axis rule outright; that rule is superseded, not amended.
+
+   The clone is set to `textAutoResize = 'HEIGHT'` and `textTruncation = 'DISABLED'`, **keeping its
+   inherited width**, so it wraps exactly as the real node does and the read is the natural
+   untruncated content height. The verdict is:
+
+   ```
+   overshoot = clone.height − node.height
+   overshoot <= EPS                   → fits
+   overshoot >  EPS, truncation on    → truncates  ('truncated-fixed-box')
+   overshoot >  EPS, truncation off   → overflows  ('exceeds-fixed-box')
+   ```
+
+   `overflowPx` is that same `overshoot`, from the same read — so `measuredWidth` /
+   `measuredHeight` and `overflowPx` are commensurable here and may be cross-checked.
+
+   Two constraints are load-bearing:
+
+   - **Height axis only.** Figma never overflows text horizontally — it character-wraps, so the
+     width can never be exceeded; it is what *forces* the wrap. The superseded rule unlocked the
+     clone to `WIDTH_AND_HEIGHT`, which stops wrapping and measures an unwrapped single line, then
+     compared that width against the box. That answers a question the layout never asks, and it
+     false-positived on the most ordinary case there is: any fixed box whose text wrapped to two
+     lines and fitted was reported `overflows`.
+   - **`node.height`, never `ownBounds.height`.** `ownBounds` is `absoluteBoundingBox`, which is
+     axis-aligned: for a rotated node it is `w·|sinθ| + h·|cosθ|`, which inflates the reference and
+     understates the overshoot. Local dimensions are unrotated on both sides of the subtraction, so
+     rotation cancels and the `rotated-fixed` fixture row needs no special case.
 
 `EPS = 0.01`, matching Figma's dimension floor (agent-guidelines §2).
 

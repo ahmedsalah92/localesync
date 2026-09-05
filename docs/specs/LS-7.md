@@ -38,6 +38,21 @@ The four concrete rules (derived from the resolved defaults below):
 | `HEIGHT` | `['height']` | `container-bounds` | `['maxLines','maxHeight']` | width is fixed (wraps); height grows → exceeds container or hits maxLines/maxHeight cap → `overflows` or `truncates` |
 | `WIDTH_AND_HEIGHT` | `['width','height']` | `container-bounds` | `['maxLines','maxHeight']` | both dimensions grow; exceeds immediate parent bounds → `overflows` (parent-escape) |
 
+> **Superseded for `NONE` / `TRUNCATE` — 2026-09-05.** The unlocked read specified in the table
+> above (`textAutoResize = 'WIDTH_AND_HEIGHT'`, then compare on both axes against `ownBounds`) measures
+> **unwrapped** text. Figma never overflows text horizontally — it character-wraps — so the width
+> comparison answers a question the layout never asks, and it produces a **false positive for any
+> fixed box whose text wraps and fits**. Replaced by a single constrained height read; see
+> `docs/specs/LS-8.2.md` §1.1.2 for the reasoning and the live probe, and `docs/specs/LS-8.1.md`
+> §2 "Per-mode rules" delta 4 for the normative rule.
+>
+> **The spike's headline verdict is unaffected.** Approach A — measure a temp-node clone, never
+> mutate the real node — stands exactly as decided here. What changed is one clone-setup line and
+> the comparison axis inside Approach A, not the choice of approach. Do not reopen the spike.
+>
+> The recorded run values below (1244.0 × 19.0, the rotated AABB figures) are left as they were.
+> They are real observations of what the unlocked read returned; only their interpretation changed.
+
 ### Produces — measurement function signature (LS-8 implements)
 
 ```ts
@@ -135,6 +150,21 @@ For every measurement, the procedure is:
 | `TRUNCATE` | Same as `NONE` (unlock to measure natural content size). | Same comparison as `NONE`. Verdict is `truncates` (not `overflows`) because the user has truncation enabled — the content *would* be ellipsized, not clipped silently. |
 | `HEIGHT` | Keep `clone.textAutoResize = 'HEIGHT'` (width stays fixed, height grows). Set `clone.characters = candidateText`. If `maxLines` is set and `textTruncation === 'ENDING'`, keep them on the clone to observe their effect. | If `maxLines`/`maxHeight` would cap the height (detected by comparing free-growth height vs capped height — see §maxLines below): verdict `truncates`. Else if `measuredHeight > containerAvailableHeight`: verdict `overflows`. Else `fits`. |
 | `WIDTH_AND_HEIGHT` | Keep `clone.textAutoResize = 'WIDTH_AND_HEIGHT'`. Set `clone.characters = candidateText`. | `measuredWidth > containerBounds.width` OR `measuredHeight > containerBounds.height` → `overflows` (parent-escape). If `containerBounds` is null (parent is page) → `fits`. |
+
+> **Superseded for `NONE` / `TRUNCATE` — 2026-09-05.** The unlocked read specified in the table
+> above (`textAutoResize = 'WIDTH_AND_HEIGHT'`, then compare on both axes against `ownBounds`) measures
+> **unwrapped** text. Figma never overflows text horizontally — it character-wraps — so the width
+> comparison answers a question the layout never asks, and it produces a **false positive for any
+> fixed box whose text wraps and fits**. Replaced by a single constrained height read; see
+> `docs/specs/LS-8.2.md` §1.1.2 for the reasoning and the live probe, and `docs/specs/LS-8.1.md`
+> §2 "Per-mode rules" delta 4 for the normative rule.
+>
+> **The spike's headline verdict is unaffected.** Approach A — measure a temp-node clone, never
+> mutate the real node — stands exactly as decided here. What changed is one clone-setup line and
+> the comparison axis inside Approach A, not the choice of approach. Do not reopen the spike.
+>
+> The recorded run values below (1244.0 × 19.0, the rotated AABB figures) are left as they were.
+> They are real observations of what the unlocked read returned; only their interpretation changed.
 
 ### Hug-node overflow: parent-escape only
 

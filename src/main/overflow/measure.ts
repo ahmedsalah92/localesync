@@ -19,6 +19,11 @@ export interface Measurement {
 	reason?: OverflowReason;
 	measuredWidth: number;
 	measuredHeight: number;
+	/** Overflow magnitude in px, unrounded. Omitted wherever it is not derivable — see the §2.1
+	 *  table in docs/specs/LS-8.2.md, and `OverflowVerdict.overflowPx` in src/common/models.ts.
+	 *  For fixed boxes it is `measuredHeight − node.height`, from the same read: the numbers are
+	 *  commensurable, and a consumer may check one against the other. */
+	overflowPx?: number;
 }
 
 // Float comparisons: Figma stores float32 (dimensions floored at 0.01 — agent-guidelines §2).
@@ -76,6 +81,7 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 			verdict: OverflowVerdictValue,
 			reason: OverflowReason | undefined,
 			size: { width: number; height: number },
+			overflowPx?: number,
 		): Measurement => {
 			const m: Measurement = {
 				candidate,
@@ -84,6 +90,9 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 				measuredHeight: size.height,
 			};
 			if (reason !== undefined) m.reason = reason;
+			// One place owns the omit rule: no field where there is no magnitude. A zero or negative
+			// delta means the reference and the read disagree, which is not a measurement.
+			if (overflowPx !== undefined && overflowPx > EPS) m.overflowPx = overflowPx;
 			return m;
 		};
 
@@ -92,18 +101,33 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 		const mode = model.textAutoResize;
 		if (mode === 'NONE' || mode === 'TRUNCATE') {
 			const truncationEnabled = mode === 'TRUNCATE' || model.textTruncation === 'ENDING';
-			// Unlock the fixed box once so content determines size; drop truncation so the natural
-			// (untruncated) content size is what gets measured.
-			clone.textAutoResize = 'WIDTH_AND_HEIGHT';
+			// Keep the inherited width and let height grow, so the clone wraps exactly as the real
+			// node does. Truncation off so the natural (untruncated) content height is what is read.
+			//
+			// This is a HEIGHT read, not the WIDTH_AND_HEIGHT unlock this branch used to do.
+			// Figma never overflows text horizontally — it character-wraps, so an unlocked clone
+			// answers a question the layout never asks. Probed live: a 36px box given a 102px
+			// unbreakable token kept `.width` at 36 and grew to 76px tall. Comparing that unwrapped
+			// width against the box reported `overflows` for any fixed box whose text wrapped to two
+			// lines and fitted — a false positive on the most ordinary case there is.
+			clone.textAutoResize = 'HEIGHT';
 			clone.textTruncation = 'DISABLED';
 			for (const candidate of candidates) {
 				clone.characters = candidate;
-				const measured = readBounds(clone);
-				const exceeds = measured.width > ownBounds.width + EPS || measured.height > ownBounds.height + EPS;
-				if (!exceeds) results.push(measurement(candidate, 'fits', undefined, measured));
+				// Local dims, not `absoluteBoundingBox`: rotation drops out of both sides, so the
+				// `rotated-fixed` row needs no special handling. Probed to update synchronously after
+				// a `characters` write, so no yield is needed between the write and the read.
+				const needed = clone.height;
+				// Height axis only — the width can never be exceeded, it is what forces the wrap.
+				// `node.height`, never `ownBounds.height`: the latter is the axis-aligned box, which
+				// for a rotated node is `w·|sinθ| + h·|cosθ|` and would understate the overshoot.
+				const overshoot = needed - node.height;
+				const measured = { width: clone.width, height: needed };
+				if (overshoot <= EPS) results.push(measurement(candidate, 'fits', undefined, measured));
 				// Truncation active on a fixed box → content would be ellipsized, not clipped silently.
-				else if (truncationEnabled) results.push(measurement(candidate, 'truncates', 'truncated-fixed-box', measured));
-				else results.push(measurement(candidate, 'overflows', 'exceeds-fixed-box', measured));
+				else if (truncationEnabled)
+					results.push(measurement(candidate, 'truncates', 'truncated-fixed-box', measured, overshoot));
+				else results.push(measurement(candidate, 'overflows', 'exceeds-fixed-box', measured, overshoot));
 			}
 			return results;
 		}
@@ -139,13 +163,22 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 			const freeSize = free[i] ?? cappedSize;
 
 			if (truncationActive && model.maxLines !== null && freeSize.height > cappedSize.height + EPS) {
-				results.push(measurement(candidate, 'truncates', 'maxLines-cap', freeSize));
+				// The branch condition is itself the proof the delta is positive.
+				results.push(
+					measurement(candidate, 'truncates', 'maxLines-cap', freeSize, freeSize.height - cappedSize.height),
+				);
 				continue;
 			}
 			// Binding-agnostic maxHeight rule (LS-7 §6): content *reaching* the cap — pinned at exactly
 			// maxHeight or grown past it — proves the cap is active; genuinely shorter content never
 			// reaches it, so `fits` is unaffected.
 			if (model.maxHeight !== null && Math.max(cappedSize.height, freeSize.height) >= model.maxHeight - EPS) {
+				// NO magnitude: the clone inherits the cap and `maxHeight = null` is silently rejected
+				// off auto-layout (LS-7 run 3 measured exactly 200.0 × 50.0 after the clear and a
+				// forced re-layout), so free growth is pinned AT the cap and the hidden height cannot
+				// be reached. `max(0, free − maxHeight)` yields 0, and rendering `clips 0px` asserts a
+				// measurement we do not have. The verdict still stands on the binding-agnostic rule:
+				// reaching the cap is observable, the distance beyond it is not (LS-8.2 §2.1).
 				results.push(measurement(candidate, 'truncates', 'maxHeight-cap', freeSize));
 				continue;
 			}
@@ -162,7 +195,15 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 				// growth is downward, so the room left is node-top → container-bottom.
 				const available = container.y + container.height - ownBounds.y;
 				if (freeSize.height > available + EPS) {
-					results.push(measurement(candidate, 'overflows', 'exceeds-container-height', freeSize));
+					results.push(
+						measurement(
+							candidate,
+							'overflows',
+							'exceeds-container-height',
+							freeSize,
+							freeSize.height - available,
+						),
+					);
 				} else {
 					results.push(measurement(candidate, 'fits', undefined, freeSize));
 				}
@@ -171,7 +212,10 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 
 			// WIDTH_AND_HEIGHT: parent-escape only (sibling collision is Phase 2 — LS-7 §2).
 			if (freeSize.width > container.width + EPS || freeSize.height > container.height + EPS) {
-				results.push(measurement(candidate, 'overflows', 'parent-escape', freeSize));
+				// Larger of the two positive overshoots — selects the triggering axis without
+				// recording which one it was. The fixed-box magnitude uses the same arithmetic.
+				const escape = Math.max(freeSize.width - container.width, freeSize.height - container.height);
+				results.push(measurement(candidate, 'overflows', 'parent-escape', freeSize, escape));
 			} else {
 				results.push(measurement(candidate, 'fits', undefined, freeSize));
 			}

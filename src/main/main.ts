@@ -58,7 +58,10 @@ export default async function () {
 			if (devType === '__dev:generate-snapshot-restore') {
 				void generateSnapshotRestore()
 					.then((report) => {
-						console.log(`[dev] generateSnapshotRestore: created ${report.created.length} node(s)`, report.created);
+						console.log(
+							`[dev] generateSnapshotRestore: created ${report.created.length} node(s)`,
+							report.created,
+						);
 						console.log('[dev] manual steps remaining:', report.manualSteps);
 					})
 					.catch((err: unknown) => {
@@ -72,7 +75,10 @@ export default async function () {
 			if (devType === '__dev:generate-overflow-spike') {
 				void generateOverflowSpike()
 					.then((report) => {
-						console.log(`[dev] generateOverflowSpike: created ${report.created.length} node(s)`, report.created);
+						console.log(
+							`[dev] generateOverflowSpike: created ${report.created.length} node(s)`,
+							report.created,
+						);
 						console.log('[dev] manual steps remaining:', report.manualSteps);
 					})
 					.catch((err: unknown) => {
@@ -91,7 +97,9 @@ export default async function () {
 						);
 					})
 					.catch((err: unknown) => {
-						console.error(`[dev] generateLargeFile failed: ${err instanceof Error ? err.message : String(err)}`);
+						console.error(
+							`[dev] generateLargeFile failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
 					});
 				return;
 			}
@@ -105,7 +113,9 @@ export default async function () {
 						);
 					})
 					.catch((err: unknown) => {
-						console.error(`[dev] applyBatchLeave failed: ${err instanceof Error ? err.message : String(err)}`);
+						console.error(
+							`[dev] applyBatchLeave failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
 					});
 				return;
 			}

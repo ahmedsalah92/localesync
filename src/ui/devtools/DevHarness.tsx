@@ -34,7 +34,14 @@ export function DevHarness() {
 			}}
 		>
 			<summary style={{ cursor: 'pointer' }}>dev</summary>
-			<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacer-1)', paddingTop: 'var(--spacer-1)' }}>
+			<div
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 'var(--spacer-1)',
+					paddingTop: 'var(--spacer-1)',
+				}}
+			>
 				<button type="button" onClick={() => void runRoundtrip()}>
 					__test:roundtrip
 				</button>
@@ -56,7 +63,9 @@ export function DevHarness() {
 				    onmessage wrapper. Intentionally bypasses the typed bridge — not feature code. */}
 				<button
 					type="button"
-					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:generate-snapshot-restore' } }, '*')}
+					onClick={() =>
+						parent.postMessage({ pluginMessage: { type: '__dev:generate-snapshot-restore' } }, '*')
+					}
 				>
 					Generate snapshot-restore
 				</button>
@@ -68,7 +77,9 @@ export function DevHarness() {
 				</button>
 				<button
 					type="button"
-					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:generate-overflow-spike' } }, '*')}
+					onClick={() =>
+						parent.postMessage({ pluginMessage: { type: '__dev:generate-overflow-spike' } }, '*')
+					}
 				>
 					Generate overflow-spike
 				</button>

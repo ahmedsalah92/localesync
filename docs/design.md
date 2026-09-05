@@ -1,7 +1,9 @@
-# LocaleSync — Design (design.md) v3.2
+# LocaleSync — Design (design.md) v3.3
 
 *The UI/UX design state of the **plugin** — what exists, what's left, and the concrete mocks to produce. Scope is the plugin's product surface only. Brand identity, marketing, and validation design are complete and live outside this doc.*
 
+> **v3.3 (2026-09-06) — design-ownership pass.** Five tabs confirmed, closing the collapse-to-four option and making Export a sub-surface of Extract rather than a tab. The remaining supporting surfaces are now owned by **LS-24 (DES-2)** instead of living only in this doc's *To be done* section. `Plugin Shell — States` recorded as the overflow panel's state set, not a shared component — DES-2 owns factoring a panel-agnostic state block and the state × panel copy table; LS-14 stays implementation-only. Three stale claims repaired: the LS-19 section's *In progress* status, the LS-14 note asserting its Linear ticket carries outdated wording, and the preview surface described as JSON-only.
+>
 > **v3.2 (2026-09-03) — canvas reconciliation.** Six divergences found by reading the canvas during LS-5 spec prep. Corrected: control bar 43px → 40px; severity vocabulary `clips` → `truncates`, matching `OverflowVerdictValue`, which carries no `'clips'`; Results Row, Extract Row and Applied Banner type corrected from Inter 12 to the 11px `body/body.medium` ramp. Recorded as built: the four LS-13 Pro stubs, the Applied Banner's `Restored` variant, and the seventh shell state (`Operation failed`). Component-set inventory corrected to four sets. Also corrected: the jump affordance is `icon.16.arrow`, not `icon.24.select`, and its rationale is replaced rather than re-keyed — the target metaphor was explicitly rejected on canvas (`301:1549`, 2026-08-21) because concentric circles read as a selected radio button inside a row that already carries a `Selected` state. **No design decision changed** — this pass records what is on canvas and repairs stale transcription. *(Updated 2026-09-04 during LS-5 visual QA: the shell's own Plugin Header band was found to duplicate Figma's own, non-suppressible window title bar, and was removed from code. The "Shell framing convention" annotation (`435:1442`) now records that every 400×720 shell is host chrome 40 + plugin iframe 680, so `SHELL_DEFAULT_SIZE` and the Content Area geometry read 680/640/600 rather than 720/680/640.)*
 >
 > **v3.1 (2026-09-01) — canonical-source pass.** `docs/design.md` in the repo is now the **single source of truth** for the plugin design; the Figma file is the artifact, this doc is the record. Four corrections verified against the canvas: summary bar 36px → **40px** (padding 6 → 8, both off the `Spacers` scale); the resize affordance corrected from a nonexistent "native corner cursor" to **edge-drag** with the scrollbar-clearance rule; the LS-15 threshold revised from a provisional `2,000` to an **advisory `500`** pending benchmark, expressed as a time budget; and the v3 shell-count caveat closed — **nine shells confirmed**, all `400×720`.
@@ -29,6 +31,8 @@
 | Plugin Shell — Preview / Pseudo-loc / RTL Mirror Applied | Apply/revert pattern ×3 |
 
 **4 component sets:** `Results Row` (8 variants, `184:96`) · `Extract Row` (2, `199:244`) · `Applied Banner` (2, `321:1613`) · `Plugin Shell — States` (7, `289:1420`)
+
+`Plugin Shell — States` is the **overflow panel's** state set, not a panel-agnostic component — every one of its seven variants is a complete overflow shell with `Tab/Overflow (active)` and the Control Bar (Language Select · Scope Select · Scan Button) baked in, the state content being two text layers inside an `Empty State` frame (verified `289:1415`).
 
 ---
 
@@ -194,7 +198,7 @@ Built as the `Plugin Shell — States` component set (`289:1420`) — see *Deliv
 
 Per the strict kit rule the states get Figma icons where one is needed and no illustration where it isn't, matching Figma's own empty-state approach. The marigold-on-light accessibility gap dissolves along with the illustrations.
 
-> **The original DES-1 frames were lost with the deleted legacy Page 1** and are not in this file. This changed LS-14's scope: it was written as *"replace the Clipped Bar illustration compositions on the DES-1 frames,"* and there were no compositions to replace. It became *build the six states on the plugin shell* — done — leaving LS-14 with only the wiring into the feature panels. Kept because the Linear ticket still carries the original wording.
+> **The original DES-1 frames were lost with the deleted legacy Page 1** and are not in this file. This changed LS-14's scope: it was written as *"replace the Clipped Bar illustration compositions on the DES-1 frames,"* and there were no compositions to replace. It became *build the six states on the plugin shell* — done — leaving LS-14 with the build-and-wire half only. *(Corrected 2026-09-06: this previously ended "Kept because the Linear ticket still carries the original wording." LS-14 carries a 2026-08-09 *Scope change* paragraph recording the illustration work as gone; the doc was the stale side.)*
 
 ### LS-9 — Extraction list + shell — DONE
 Built on the `🧩 Plugin — Phase 1` page, reusing the LS-19 shell structure (header + tab bar + apply/revert scaffolding) with Extract tab active.
@@ -204,29 +208,29 @@ Built on the `🧩 Plugin — Phase 1` page, reusing the LS-19 shell structure (
 - **Empty state**: Centered `No strings extracted` + hint `Run Scan to extract translatable strings.` Same treatment as Overflow empty state.
   - *Scope-neutral by design.* The hint previously ended "…from this page", which contradicts the scope selector the moment it reads `Selection`. Copy must not restate a value the user controls.
 
-Downstream: LS-6 Export panel is now unblocked — extraction feeds export.
+Downstream: LS-6 export is now unblocked — extraction feeds it. Export is a **sub-surface of this panel**, reached from the `Export ▸` link in the summary bar, not a panel or tab of its own — see *Supporting feature surfaces*.
 
 ### Marketing & validation visuals — DONE
 Landing page (`index.html` with live JS overflow demo), `privacy.html`, OG image, Instagram carousel — all deployed at `localesync.netlify.app`. Marketing surfaces, not product UI. They prove the brand renders well; they do not reduce the plugin-UI work below.
 
 ---
 
-## 🟡 In progress
+### LS-19 — Overflow results-panel anatomy + apply/revert pattern — DONE
 
-### LS-19 — Overflow results-panel anatomy + apply/revert pattern — IN PROGRESS
+**Closed 2026-08-21.** All four deliverables landed — panel anatomy, apply/revert pattern, the panel control cluster and the state matrix — and Linear has LS-19 **Done**. The scope gap that kept it open was the anatomy deliverable enumerating header, shell, row anatomy, severity treatment, un-measurable display and jump-to-node but never the panel's **input controls**; that cluster is built and detailed below. *(Corrected 2026-09-06: this section read IN PROGRESS and cited a status correction from 2026-08-08. The doc was the stale side.)*
 
-**Status corrected 2026-08-08.** This section previously read DONE. Linear has LS-19 `In Progress` with three of four success criteria unchecked (shell anatomy, apply/revert reusability, state matrix), and the LS-19 design review confirms Linear is the accurate state. The work below is built and correct; what makes the ticket incomplete is a scope gap — LS-19 Deliverable 1 enumerated header, shell, row anatomy, severity treatment, un-measurable display, and jump-to-node, but never named the panel's **input controls**, and Deliverable 3 (state matrix) is still open.
+**The sections below appear in build order, not deliverable order.** Deliverable 4 was added 2026-08-09 after the design review and closed before Deliverable 3, which completed 2026-08-21 when `Operation failed` landed. That ordering is why the *In-flight state* section carried the wrong deliverable number until 2026-09-06.
 
 **Built (below):** plugin header · shell · results row component set · severity treatment · applied banner · apply/revert proven across three shells · empty states.
 
 **Also built (2026-08-08):** the panel control cluster — target-language selector · scan trigger · scope control · filter · in-flight state. Detailed below.
 
-**Deliverable 3 closed (2026-08-08)** — the six DES-1 states are built as the `Plugin Shell — States` component set (`289:1420`). All four LS-19 deliverables are now complete on the design side. **Linear remains the source of truth for the ticket state.**
+**Deliverable 3 closed (2026-08-08)** — the six states DES-1 scoped are built as the `Plugin Shell — States` component set (`289:1420`), which now holds **seven**: `Operation failed` (`321:1554`) was added after DES-1's scope was set and built 2026-08-21. *(Verified on canvas 2026-09-06 — `289:1420` holds exactly seven `State=` variants.)* All four LS-19 deliverables are now complete on the design side. **Linear remains the source of truth for the ticket state.**
 
 *Built on UI3 —* every fill, text color, and border binds to a UI3 semantic token.
 Built on the `🧩 Plugin — Phase 1` page in the LocaleSync Figma file (root `196:222`). No hex literals in the plugin surface, with **one recorded exception**: the mirrored `Tooltip` on the jump affordance carries literal fill, radius, type and shadow values because the UI3 set is unpublished and cannot be instanced — see *Jump affordance*. Custom shape structure retained for now; swapping in actual UI3 component instances is a follow-up task once specific component keys are identified.
 
-**Deliverable A — Overflow results-panel anatomy (LS-5 + LS-8):**
+**Deliverable 1 — Overflow results-panel anatomy (LS-5 + LS-8):**
 - **Plugin Header** (40px, persistent at top of every shell): `Mark / Dark` logo (24×24 compact variant, purpose-built for small sizes with solid boundary where the dashed line would otherwise vanish) + "LocaleSync" name (Inter 13 Semi Bold) on the left, `✕` close button (24×24) on the right. This is **identity, not chrome** — the UI3 rule applies to controls/tokens/patterns, not to the plugin's own logo and name.
 - **Plugin Shell** (`400×720`, min `340×480`, resizable): 5-tab feature nav (Overflow · Extract · Preview · Pseudo · RTL). Tab Bar and tabs are `FILL`, so they distribute — 80px each at default width, 68px at minimum. Active shows `border/selected-strong` 2px underline + `text/default`; inactive `text/secondary`. Nine standalone shells plus the `Plugin Shell — States` set.
 - **Results Row component set** (8 variants: 4 severity × 2 selected): 3px severity strip + string + container•status + jump target (`icon.16.arrow`). 56px tall, two-line content — **both lines `body/body.medium`** (11px / 16px line-height / +0.5% letter-spacing); hierarchy is carried by colour alone, not size, because UI3's ramp has no 12px step. 3px strip, 16px horizontal / 8px vertical content padding, 8px gap, 4px between the two text lines. Verified against `184:68`.
@@ -252,14 +256,14 @@ Built on the `🧩 Plugin — Phase 1` page in the LocaleSync Figma file (root `
   - *The sub-line reports what was checked, not just what wasn't found.* `All 32 nodes fit their containers` is the same claim the green Fits strip makes per row, stated once for the whole scan — and the node count is the evidence that a scan actually ran. Distinguishing "scanned, everything passed" from "nothing happened" is the same problem green solved on the strip channel.
   - *Safe to assert "all fit" here* because un-measurable rows list under `issues` too. If any node couldn't be measured, the list is not empty and this state never renders.
 
-**Deliverable B — Apply/revert affordance pattern (LS-10 + LS-11 + LS-12):**
+**Deliverable 2 — Apply/revert affordance pattern (LS-10 + LS-11 + LS-12):**
 - **Applied Banner component set** (`321:1613`, 2 variants on a `Type` property): `bg/info/default` background (subtle light-blue info tint — `bg/assistive` was tried first but UI3 defines it as the hot-pink AI-assistant colour), 3px `border/selected-strong` left border, 40px tall, 16px horizontal / 8px vertical padding.
   - **`Type=Applied`** (`185:31`) — message left (`text/default`) + `Revert` right (`body/body.medium.strong`, `text/brand`).
   - **`Type=Restored`** (`321:1610`) — message only, no action: *"Restored your canvas from an interrupted session."* This is LS-4's restore-on-launch surfacing itself; a Revert affordance would be meaningless, because the restore is what already ran.
 - **Positioned above the tab bar** — persistent, plugin-wide, not tab-specific. This is the semantic call: apply state is global, not per-tab.
 - **Pattern proven identical** across three feature shells (Preview, Pseudo-loc, RTL Mirror) side-by-side.
 
-Downstream tickets (LS-9 extraction, LS-10 pseudo-loc detail, LS-11 RTL detail, LS-12 preview detail, LS-6 export panel) can now proceed — the shell and row are established.
+Downstream tickets (LS-9 extraction, LS-10 pseudo-loc detail, LS-11 RTL detail, LS-12 preview detail, LS-6 export sub-surface) can now proceed — the shell and row are established.
 
 ---
 
@@ -323,7 +327,7 @@ A second populated shell with the filter opened up: `Show: all`, `Sort: document
 
 #### ✅ In-flight state (review item 3) — `266:839`
 
-Closes LS-19 Deliverable 3 and the LS-15 progress requirement.
+Closes LS-19 Deliverable 4 and the LS-15 progress requirement. *(Number corrected 2026-09-06 against Linear: this read Deliverable 3, which is the state matrix. The in-flight state is named inside Deliverable 4, the panel control cluster — LS-19's success criterion lists in-flight state (`266:839`) under the cluster.)*
 
 **Scan becomes Stop in the same slot.** Not a second button. A separate Stop elsewhere on the panel would leave two competing affordances on screen mid-scan and force the user to work out which one is live. `bg/secondary` fill with a `text/default` label — secondary, not danger: stopping a scan abandons work in progress, it doesn't destroy anything.
 
@@ -412,7 +416,7 @@ The only route to five is **detaching** a `Tabs` instance — which produces a d
 
 **Secondary, but worth stating:** `Tabs` is a *segmented control* — 24px, grey active pill. The plugin's nav is a 40px underlined bar. Different pattern, chosen before this audit.
 
-**Open product question.** A kit that stops at four is a soft signal about how many top-level tabs a Figma plugin panel should carry. Collapsing to four — for instance grouping Pseudo-loc and RTL Mirror, which are both canvas-mutating transforms sharing the apply/revert pattern — would put the tab bar on the kit component and simplify the nav. That is a **product** decision, not a design-system one, so it is recorded here rather than acted on.
+**Resolved 2026-09-06 — five tabs.** A kit that stops at four was a soft signal about how many top-level tabs a plugin panel should carry, and collapsing to four (grouping Pseudo-loc and RTL Mirror, both canvas-mutating transforms sharing the apply/revert pattern) would have put the tab bar on a kit component. That option is closed: the nav is Overflow · Extract · Preview · Pseudo-loc · RTL Mirror, and the custom tab bar stands on the structural reasons above. Consequence: **Export is not a sixth tab** — it is a sub-surface of the Extract panel.
 
 **No kit overrides remain anywhere on the surface.** Every control tracks the kit with no local corrections to re-check on the next UI3 update.
 
@@ -422,17 +426,42 @@ The only route to five is **detaching** a `Tabs` instance — which produces a d
 
 ## 🔲 To be done
 
-The LS-19 panel control cluster is built and no longer blocks the LS-8 spec. What remains is the P1 supporting feature surfaces (each reuses the shell and results-list row) and LS-14's wiring of the state set into those panels.
+The LS-19 panel control cluster is built and no longer blocks the LS-8 spec. What remains is the P1 supporting feature surfaces (each reuses the shell and results-list row) and the state matrix — both now owned by **LS-24 (DES-2)** on the design side, with LS-14 carrying the build.
 
-### P1 — Supporting feature surfaces (LS-6, LS-10, LS-11, LS-12)
+### P1 — Supporting feature surfaces — owned by LS-24 (DES-2)
+
+**LS-24 (DES-2) — "Design pass: supporting feature surfaces — export, preview, pseudo-loc, RTL"** owns this section. In Progress with Muhammed Hesham, priority Urgent; it blocks LS-6, LS-10, LS-11, LS-12 and LS-14, and is blocked by LS-5 and LS-19. It was created 2026-09-06 because DES-1 (LS-19) closed with these surfaces owned by nothing in Linear — they lived only in this section, which is exactly the failure recorded below for LS-3 and LS-15.
+
 Lower lift — these reuse the shell and the results list — but each needs layout decisions:
-- **Export panel** (i18next-compatible JSON export as the anchor format, dedup toggle, download; drives the exportable QA report on the paid tier).
-- **Preview language switcher** (active-language indicator; import JSON entry point; fallback display for untranslated strings; Phase 1 is one language at a time — a simultaneity limit, not a coverage cap).
-- **Pseudo-loc controls** (expansion ratio, accent style).
-- **RTL mirror control** (toggle + the applied-state indicator from the P0 pattern).
+- **Export sub-surface** (LS-6) — **not a panel and not a tab.** It opens from the `Export ▸` action link already built in the Extract summary bar, and carries format selection (i18next-compatible JSON as the anchor format), a dedup toggle defaulting off, and download. A one-shot terminal action, not a filter adjusted while reading rows. Whether it renders as a sheet or a popover against the UI3 kit is an open DES-2 call — see *Still open*.
+- **Preview panel** (LS-12) — active-language indicator; import entry covering **JSON and CSV** *(corrected 2026-09-06: this doc said JSON only; LS-12 requires both)*; fallback display for untranslated strings; inline edit affordance. One language at a time is a simultaneity limit, not a coverage cap.
+- **Pseudo-loc panel** (LS-10) — expansion ratio, accent style and **boundary markers** *(corrected 2026-09-06: this doc listed two of the three controls LS-10 requires)*, plus the apply/revert banner.
+- **RTL Mirror panel** (LS-11) — mirror toggle, scope, apply/revert banner.
+- **Panel-agnostic state block + the state × panel copy table** — the design half of LS-14, immediately below.
 
-### 🔲 State matrix (LS-14) — design done, wiring remains
-Originally a two-part job. Part (1), replacing the Clipped Bar illustration compositions on the DES-1 frames, **no longer exists** — those frames were lost with the deleted legacy Page 1, and the six states were rebuilt from the surviving copy as `Plugin Shell — States` (`289:1420`) with no illustrations, per the strict kit rule. Part (2) is all that remains: wire the state set into the appropriate feature panels. The Linear ticket still carries the original two-part wording and should be updated to match.
+### 🔲 State matrix — DES-2 designs it, LS-14 builds it
+Originally a two-part job. Part (1), replacing the Clipped Bar illustration compositions on the DES-1 frames, **no longer exists** — those frames were lost with the deleted legacy Page 1, and the six states were rebuilt from the surviving copy as `Plugin Shell — States` (`289:1420`) with no illustrations, per the strict kit rule.
+
+**Part (2) is not "wire the state set into the appropriate feature panels."** *(Corrected 2026-09-06.)* That framing implies a reusability the component does not have: the set is a single `State` axis of seven variants, each a complete **overflow** shell with `Tab/Overflow (active)` and the Control Bar baked into it (verified `289:1415`). There is no panel-agnostic block to wire, because none has been factored. The work splits: **DES-2 owns** factoring that block and resolving the copy table below; **LS-14 owns** building and wiring it — implementation only.
+
+*(Also corrected 2026-09-06: this section claimed the Linear ticket "still carries the original two-part wording and should be updated to match." Verified — LS-14 already carries a 2026-08-09 *Scope change* paragraph recording the illustration work as gone. The doc was the stale side.)*
+
+**State × panel copy table.** `built` means the copy exists on canvas today; `N/A` means the state cannot arise on that panel.
+
+| State | Overflow | Extract | Preview | Pseudo-loc | RTL |
+|---|---|---|---|---|---|
+| First run | built | built (`No strings extracted`) | copy owed | copy owed | copy owed |
+| No selection | built | copy owed | copy owed | copy owed | copy owed |
+| No text on page | built | copy owed | copy owed | copy owed | copy owed |
+| Fonts unavailable | built | copy owed | copy owed | copy owed | copy owed |
+| Large file | built | copy owed | N/A | N/A | N/A |
+| Scan stopped | built | copy owed | N/A | N/A | N/A |
+| Operation failed | **N/A — re-home** | N/A | copy owed | copy owed | copy owed |
+
+Two findings the table encodes:
+
+- **Fonts unavailable differs in substance, not wording.** Overflow lists those nodes un-measurable; the three mutating panels skip and flag them per LS-4 `missing-font`. One state name, two behaviours to describe.
+- **Operation failed is mis-homed.** It is the LS-4 `SnapshotError` / mid-batch-rollback surface, and per the LS-4 spec measurement does not use the snapshot primitive — so it currently sits on the one panel that cannot raise it and is absent from the three that can. The built variant `321:1554` stays as the visual reference; the panel assignment moves.
 
 ### ✅ Paid-intent affordance (LS-13) — placed
 
@@ -452,6 +481,7 @@ So effort isn't misdirected:
   - **LS-3 (traversal)** requires selection-scoped *and* page-scoped traversal. That is a **scope control** — without one the user can't express which they want and the spec can't state a default.
   - **LS-15 (perf)** requires progress reporting and a documented node-count threshold. That is an **in-flight state** — on a 1–2k-node file it's the state the user looks at longest, on exactly the files where the product's value is highest.
   - *Lesson for this section:* an engineering ticket with no screen of its own can still own a control. Test for "does the user have to tell the plugin something, or wait on it?" before filing anything here.
+  - *Second lesson, 2026-09-06.* The same failure recurred twice more: the LS-9 extraction design was built while tracked by no Linear issue, and the supporting surfaces were owed but owned by none until LS-24. Design work recorded only in this doc is invisible to the tracker, and gets scheduled by nobody.
 - **Not needed for this product:** a from-scratch design system, custom iconography, illustration, heavy visual exploration, motion design. Restraint is correct here.
 
 ---
@@ -463,12 +493,13 @@ So effort isn't misdirected:
 These three came out of the review response and are not design calls. Recorded here so they don't stay buried in the sections that raised them.
 
 1. ~~**LS-15 node-count threshold.**~~ **Resolved 2026-09-01.** Advisory threshold, provisional at `500`, to be replaced by the LS-15 benchmark; the real bound is a time budget with the node count derived from measured per-node clone cost. `2,000` was rejected as circular (it equalled the benchmark fixture's own size). Never blocks a scan. *(Details under In-flight state; recorded on LS-15.)*
-2. **Five tabs vs four — a product decision, not a design-system one.** UI3's `Tabs` stops at four, which is a soft signal about how many top-level tabs a plugin panel should carry. Collapsing to four — for instance grouping Pseudo-loc and RTL Mirror, both canvas-mutating transforms already sharing the apply/revert pattern — would put the tab bar on a kit component and simplify the nav. Recorded, not acted on. *(Raised under Why the tab bar stays custom.)*
+2. ~~**Five tabs vs four.**~~ **Resolved 2026-09-06 — five tabs.** Overflow · Extract · Preview · Pseudo-loc · RTL Mirror; the collapse-to-four option is closed. The custom tab bar stands on the LS-5 rationale — `_Tab` is unpublished, so five tabs cannot be composed from the primitive, and `Segmented control` was rejected on **component class, not capability**. Consequence: **Export is not a sixth tab**; it is a sub-surface of the Extract panel, opened from the `Export ▸` link in the Extract summary bar. *(Details under Why the tab bar stays custom.)*
 3. **Visual review owed on the jump affordance and tooltip.** Verified by 13 geometric and token checks, not by eye — `get_screenshot` was locked to another document during the build. Everything else on the surface has been seen rendered; this has not. *(Raised under Jump affordance.)*
 
 ### Still open
 
 1. **Error color inside the Clipped Bar brand palette.** Currently borrowing `#E5484D` (Radix `red-9`), which hitchhiked in through early plugin frames before the strict kit rule and now sits orphaned. Will be resolved as part of a complete Clipped-Bar-native design system pass — not a one-off color pick. Not blocking any Linear ticket.
+2. **Export sub-surface type — sheet vs popover.** The `Export ▸` link opens the export sub-surface; which UI3 pattern that surface is has not been chosen. A DES-2 call, currently unmade. Blocks nothing until DES-2 reaches its deliverable 1 (the export sub-surface).
 
 **Resolved:**
 - ~~Theme adaptation vs. brand override.~~ Chrome uses Figma standard theme colors, which naturally adapts to Figma's light/dark modes via `--figma-color-*` variables. The brand palette holds regardless on marketing surfaces. Dark mode is in for Phase 1 by virtue of following Figma.
@@ -496,7 +527,7 @@ These three came out of the review response and are not design calls. Recorded h
 
 ## Deliverables summary
 
-All four LS-19 deliverables are built on the design side; **Linear remains the source of truth for the ticket state.** Supporting layouts + LS-14 wiring + LS-13 paid-intent affordance remain:
+All four LS-19 deliverables are built and the ticket closed 2026-08-21. Supporting layouts + the state matrix + LS-13 paid-intent affordance remain:
 
 | Deliverable | Covers | Priority | Status |
 |---|---|---|---|
@@ -504,11 +535,11 @@ All four LS-19 deliverables are built on the design side; **Linear remains the s
 | Panel control cluster | LS-19, LS-8, LS-3, LS-15 | P0 | ✅ **DONE** — language selector, scan trigger, scope, filter, in-flight state |
 | Apply/revert affordance pattern | LS-19, LS-10, LS-11, LS-12 | P0 | ✅ **DONE** — banner component applied identically across 3 features |
 | Extraction list + shell | LS-9 | P1 | ✅ **DONE** — Extract Row component set + populated + empty state |
-| Supporting surfaces | LS-6, LS-12, LS-10, LS-11 | **P1** | Layouts reusing shell + results list |
-| State matrix — wiring into feature panels | LS-14 | **P1** | Six states built as `Plugin Shell — States` (`289:1420`); remaining work is wiring, not illustration replacement — the original frames no longer exist |
+| Supporting surfaces | **LS-24 (DES-2)** — LS-6, LS-12, LS-10, LS-11 | **P1** | In Progress with Muhammed. Layouts reusing shell + results list; export is a sub-surface of Extract, not a panel and not a tab |
+| State matrix — panel-agnostic block + wiring | **LS-24 (DES-2)** + LS-14 | **P1** | Seven variants built as `Plugin Shell — States` (`289:1420`), but that set is the overflow panel's own. DES-2 factors the panel-agnostic block and settles the state × panel copy table; LS-14 builds and wires it |
 | Paid-intent affordance | LS-13 | **P2** | ✅ **DONE** — four Pro stubs placed: `Pro Stub / Matrix` (`350:1404`), `Pro Stub / Report` (`350:1420`), `Pro Stub / Translate` (`350:1412`), `Pro Stub / Sync` (`351:1411`) |
 
-Brand identity (Clipped Bar) is done and DES-1 copy carries forward. LS-19's anatomy, apply/revert pattern, panel control cluster and state matrix are all built — **the LS-8 spec is unblocked**, because the panel's inputs are now enumerated and the spec can state what the UI sends. Remaining: the P1 supporting layouts that reuse the shell + row and LS-14's wiring of the state set into the feature panels — smaller pieces, each squarely in the founder's lane.
+Brand identity (Clipped Bar) is done and DES-1 copy carries forward. LS-19's anatomy, apply/revert pattern, panel control cluster and state matrix are all built — **the LS-8 spec is unblocked**, because the panel's inputs are now enumerated and the spec can state what the UI sends. Remaining: the P1 supporting layouts that reuse the shell + row, and the panel-agnostic state block behind LS-14 — both owned on the design side by **LS-24 (DES-2)**, In Progress with Muhammed.
 
 ---
 

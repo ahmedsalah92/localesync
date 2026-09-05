@@ -11,6 +11,7 @@ import {
 	FILTERS,
 	LABELS,
 	LANGUAGES,
+	SCANNING_START,
 	SCOPES,
 	SORTS,
 	STATES,
@@ -188,14 +189,20 @@ export function OverflowPanel() {
 
 	function renderSummary() {
 		if (scanning) {
-			// Show and Sort are removed mid-scan and replaced by the running yield; the determinate
-			// bar rides the band's bottom edge (LS-8.2 §2.4).
+			// Show and Sort are removed mid-scan and replaced by the running yield; the bar rides the
+			// band's bottom edge (LS-8.2 §2.4).
+			//
+			// Until the first progress tick carries a non-zero `total` there is no ratio and no count
+			// to state — traversal alone runs ~2s on a 485-node page, and for that whole window the
+			// band used to read `Scanning… 0 of 0 nodes` over a bar pinned at zero. Both now defer:
+			// the label drops its numbers and the bar goes indeterminate.
+			const known = state.total > 0;
 			return (
 				<SummaryBar
-					count={scanningCount(state.completed, state.total)}
+					count={known ? scanningCount(state.completed, state.total) : SCANNING_START}
 					tone="secondary"
 					controls={<Yield count={foundCount(state)} />}
-					progress={state.total > 0 ? state.completed / state.total : 0}
+					progress={known ? state.completed / state.total : 'indeterminate'}
 				/>
 			);
 		}

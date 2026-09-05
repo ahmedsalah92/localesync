@@ -43,18 +43,20 @@ export function SummaryBar(props: {
 	tone?: 'default' | 'secondary';
 	/** The Show/Sort cluster, or the `N found` running yield while scanning. Right-aligned. */
 	controls?: ReactNode;
-	/** 0–1. Renders the 2px bar on the band's bottom edge; null or absent renders none. */
-	progress?: number | null;
+	/** 0–1 for a determinate bar, `'indeterminate'` before `total` is known. Null or absent
+	 *  renders none. */
+	progress?: number | 'indeterminate' | null;
 }) {
 	const tone = props.tone ?? 'default';
 	return (
 		<div style={{ ...band, position: 'relative' }}>
+			{/* `0 0 auto`, not `1 1 auto`: the count is the band's payload and must never be the thing
+			    that gives way. Under the inverted rule the populated state clipped to `15…` and the
+			    scanning state — `Scanning… 1,284 of 3,410 nodes`, ~174px against the count's ~45px —
+			    clipped far worse. The Show/Sort cluster absorbs the slack instead (LS-8.2 §2.4). */}
 			<span
 				style={{
-					flex: '1 1 auto',
-					minWidth: 0,
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
+					flex: '0 0 auto',
 					whiteSpace: 'nowrap',
 					fontSize: 'var(--ls-text-size)',
 					lineHeight: 'var(--ls-text-line)',
@@ -66,7 +68,17 @@ export function SummaryBar(props: {
 				{props.count}
 			</span>
 			{props.controls !== undefined ? (
-				<span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacer-2)', flexShrink: 0 }}>
+				<span
+					style={{
+						flex: '1 1 auto',
+						minWidth: 0,
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'flex-end',
+						gap: 'var(--spacer-2)',
+						overflow: 'hidden',
+					}}
+				>
 					{props.controls}
 				</span>
 			) : null}

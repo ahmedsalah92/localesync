@@ -5,6 +5,7 @@
 import type { OverflowFilter, OverflowSort } from '../../common/overflow';
 import type { OverflowVerdict, OverflowVerdictValue } from '../../common/models';
 import type { DropdownOption } from '../shell/primitives/Dropdown';
+import type { RowMeta } from '../shell/ResultsRow';
 import type { ScanScope } from '../../common/messages';
 
 /**
@@ -87,15 +88,24 @@ export const VERDICT_WORD: Record<OverflowVerdictValue, string> = {
 };
 
 /**
- * `${containerLabel}  •  ${word}${amount}` — a double space either side of the bullet.
+ * The row's meta line, split into the part that may truncate and the part that must not.
+ *
+ * It used to return one concatenated `${containerLabel}  •  ${word}${amount}` string, which put the
+ * verdict and the delta at the mercy of the container path: a deep path consumed the line and
+ * ellipsed away the very number the row exists to report. `ResultsRow` lays the two out as separate
+ * flex children (LS-8.2 §2.6); the bullet travels with the verdict so it is never left dangling at
+ * a truncation boundary.
  *
  * The amount is ceiled at render, not on the wire: a 0.4px overshoot rounding to `overflows 0px`
  * would restate the very problem the delta exists to make visible, and `1px` is at least true.
  * Sorting uses the raw value (LS-8.2 §2.1).
  */
-export function rowMeta(verdict: OverflowVerdict): string {
+export function rowMeta(verdict: OverflowVerdict): RowMeta {
 	const amount = verdict.overflowPx === undefined ? '' : ` ${Math.ceil(verdict.overflowPx)}px`;
-	return `${verdict.containerLabel}  •  ${VERDICT_WORD[verdict.verdict]}${amount}`;
+	return {
+		label: verdict.containerLabel,
+		verdict: `•  ${VERDICT_WORD[verdict.verdict]}${amount}`,
+	};
 }
 
 /** `shown of scanned` — true under every filter state, unlike `N issues` (design.md). */
@@ -106,6 +116,15 @@ export function summaryCount(shown: number, scanned: number): string {
 export function scanningCount(completed: number, total: number): string {
 	return `Scanning… ${completed.toLocaleString()} of ${total.toLocaleString()} nodes`;
 }
+
+/**
+ * The scanning band before the first progress tick carries a non-zero `total`.
+ *
+ * Traversal takes ~2s on a 485-node file, and for that whole window `scanningCount` had nothing but
+ * zeroes to format — so the band read `Scanning… 0 of 0 nodes`, asserting an empty page while
+ * claiming to scan it. No numbers until there are numbers (LS-8.2 §2.4).
+ */
+export const SCANNING_START = 'Scanning…';
 
 export function foundYield(found: number): string {
 	return `${found.toLocaleString()} found`;

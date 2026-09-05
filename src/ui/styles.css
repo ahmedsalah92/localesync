@@ -12,6 +12,12 @@ html {
 }
 
 body {
+	/* The shell is a 100vh flex column and every band draws its own full-bleed divider, so the
+	 * UA's 8px body margin was inset-ing the whole plugin: the row severity strip sat 8px in
+	 * from the window edge, the jump icon ended ~24px from it against a 16px spec, and
+	 * 100vh + 16px produced a document scrollbar the shell's own `overflow: hidden` could not
+	 * suppress (LS-8.2 §2 row/band layout pass). */
+	margin: 0;
 	font-size: 11px;
 }
 
@@ -31,6 +37,12 @@ button {
 	appearance: none;
 	font-size: inherit;
 	color: inherit;
+	/* The UA's `padding: 1px 6px` is the one piece of button chrome this reset used to miss, and it
+	 * was not cosmetic: an icon-only button sized to its glyph got a content box 12px narrower than
+	 * itself, so the 16px jump arrow was squeezed to 4px wide inside its 16px button. Every other
+	 * button here sets its own padding, so neutralising it costs nothing and stops the next
+	 * icon-only button hitting the same wall. */
+	padding: 0;
 }
 
 i18n-text {
@@ -66,6 +78,7 @@ i18n-text {
  */
 :root {
 	--ls-bg-default: var(--figma-color-bg);
+	--ls-bg-hover: var(--figma-color-bg-hover);
 	--ls-bg-selected: var(--figma-color-bg-selected);
 	--ls-bg-secondary: var(--figma-color-bg-secondary);
 	--ls-bg-tertiary: var(--figma-color-bg-tertiary);
@@ -82,6 +95,7 @@ i18n-text {
 	--ls-text-onbrand: var(--figma-color-text-onbrand);
 	--ls-text-tooltip: var(--figma-color-text-oninverse);
 
+	--ls-icon-default: var(--figma-color-icon);
 	--ls-icon-secondary: var(--figma-color-icon-secondary);
 	--ls-icon-warning: var(--figma-color-icon-warning);
 	--ls-icon-danger: var(--figma-color-icon-danger);
@@ -124,4 +138,21 @@ i18n-text {
 		0 1px 3px rgba(0, 0, 0, 0.1),
 		0 5px 12px rgba(0, 0, 0, 0.13),
 		0 0 0.5px rgba(0, 0, 0, 0.15);
+}
+
+/*
+ * The indeterminate scan bar. Before the engine's first progress tick carries a non-zero `total`
+ * there is no ratio to draw, and drawing 0/0 would assert an empty page while claiming to scan it
+ * (LS-8.2 §2.4). A travelling sliver says "working, extent unknown" without naming a number.
+ *
+ * Declared here rather than inline because keyframes have no inline-style equivalent; the sliver's
+ * colours stay bound in ProgressBar itself.
+ */
+@keyframes ls-progress-indeterminate {
+	0% {
+		left: -40%;
+	}
+	100% {
+		left: 100%;
+	}
 }

@@ -1,9 +1,21 @@
-import type { ReactNode } from 'react';
+import { useState } from 'react';
 import type { OverflowVerdictValue } from '../../common/models';
 import { ArrowIcon } from './icons/ArrowIcon';
 import { Tooltip } from './primitives/Tooltip';
 
 export type RowTone = OverflowVerdictValue | 'neutral';
+
+/**
+ * The row's second line, as two independently-laid-out parts rather than one prepared string.
+ *
+ * `label` is the container path and is the only part allowed to truncate; `verdict` carries the
+ * status word and the pixel delta (`•  overflows 30px`), which the Linear issue requires every
+ * flagged row to state. Assembly lives with the copy (overflow/copy.ts `rowMeta`), not here.
+ */
+export interface RowMeta {
+	label: string;
+	verdict: string;
+}
 
 /**
  * The severity-ramp tokens for a row, per docs/specs/LS-5.md §2.4. Exhaustive switch, no
@@ -27,7 +39,7 @@ export function toneToken(tone: RowTone): { strip: string; meta: string } {
 export function ResultsRow(props: {
 	tone: RowTone;
 	primary: string;
-	meta: ReactNode;
+	meta: RowMeta;
 	monoMeta?: boolean;
 	selected: boolean;
 	onSelect: () => void;
@@ -35,6 +47,7 @@ export function ResultsRow(props: {
 	jumpLabel: string;
 }) {
 	const tokens = toneToken(props.tone);
+	const [jumpHover, setJumpHover] = useState(false);
 
 	return (
 		<div
@@ -46,6 +59,8 @@ export function ResultsRow(props: {
 				cursor: 'pointer',
 			}}
 		>
+			{/* Strip at x=0, full row height, per the Results Row component set (184:96). The row
+			    carries no inset of its own — the 16px content inset below is the whole of it. */}
 			<div style={{ width: 3, flexShrink: 0, backgroundColor: `var(${tokens.strip})` }} />
 			<div
 				style={{
@@ -72,11 +87,16 @@ export function ResultsRow(props: {
 					>
 						{props.primary}
 					</div>
+					{/* Two flex siblings, not one string. Concatenated, a deep container path ate the
+					    whole line and took the verdict and the delta with it — observed live as
+					    `Section — Plugin Header / Figma host chrome — not p…`, no verdict, no px. The
+					    label yields; the verdict never does (LS-8.2 §2.6). */}
 					<div
 						style={{
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-							whiteSpace: 'nowrap',
+							display: 'flex',
+							alignItems: 'baseline',
+							gap: 'var(--spacer-1)',
+							minWidth: 0,
 							fontSize: 'var(--ls-text-size)',
 							letterSpacing: props.monoMeta ? undefined : 'var(--ls-text-tracking)',
 							lineHeight: props.monoMeta ? 'var(--ls-mono-line)' : 'var(--ls-text-line)',
@@ -85,23 +105,45 @@ export function ResultsRow(props: {
 							color: `var(${tokens.meta})`,
 						}}
 					>
-						{props.meta}
+						<span
+							style={{
+								flex: '1 1 auto',
+								minWidth: 0,
+								overflow: 'hidden',
+								textOverflow: 'ellipsis',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{props.meta.label}
+						</span>
+						<span style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>{props.meta.verdict}</span>
 					</div>
 				</div>
 				<Tooltip label={props.jumpLabel}>
+					{/* Glyph stays at the UI3 16×16 spec — verified against 293:1298, whose `Icon` is a
+					    10×10 shape at (3,3), so the export is faithful and is not scaled up. The *hit
+					    area* is 24×24 instead, pulled back with a negative margin so the row's layout is
+					    unchanged, and hover lifts the icon out of `icon/secondary`. */}
 					<button
 						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
 							props.onJump();
 						}}
+						onMouseEnter={() => setJumpHover(true)}
+						onMouseLeave={() => setJumpHover(false)}
+						onFocus={() => setJumpHover(true)}
+						onBlur={() => setJumpHover(false)}
 						style={{
 							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
-							width: 16,
-							height: 16,
-							color: 'var(--ls-icon-secondary)',
+							width: 24,
+							height: 24,
+							margin: -4,
+							borderRadius: 'var(--radius-small)',
+							backgroundColor: jumpHover ? 'var(--ls-bg-hover)' : 'transparent',
+							color: jumpHover ? 'var(--ls-icon-default)' : 'var(--ls-icon-secondary)',
 							flexShrink: 0,
 						}}
 					>

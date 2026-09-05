@@ -9,7 +9,7 @@
 > **authored characters and new geometry** for the pass-2 end-to-end scan — see "LS-8 pass-2
 > authored rows" below. **The live .fig needs a hand-edit pass to match** (three rows).
 
-Human-built in Figma. **Source of truth for expected verdicts: `docs/specs/LS-8.md` §3** (pass-1
+Human-built in Figma. **Source of truth for expected verdicts: `docs/specs/LS-8.1.md` §3** (pass-1
 and pass-2 tables); the tables below restate the node inventory with authoring steps only. If the
 two ever disagree, the spec wins.
 
@@ -103,7 +103,7 @@ internally, so the eventual removal from reads is a no-op.
 the `kitchen-sink.md` procedure (author with a font you then make unavailable), name the node
 `missing-font`, and record the family in the README frame.
 
-## What the check asserts (LS-8.md §3)
+## What the check asserts (LS-8.1.md §3)
 
 - **Pass 1** (main side, streamed as `ls8:` progress notes): one `PASS`/`FAIL` line per labelled
   node — verdict **and** reason vs the pass-1 column, explicit SHORT/LONG candidates, expansion

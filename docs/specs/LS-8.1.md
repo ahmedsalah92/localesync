@@ -1,7 +1,12 @@
-# LS-8 — Basic overflow detection (HERO)
+# LS-8.1 — Basic overflow detection (HERO), measurement engine
 
 **Epic:** Features · **Blocked by:** LS-7 (Done — `docs/specs/LS-7.md`), FIX-1 (satisfied:
-`fixtures/overflow-spike.fig`) · **Consumed by:** LS-14, LS-15, and the deferred panel spec.
+`fixtures/overflow-spike.fig`) · **Consumed by:** LS-14, LS-15, and `docs/specs/LS-8.2.md`.
+
+> **Renamed `LS-8.md` → `LS-8.1.md`.** LS-8 is one Linear issue with two specs: this one (the
+> measurement engine, merged) and `docs/specs/LS-8.2.md` (the results panel). The deferred panel
+> spec this document refers to below is LS-8.2, and it **amends the measurement protocol** — see
+> the pointer in §2. LS-8.2 §5 carry-forward 4 records the rename.
 
 **Scope split (decided at spec time).** This spec covers the **main-thread measurement engine and
 its message wiring only** — the new `src/main/overflow/` folder. The results panel is deferred to a
@@ -161,6 +166,15 @@ rejected. An `import` from `../snapshot` in this folder is a spec violation, not
 ---
 
 ## 2. Resolved Defaults (use exactly these — do not choose)
+
+> **Amended by `docs/specs/LS-8.2.md` §1.1 — read it alongside this section.** The panel spec adds
+> `overflowPx` to `OverflowVerdict`, gives `NONE` / `TRUNCATE` nodes a **second, width-constrained
+> read** to derive it (the first read unlocks the clone and stops wrapping, so its numbers cannot
+> yield a magnitude), makes the language-tag match regional-aware so `ja-JP` and `zh-TW` are
+> refused rather than measured, and adds streaming, cancellation and a final progress tick to
+> `scanOverflow`. The per-mode verdict rules below are **unchanged** by that amendment; only the
+> magnitude, the tag matching and the scan lifecycle are new. LS-8.2 §2.1 holds the per-reason
+> magnitude table.
 
 ### Per-mode rules
 

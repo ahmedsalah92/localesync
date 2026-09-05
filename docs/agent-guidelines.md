@@ -73,16 +73,20 @@ sit alongside. Folders marked *(new)* don't exist yet — create them when the o
 ```
 src/common/messages.ts     LS-2  shared message union (imported by both sides)
 src/common/models.ts       LS-2   shared wire DTOs (both sides import; owned upstream, stubbed here)
+src/common/overflow.ts     LS-8  display order, filters and sorting (both sides import)
 src/main/bridge.ts         LS-2   main-side send/on/respond transport
 src/ui/bridge.ts           LS-2   ui-side send/on/request transport
 src/main/main.ts                 Figma main-thread entry (Plugma)
 src/main/traversal/        LS-3  scene-graph traversal + text-node model            (new)
 src/main/snapshot/         LS-4  font-load + snapshot/restore primitive             (new)
+src/main/overflow/         LS-8  measurement engine (LS-8.1)
 src/ui/ui.tsx                    UI iframe entry (Plugma)
 src/ui/App.tsx                   root React component
 src/ui/styles.css                UI3 token alias layer — names only, no values (see §7)
 src/ui/shell/              LS-5  UI shell + design system                           (new)
 src/ui/export/             LS-6  export serializers (JSON / iOS / Android)          (new)
+src/ui/overflow/           LS-8  overflow results panel (LS-8.2)
+src/ui/devtools/                 dev-only in-Figma acceptance harness buttons
 fixtures/                        test fixtures (.json generatable, .fig human-built)(new)
 docs/specs/                      per-issue specs (LS-X.md)                          (new)
 ```

@@ -10,7 +10,7 @@ import type { OverflowVerdict } from '../../common/models';
 import { on, respond, send } from '../bridge';
 import { NoSelectionError, traverse } from '../traversal';
 import type { TextNodeModel } from '../traversal/model';
-import { UNSUPPORTED_LANGUAGES, expandForLanguage } from './expand';
+import { expandForLanguage, isUnsupportedLanguage } from './expand';
 import type { Measurement } from './measure';
 import { measureOverflow } from './measure';
 import { severityFor } from './verdict';
@@ -32,6 +32,9 @@ function toVerdict(model: TextNodeModel, language: string, m: Measurement): Over
 	const severity = severityFor(m.verdict);
 	if (severity !== undefined) verdict.severity = severity;
 	if (m.reason !== undefined) verdict.reason = m.reason;
+	// Absent wherever a magnitude is not derivable (LS-8.2 §2.1) — same omit-don't-send-undefined
+	// discipline as `severity` and `reason`.
+	if (m.overflowPx !== undefined) verdict.overflowPx = m.overflowPx;
 	return verdict;
 }
 
@@ -61,7 +64,7 @@ export async function scanOverflow(
 ): Promise<OverflowVerdict[]> {
 	const models = await traverse(scope);
 	const eligible = models.filter((model) => !model.hidden);
-	const supported = targetLanguages.filter((language) => !UNSUPPORTED_LANGUAGES.has(language));
+	const supported = targetLanguages.filter((language) => !isUnsupportedLanguage(language));
 	const verdicts: OverflowVerdict[] = [];
 
 	let completed = 0;
@@ -82,7 +85,7 @@ export async function scanOverflow(
 		const vanished = supported.length > 0 && measurements === null;
 		if (!vanished) {
 			for (const language of targetLanguages) {
-				if (UNSUPPORTED_LANGUAGES.has(language)) {
+				if (isUnsupportedLanguage(language)) {
 					verdicts.push(refusalVerdict(model, language));
 				} else {
 					const m = measurements?.[supported.indexOf(language)];

@@ -19,7 +19,7 @@ import type { OverflowReason, OverflowVerdictValue } from '../../common/models';
 import { nextMainId, on, send } from '../bridge';
 import { traverse } from '../traversal';
 import type { TextNodeModel } from '../traversal/model';
-import { UNSUPPORTED_LANGUAGES } from './expand';
+import { isUnsupportedLanguage } from './expand';
 import { measureOverflow } from './measure';
 
 const SHORT = 'OK';
@@ -119,7 +119,7 @@ let running = false;
  *  is harmless (the roundtrip UI ignores progress messages with unknown ids). */
 export function registerOverflowCheck(): void {
 	on('overflow-scan-request', (msg) => {
-		if (msg.scope !== 'page' || msg.targetLanguages.some((l) => UNSUPPORTED_LANGUAGES.has(l)) || running) return;
+		if (msg.scope !== 'page' || msg.targetLanguages.some(isUnsupportedLanguage) || running) return;
 		running = true;
 		void runChecks()
 			.catch((err: unknown) => [`ls8:error ${err instanceof Error ? err.message : String(err)}`])

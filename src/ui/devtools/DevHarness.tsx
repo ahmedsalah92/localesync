@@ -1,4 +1,4 @@
-import { runOverflowCheck } from '../overflow-check';
+import { runBridgeRegression, runOverflowCheck } from '../overflow-check';
 import { runRoundtrip } from '../roundtrip';
 import { runSnapshotCheck } from '../snapshot-check';
 import { runTraversalCheck } from '../traversal-check';
@@ -46,6 +46,11 @@ export function DevHarness() {
 				</button>
 				<button type="button" onClick={() => void runOverflowCheck()}>
 					Run LS-8 overflow check
+				</button>
+				{/* Needs a file of MORE than 25 nodes (PROGRESS_EVERY) — run against large-file.fig,
+				    not overflow-spike.fig, whose 14 rows never reach the first progress tick. */}
+				<button type="button" onClick={() => void runBridgeRegression()}>
+					Run LS-8.2 bridge regression (large-file)
 				</button>
 				{/* Dev scaffold: raw postMessage of a `__dev:` sentinel intercepted by main.ts's
 				    onmessage wrapper. Intentionally bypasses the typed bridge — not feature code. */}

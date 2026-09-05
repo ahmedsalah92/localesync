@@ -111,10 +111,22 @@ the `kitchen-sink.md` procedure (author with a font you then make unavailable), 
 - **Pass 2** (UI side): the three authored rows through a genuine `overflow-scan-request` round
   trip, matched by their authored characters, plus the self-sufficiency fields
   (`characters`/`containerLabel`/`candidate`/measured dims) and the `['ja']` refusal probe.
-- **Pass 3**: `select-node` selection assertion (main side) and the fabricated-id → `node-gone`
+- **Pass 3 — magnitude** (LS-8.2 §3.2): `overflowPx` present on every `overflows`/`truncates` row
+  **except** `maxHeight-cap`, which must carry none; absent on every `fits` and `unmeasurable`;
+  every present value `> 0`; `hug-page-parent` still `fits`/`no-container` with no delta. For each
+  `NONE`/`TRUNCATE` row the check re-derives `max(w − own.w, h − own.h)` from its **own**
+  constrained read and asserts agreement — the second read is verified against itself, never
+  against a hand-typed constant. The observed delta per row is printed and recorded in the PR
+  description as the first-run baseline.
+- **Pass 4**: `select-node` selection assertion (main side) and the fabricated-id → `node-gone`
   correlated error (UI side).
 - The user's document is never mutated — measurement touches off-canvas clones only, removed in
   `try/finally`.
+
+**Not on this fixture:** the LS-8.2 §3.3 bridge regression. It needs a file of more than 25 nodes
+(`PROGRESS_EVERY`) to reach the first progress tick, and this fixture has 14 rows — which is exactly
+why the `progress`-settles-`request()` defect went unnoticed. Run *Run LS-8.2 bridge regression*
+against `fixtures/large-file.fig` instead.
 
 ## Done when (LS-8 promotion pass)
 

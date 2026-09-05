@@ -9,7 +9,12 @@
 // src/ui/overflow-check.ts. Requests naming an unsupported language are ignored: the driver's ja
 // refusal probe must not re-run pass 1.
 //
-// It also piggybacks 'select-node' (pass 3): after the real handler runs in the same dispatch, a
+// Pass 3 (LS-8.2 §3.2) adds the magnitude assertions to the same walk: field presence and sign on
+// every row, `maxHeight-cap` asserted to carry NO delta, and — for fixed-box rows — an independent
+// constrained re-read that must agree with the engine's own. The observed deltas are printed and go
+// in the PR description as the first-run baseline.
+//
+// It also piggybacks 'select-node' (pass 4): after the real handler runs in the same dispatch, a
 // bounded poll asserts the selection landed on the target. The fabricated-id case asserts nothing
 // here (the node-gone error surfacing is the UI driver's assertion).
 //
@@ -20,7 +25,7 @@ import { nextMainId, on, send } from '../bridge';
 import { traverse } from '../traversal';
 import type { TextNodeModel } from '../traversal/model';
 import { isUnsupportedLanguage } from './expand';
-import { measureOverflow } from './measure';
+import { measureOverflow, type Measurement } from './measure';
 
 const SHORT = 'OK';
 // The 160-character sentence carried over from the LS-7 spike harness.
@@ -104,12 +109,89 @@ async function runChecks(): Promise<string[]> {
 							`reason=${measurement.reason ?? 'none'} (expected ${row.reason ?? 'none'}), ` +
 							`measured=${measurement.measuredWidth.toFixed(1)}×${measurement.measuredHeight.toFixed(1)}`,
 			);
+			await checkMagnitude(row, node, model, measurement, notes);
 		} catch (err) {
 			notes.push(`ls8:${row.label}:FAIL measureOverflow threw: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 
 	return notes;
+}
+
+/**
+ * Independent re-derivation of `overflowPx` for fixed-box rows (LS-8.2 §3.2).
+ *
+ * The engine's second read is verified against a second, separately written constrained read of the
+ * same node — never against a hand-typed constant. A wrong golden and a wrong implementation can
+ * agree and both pass (agent-guidelines §6), and these numbers could not be hand-typed anyway: they
+ * depend on the metrics of whatever Inter build the machine has.
+ *
+ * Growing-mode rows are not re-derived: their deltas are plain subtractions of numbers the
+ * measurement already returns, with no second read to get wrong. Their observed value is printed
+ * instead — that print is the first-run baseline the PR description records.
+ */
+async function checkMagnitude(
+	row: CheckRow,
+	node: TextNode,
+	model: TextNodeModel,
+	measurement: Measurement,
+	notes: string[],
+): Promise<void> {
+	const px = measurement.overflowPx;
+
+	// Field-presence rules, on every row regardless of mode.
+	if (measurement.verdict === 'fits' || measurement.verdict === 'unmeasurable') {
+		if (px !== undefined) notes.push(`ls8:${row.label}-px:FAIL ${measurement.verdict} row carries overflowPx=${px}`);
+		return;
+	}
+	if (measurement.reason === 'maxHeight-cap') {
+		// The hidden amount is not knowable: the clone inherits the cap, and clearing it off
+		// auto-layout is silently rejected (LS-8.2 §2.1).
+		notes.push(
+			px === undefined
+				? `ls8:${row.label}-px:PASS maxHeight-cap carries no delta, as specified`
+				: `ls8:${row.label}-px:FAIL maxHeight-cap must not carry a delta (got ${px})`,
+		);
+		return;
+	}
+	if (px === undefined) {
+		notes.push(`ls8:${row.label}-px:FAIL ${measurement.verdict} row carries no overflowPx`);
+		return;
+	}
+	if (!(px > 0)) {
+		notes.push(`ls8:${row.label}-px:FAIL overflowPx=${px} is not > 0`);
+		return;
+	}
+
+	const mode = model.textAutoResize;
+	if (mode !== 'NONE' && mode !== 'TRUNCATE') {
+		notes.push(`ls8:${row.label}-px:PASS ${px.toFixed(2)}px`);
+		return;
+	}
+
+	// Fixed box: re-derive from our own constrained read, on our own clone.
+	const clone = node.clone();
+	try {
+		figma.currentPage.appendChild(clone);
+		clone.x = -20000;
+		clone.y = -20000;
+		for (const font of clone.getRangeAllFontNames(0, clone.characters.length)) {
+			await figma.loadFontAsync(font);
+		}
+		clone.textAutoResize = 'HEIGHT';
+		clone.resize(node.width, clone.height);
+		clone.textTruncation = 'DISABLED';
+		clone.characters = row.candidate;
+		const expected = Math.max(clone.width - node.width, clone.height - node.height);
+		const agrees = Math.abs(expected - px) <= 0.01;
+		notes.push(
+			agrees
+				? `ls8:${row.label}-px:PASS ${px.toFixed(2)}px (re-derived ${expected.toFixed(2)})`
+				: `ls8:${row.label}-px:FAIL overflowPx=${px.toFixed(2)} but re-derived ${expected.toFixed(2)}`,
+		);
+	} finally {
+		clone.remove();
+	}
 }
 
 let running = false;

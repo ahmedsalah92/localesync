@@ -9,6 +9,29 @@
 > **authored characters and new geometry** for the pass-2 end-to-end scan — see "LS-8 pass-2
 > authored rows" below. **The live .fig needs a hand-edit pass to match** (three rows).
 
+> ### ⚠ Read the row names correctly — they are not scan predictions
+>
+> **A row's name states the verdict for the candidate the pass-1 harness *injects*, not the verdict
+> for a scan of the text authored in the node.** Pass 1 bypasses expansion and measures its own
+> explicit SHORT/LONG candidates against each box; that is the whole point of the row names.
+>
+> Only four rows carry meaningful authored characters — `fixed-fits`, `fixed-overflows`,
+> `fixed-wraps-fits` and `autoheight-maxlines` (the pass-2 set, plus the wrap regression row).
+> **Every other row holds the twelve-character placeholder `Source label`**, which is short enough
+> to fit its box in every language.
+>
+> The consequence, and it looks alarming until you know: opening this file and pressing **Scan** in
+> the panel makes `truncate-overflows`, `autoheight-overflows` and `hug-overflows` report **`fits`**.
+> That is **correct**. `Source label` genuinely does fit those boxes; the names describe what the
+> harness proves about the *rule*, not what a real scan finds in *this* file. Anyone reading the
+> panel without this paragraph will file three engine bugs that do not exist.
+>
+> They are deliberately **not renamed**: the names are load-bearing in `docs/specs/LS-8.1.md` §3's
+> pass-1 table, in `src/main/overflow/check.ts`'s name matching, and in the generator — renaming is
+> a four-place change to acceptance criteria for a labelling problem, so it is documented instead
+> (LS-8.2 §5 carry-forward 6). Panel-facing verdict validation needs a purpose-built
+> `known-overflow` file with authored strings on every row; that stays an LS-17 item.
+
 Human-built in Figma. **Source of truth for expected verdicts: `docs/specs/LS-8.1.md` §3** (pass-1
 and pass-2 tables); the tables below restate the node inventory with authoring steps only. If the
 two ever disagree, the spec wins.
@@ -102,11 +125,22 @@ fixed-size node with truncation enabled *reports* `TRUNCATE`. The generator logs
 for both rows on generate; the LS-8 engine treats `TRUNCATE` as `NONE` + `textTruncation: ENDING`
 internally, so the eventual removal from reads is a no-op.
 
-### Note: `missing-font` (manual)
+### Note: `missing-font` (manual, and **standing** — it does not stay fixed)
 
 `loadFontAsync` fails for unavailable fonts by definition, so this row cannot be scripted. Follow
 the `kitchen-sink.md` procedure (author with a font you then make unavailable), name the node
-`missing-font`, and record the family in the README frame.
+`missing-font`, and record the family in the README frame. The family in the live file is
+**Fontine**.
+
+**This is a standing manual step, not a one-time one.** The generator cannot create a node in a
+family the environment does not have, so **every regeneration of this fixture wipes this row**, and
+`pass 1` then fails on `missing-font` — currently **34/35** — until it is rebuilt by hand. Budget
+the hand-rebuild into any regeneration, and read a 34/35 as "the manual row is outstanding", not as
+a regression.
+
+A check that always fails is a check people stop reading (LS-8.2 §5 carry-forward 4), so if this
+row is knowingly outstanding, say so in the PR rather than leaving the reader to guess which of the
+35 failed.
 
 ## What the check asserts (LS-8.1.md §3)
 
@@ -136,8 +170,11 @@ against `fixtures/large-file.fig` instead.
 ## Done when (LS-8 promotion pass)
 
 - [ ] The three pass-2 rows hand-edited in the live .fig (characters + geometry per the table).
-- [ ] **Run LS-8 overflow check**: pass 1 14/14 (verdict + reason), pass 2 3/3 + ja refusal,
-      pass 3 selection PASS + `node-gone`.
+- [ ] **Run LS-8 overflow check**: pass 1 (verdict + reason), pass 2 3/3 + ja refusal,
+      pass 3 selection PASS + `node-gone`. A freshly *generated* file scores **34/35** on pass 1
+      until the manual `missing-font` row is rebuilt — see its note above.
+- [ ] `missing-font` rebuilt by hand (**required after every regeneration**) and its family
+      recorded in the README frame.
 - [ ] README frame updated (authored-rows note; date).
 - [x] Shared-Figma link recorded in `fixtures/README.md` (unchanged from LS-7).
 

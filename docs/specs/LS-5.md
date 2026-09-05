@@ -121,7 +121,7 @@ export function SummaryBar(props: {
 }): JSX.Element;
 ```
 
-> **Shipping note (2026-09-05, LS-8.2 §5 carry-forward 7).** `bands.tsx` shipped with **no exports
+> **Shipping note (2026-09-05, LS-8.2 §5 carry-forward 14).** `bands.tsx` shipped with **no exports
 > at all**. The file also carried the shell's own Plugin Header band, which was deleted during
 > LS-5 visual QA because it duplicated Figma's non-suppressible window chrome (§5.7) — and
 > `ControlBar` / `SummaryBar` went with it as collateral, not by decision. Neither duplicates

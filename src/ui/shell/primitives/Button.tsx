@@ -1,5 +1,14 @@
 import type { ReactNode } from 'react';
 
+/**
+ * `primary` is the Scan trigger — `bg/brand` fill, `text/onbrand` label. `secondary` is Stop, which
+ * takes the same slot mid-scan: a `bg/secondary` **fill** with a `text/default` label. Secondary
+ * rather than danger, because stopping abandons work in progress without destroying anything.
+ *
+ * Both were code-vs-canvas defects until LS-8.2 §1.6: the radius read `--radius-medium` where
+ * design.md binds `Radius/radius-small` to "Control Bar selects and the Scan button", and the
+ * secondary variant was transparent-with-border rather than a fill.
+ */
 export function Button(props: {
 	variant: 'primary' | 'secondary';
 	children: ReactNode;
@@ -15,9 +24,9 @@ export function Button(props: {
 			style={{
 				height: 24,
 				padding: `0 var(--spacer-2)`,
-				borderRadius: 'var(--radius-medium)',
-				backgroundColor: isPrimary ? 'var(--ls-bg-brand)' : 'transparent',
-				border: isPrimary ? 'none' : '1px solid var(--ls-border-default)',
+				borderRadius: 'var(--radius-small)',
+				backgroundColor: isPrimary ? 'var(--ls-bg-brand)' : 'var(--ls-bg-secondary)',
+				border: 'none',
 				color: isPrimary ? 'var(--ls-text-onbrand)' : 'var(--ls-text-default)',
 				fontSize: 'var(--ls-text-size)',
 				lineHeight: 'var(--ls-text-line)',

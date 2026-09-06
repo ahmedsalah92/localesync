@@ -55,7 +55,7 @@ export function DevHarness() {
 					Run LS-8 overflow check
 				</button>
 				{/* Needs a file of MORE than 25 nodes (PROGRESS_EVERY) — run against large-file.fig,
-				    not overflow-spike.fig, whose 14 rows never reach the first progress tick. */}
+				    not overflow-spike.fig, which remains below the first progress tick. */}
 				<button type="button" onClick={() => void runBridgeRegression()}>
 					Run LS-8.2 bridge regression (large-file)
 				</button>

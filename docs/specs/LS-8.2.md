@@ -211,7 +211,7 @@ inbound message carrying the matching correlation id. `registerOverflow` emits `
 the request's own id — correctly, per LS-2's correlation design — so the first progress tick
 resolves the promise with a `ProgressMessage` cast to `OverflowScanResult`, deletes the waiter,
 and leaves the real result to arrive at an empty mailbox. The caller reads `verdicts` as
-`undefined`. `PROGRESS_EVERY` is 25 and `overflow-spike.fig` has 15 rows, so **the acceptance
+`undefined`. `PROGRESS_EVERY` is 25 and `overflow-spike.fig` originally had 15 rows, so **the acceptance
 fixture cannot reach the first tick**: the test passes on exactly the input that cannot fail.
 
 **The correlation id is not reachable.** `request()` mints its id inside the promise closure and
@@ -526,8 +526,13 @@ ellipsis on overflow
 
 `verdict` is the canvas vocabulary — `fits` · `clips` · `overflows` · `un-measurable`. `Npx` is
 `Math.ceil(overflowPx)` when the field is present and absent otherwise. `ResultsRow` therefore takes
-`meta` as `{ label: string; verdict: string }` rather than a prepared string; assembly moves out of
-the panel.
+`meta` as `{ label: string; verdict: string; tooltip?: string }` rather than a prepared string;
+assembly moves out of the panel.
+
+**2026-09-06 — LS-25:** On an `unmeasurable` row, the verdict chunk now names the engine reason
+instead of repeating the generic verdict, and may carry a wrapping tooltip with the explanation.
+The optional tooltip stays inside the fixed verdict sibling, so the container label remains the
+only part of the meta line that yields or truncates.
 
 **Rows span the list's full width.** Per `184:96`: strip at x=0, 3px wide, full row height; content
 inset 16px left and right; jump 16×16 ending 16px from the right edge. No inset may be applied to
@@ -671,8 +676,8 @@ The `progress`-settles-`request()` defect cannot be caught by Vitest — `src/ui
 `window` at module scope and agent-guidelines §6 rules out jsdom. Covered by:
 - a `bridge.type-check.ts` addition asserting the pending entry's expected-response typing; and
 - a scan of **more than 25 nodes** resolving with a populated `verdicts` array. Run against a real
-  page, not `overflow-spike.fig` — 15 rows cannot reach the first tick, which is precisely why the
-  defect went unnoticed.
+  page, not `overflow-spike.fig` — even its 17 eligible text nodes after manual setup cannot reach
+  the first tick, which is why the defect went unnoticed.
 
 ### 3.4 Panel review against canvas
 
@@ -727,7 +732,7 @@ than overflowing horizontally.
 | 1 | **Stop is unverified.** The streaming path, progress, yield count and bar are confirmed on a 485-node page; Stop was never clicked. Verify: rows retained, bar removed, selects unlocked, button reverted, `stopped: true` on the result. | before merge |
 | 2 | `LS-7.md` §134 specified the unlocked fixed-box read (`clone.textAutoResize = 'WIDTH_AND_HEIGHT'`) and the two-axis comparison against `ownBounds`. That is where the false positive originated. Annotate with a dated note — it is the record of a closed spike, and its observations (`1244.0 × 19.0`) remain true, just understood differently. The spike's headline verdict, Approach A, is unaffected. | doc annotation |
 | 3 | `LS-8.1.md` §2's fixed-box rule now misdescribes the code. Correct it properly rather than annotating — a spec that misdescribes its own module is worse than one carrying a note. | doc correction |
-| 4 | `pass1 missing-font` fails standing at 34/35: the node needs an unavailable family the generator cannot create. Add to the fixture README's manual steps. A check that always fails is a check people stop reading. | LS-17 |
+| 4 | **Closed 2026-09-06.** The fixture README now gives one standing workflow for `missing-font` and `mixed-font-missing`; fresh generation reports both rows missing until they are rebuilt with an unavailable family. | fixture enhancement |
 | 5 | `<DevHarness />` rendered nothing after the §1.7 restructure, which is why the fixture went six weeks without regeneration. Keep a smoke check that the harness is reachable in DEV builds. | LS-17 |
 | 6 | `truncate-overflows`, `autoheight-overflows` and `hug-overflows` carry `Source label` and correctly report `fits` on a real scan — their names describe harness-injected candidates and read as engine bugs in the panel. Rename or annotate. Panel verdict validation needs `known-overflow`. | LS-17 |
 | 7 | Native `<select>` prefixes the open option list as well as the trigger; the trigger is correct and the list reads `Show: issues · Show: all`. A custom popover was rejected in LS-5 §3.2 because `bg/menu/default` has no live binding. | LS-14 or a kit pass |
@@ -739,6 +744,7 @@ than overflowing horizontally.
 | 13 | agent-guidelines §1 folder map gains `src/ui/overflow/ LS-8` and `src/common/overflow.ts`. | doc fix |
 | 14 | LS-5 §1.5 records `bands.tsx` with three exports; the file shipped with none. The header stays deleted; the note should record that the other two were collateral. | LS-5 precision fix |
 | 15 | The summary count uses `verdicts.length` as "scanned" — exact at one language per node, wrong for the Phase 2 matrix, where it becomes nodes × languages. | Phase 2 |
+| 16 | The un-measurable reason tooltip is hover-only because its `<span>` trigger is not keyboard-focusable. Giving every result row a second tab stop is the worse trade-off until the interaction is designed as part of the accessibility pass. | LS-14 accessibility pass |
 
 Carry-forwards 1 and 7 from `LS-8.1.md` §5 are **closed by this spec**. Carry-forward 1's
 `--overflow` reference was stale on arrival — superseded by the UI3 ramp, which `ResultsRow`

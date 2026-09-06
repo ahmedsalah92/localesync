@@ -1,9 +1,9 @@
 // src/main/devtools/generateOverflowSpike.ts
 // Dev-only fixture bootstrapper for fixtures/overflow-spike.fig (LS-7 §3 validation fixture,
 // promoted to the LS-8 acceptance fixture — fixtures/overflow-spike.md).
-// Builds 14 of the 15 rows; one row CANNOT be scripted:
-//   • `missing-font` — loadFontAsync fails for unavailable fonts by definition; follow the manual
-//     procedure in fixtures/kitchen-sink.md §"missing-font" after running this.
+// Builds 15 of the 17 rows; two rows CANNOT be scripted:
+//   • `missing-font` / `mixed-font-missing` — loadFontAsync fails for unavailable fonts by
+//     definition; follow the manual procedure in fixtures/overflow-spike.md after running this.
 // The two truncate-* rows are authored as NONE + textTruncation ENDING, which current Figma REPORTS
 // as textAutoResize 'TRUNCATE' (agent-guidelines §2) — the console logs the reported mode on
 // generate so the manual check is settled immediately.
@@ -27,15 +27,16 @@ const WRAPS_FITS = 'The quick brown fox jumps over the lazy dog';
 
 // Stamped onto the README frame. A row's name states the verdict for the candidate the pass-1
 // harness INJECTS, not for a scan of the authored text — and since every row outside the pass-2 set
-// holds the 12-character SOURCE placeholder, three of them legitimately report `fits` in the panel.
+// holds the 12-character SOURCE placeholder (except `empty` and the two manual font rows), three of
+// them legitimately report `fits` in the panel.
 // Without this on the canvas, the next person to open the file and press Scan files three engine
 // bugs that do not exist (LS-8.2 §5 carry-forward 6).
 const READ_THE_ROW_NAMES =
 	'*** READ THE ROW NAMES CORRECTLY — THEY ARE NOT SCAN PREDICTIONS ***\n' +
 	'A row name states the verdict for the candidate the pass-1 harness INJECTS, not the verdict for\n' +
 	'a scan of the text authored in the node. Only fixed-fits, fixed-overflows, fixed-wraps-fits and\n' +
-	'autoheight-maxlines carry meaningful authored characters; every other row holds the placeholder\n' +
-	`"${SOURCE}", which fits its box in every language.\n` +
+	'autoheight-maxlines carry meaningful authored characters. Other generated non-empty rows hold\n' +
+	`the placeholder "${SOURCE}", which fits its box; empty and the manual font rows are exceptions.\n` +
 	'So opening this file and pressing Scan in the panel makes truncate-overflows,\n' +
 	'autoheight-overflows and hug-overflows report "fits". THAT IS CORRECT — not an engine bug.\n' +
 	'Panel-facing verdict validation needs a purpose-built known-overflow file (LS-17).';
@@ -211,8 +212,19 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 	}
 
 	// ── missing-font — NOT SCRIPTABLE, manual step ─────────────────────────────
-	// Placeholder frame; follow the missing-font procedure from kitchen-sink.md.
+	// Placeholder frame; follow the unavailable-font procedure in fixtures/overflow-spike.md.
 	makeFrame('missing-font');
+
+	// ── mixed-font-missing — NOT SCRIPTABLE, manual step ───────────────────────
+	// Build alongside missing-font while the uncommon font is installed, then make it unavailable.
+	makeFrame('mixed-font-missing');
+
+	// ── empty — direct-caller guard; production scanOverflow excludes it (LS-25) ─
+	{
+		const f = makeFrame('empty');
+		const t = makeText('empty', f);
+		t.characters = '';
+	}
 
 	// ── mixed-font-ok — two available fonts on one node ────────────────────────
 	{
@@ -232,11 +244,11 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 
 	// ── README frame ───────────────────────────────────────────────────────────
 	const manualSteps = [
-		'missing-font: create a text node named "missing-font" inside the missing-font frame using an unavailable font family (see fixtures/kitchen-sink.md §missing-font for the procedure). Record the font family below. STANDING STEP — this generator cannot author a node in a family this environment does not have, so EVERY regeneration wipes this row and pass 1 scores 34/35 until it is rebuilt by hand. A 34/35 means "manual row outstanding", not a regression. The family in the live file was Fontine.',
+		'missing-font + mixed-font-missing: while an uncommon local font is installed, create a text node in each matching frame. Set all of missing-font to that family. Set mixed-font-missing to that family, then change roughly half its characters to Inter Regular and confirm the font field reads Mixed. Save, quit Figma, uninstall the uncommon font, relaunch, and confirm both nodes show missing-font state. See fixtures/overflow-spike.md for the full procedure. STANDING STEP — EVERY regeneration wipes both manual rows. The family in the live file was Fontine.',
 		"truncate-fits / truncate-overflows: confirm the generate-time console lines reported textAutoResize = 'TRUNCATE' for both. If not, note it below and in docs/specs/LS-7.md §6.",
-		'Fill in: missing-font family = ________, truncate rows report TRUNCATE = ________, generated on = ________.',
+		'Fill in: missing-font family shared by both manual rows = ________, truncate rows report TRUNCATE = ________, generated on = ________.',
 		'Save as fixtures/overflow-spike.fig (or record the shared-Figma link in fixtures/README.md).',
-		'Run the check: npm run dev → open this file → click "Run LS-8 overflow check" → expect pass 1 14/14, pass 2 3/3 + the ja refusal, pass 3 selection + node-gone (fixtures/overflow-spike.md).',
+		'Run the check: npm run dev → open this file → click "Run LS-8 overflow check" → expect all 17 pass-1 rows, the pass-2 authored/font/empty checks + ja refusal, and selection + node-gone (fixtures/overflow-spike.md).',
 	];
 	{
 		const readme = figma.createFrame();

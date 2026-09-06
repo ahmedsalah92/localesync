@@ -64,9 +64,10 @@ export interface ScanOptions {
 	shouldStop?: () => boolean;
 }
 
-/** One OverflowVerdict per eligible node × target language. Hidden nodes are excluded entirely
- *  (an invisible node cannot break a layout); locked and instance nodes measure normally —
- *  measurement is read-only, it clones. Progress is per node, `total` = eligible node count. */
+/** One OverflowVerdict per eligible node × target language. Hidden and empty nodes are excluded
+ *  entirely because neither an invisible node nor a text layer with no text can break a layout;
+ *  locked and instance nodes measure normally — measurement is read-only, it clones. Progress is
+ *  per node, `total` = eligible node count. */
 export async function scanOverflow(
 	scope: ScanScope,
 	targetLanguages: readonly string[],
@@ -74,7 +75,7 @@ export async function scanOverflow(
 ): Promise<OverflowVerdict[]> {
 	const { onProgress, onVerdicts, shouldStop } = options;
 	const models = await traverse(scope);
-	const eligible = models.filter((model) => !model.hidden);
+	const eligible = models.filter((model) => !model.hidden && !model.empty);
 	const supported = targetLanguages.filter((language) => !isUnsupportedLanguage(language));
 	const verdicts: OverflowVerdict[] = [];
 

@@ -52,6 +52,7 @@ export async function measureOverflow(input: MeasurementInput): Promise<Measurem
 
 	// Unmeasurable gates resolved from the model before any clone exists (LS-7 §2 + the §6
 	// `no-bounds` delta).
+	// Keep the empty guard for direct callers that bypass scanOverflow (for example check.ts pass 1).
 	if (model.empty) return allUnmeasurable('empty');
 	if (model.hasMissingFont) return allUnmeasurable(model.isMixedFont ? 'mixed-font-missing' : 'missing-font');
 	const ownBounds = model.ownBounds;

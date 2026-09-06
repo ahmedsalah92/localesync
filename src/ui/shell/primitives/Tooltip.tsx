@@ -6,8 +6,9 @@ import { useState, type ReactNode } from 'react';
  * canvas's literal fill/text (docs/specs/LS-5.md §2.5, §3.2). Radius, padding and type reuse the
  * existing `--radius-medium` / `--spacer-1` / `--spacer-2` / `--ls-text-*` tokens — every one of
  * those happens to match the canvas values exactly, so no new token was needed for them.
+ * `wide` opts sentence-length labels into wrapping without changing the compact icon tooltip.
  */
-export function Tooltip(props: { label: string; children: ReactNode }) {
+export function Tooltip(props: { label: string; children: ReactNode; wide?: boolean }) {
 	const [visible, setVisible] = useState(false);
 
 	return (
@@ -37,7 +38,9 @@ export function Tooltip(props: { label: string; children: ReactNode }) {
 						letterSpacing: 'var(--ls-text-tracking)',
 						fontWeight: 'var(--ls-text-weight)',
 						boxShadow: 'var(--ls-tooltip-shadow)',
-						whiteSpace: 'nowrap',
+						...(props.wide
+							? { maxWidth: 220, textAlign: 'left' as const, whiteSpace: 'normal' as const }
+							: { whiteSpace: 'nowrap' as const }),
 						pointerEvents: 'none',
 					}}
 				>

@@ -36,21 +36,17 @@ describe('rowMeta — the verdict and delta must survive any container path', ()
 		);
 		expect(meta.label).toBe(deep);
 		expect(meta.verdict).toBe('•  no bounds');
-		expect(meta.tooltip).toBe('This layer has no rendered box, so there is nothing to measure against.');
+		expect(meta.tooltip).toBe("No rendered box, so there's nothing to measure against.");
 	});
 
 	it.each([
-		[
-			'missing-font',
-			'font missing',
-			"The font isn't installed, so Figma won't re-flow this text. Install it and scan again.",
-		],
-		['mixed-font-missing', 'font missing', "One of several fonts on this layer isn't installed."],
-		['no-bounds', 'no bounds', 'This layer has no rendered box, so there is nothing to measure against.'],
+		['missing-font', 'font missing', "Font not installed, so Figma can't re-flow this text."],
+		['mixed-font-missing', 'font missing', "One of this layer's fonts isn't installed."],
+		['no-bounds', 'no bounds', "No rendered box, so there's nothing to measure against."],
 		[
 			'unsupported-language',
 			'not supported yet',
-			'Overflow in this language depends on glyph width, which the engine does not model yet.',
+			"This language needs glyph-width modelling, which isn't built yet.",
 		],
 		['empty', 'empty', 'This layer has no text.'],
 	] as const)('surfaces the %s reason as a word and tooltip', (reason, word, tooltip) => {

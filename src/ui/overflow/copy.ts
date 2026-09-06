@@ -87,16 +87,18 @@ export const VERDICT_WORD: Record<OverflowVerdictValue, string> = {
 	unmeasurable: 'un-measurable',
 };
 
-/** Explanations for un-measurable rows. Exhaustive so a new engine reason must make an explicit
- *  presentation choice here. LS-14 owns the final wording and edits this file. */
+/** Explanations for un-measurable rows. Keep tooltips to roughly two lines at 220px: ResultsList
+ *  clips both axes, so longer copy on the first visible row is cut off at the top. Exhaustive so a
+ *  new engine reason must make an explicit presentation choice here. LS-14 owns the final wording
+ *  and edits this file. */
 export const REASON_COPY: Record<OverflowReason, { word: string; tooltip: string } | null> = {
 	'missing-font': {
 		word: 'font missing',
-		tooltip: "The font isn't installed, so Figma won't re-flow this text. Install it and scan again.",
+		tooltip: "Font not installed, so Figma can't re-flow this text.",
 	},
 	'mixed-font-missing': {
 		word: 'font missing',
-		tooltip: "One of several fonts on this layer isn't installed.",
+		tooltip: "One of this layer's fonts isn't installed.",
 	},
 	empty: {
 		word: 'empty',
@@ -104,11 +106,11 @@ export const REASON_COPY: Record<OverflowReason, { word: string; tooltip: string
 	},
 	'no-bounds': {
 		word: 'no bounds',
-		tooltip: 'This layer has no rendered box, so there is nothing to measure against.',
+		tooltip: "No rendered box, so there's nothing to measure against.",
 	},
 	'unsupported-language': {
 		word: 'not supported yet',
-		tooltip: 'Overflow in this language depends on glyph width, which the engine does not model yet.',
+		tooltip: "This language needs glyph-width modelling, which isn't built yet.",
 	},
 	'exceeds-fixed-box': null,
 	'truncated-fixed-box': null,

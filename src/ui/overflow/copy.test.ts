@@ -26,9 +26,50 @@ describe('rowMeta — the verdict and delta must survive any container path', ()
 	// bound, so it must be the only part that can ever be ellipsed.
 	it('keeps the verdict chunk short and self-contained under a deep path', () => {
 		const deep = 'Section — Plugin Header / Figma host chrome — not part of the plugin surface';
-		const meta = rowMeta(verdict({ containerLabel: deep }));
+		const meta = rowMeta(
+			verdict({
+				containerLabel: deep,
+				verdict: 'unmeasurable',
+				reason: 'no-bounds',
+				overflowPx: undefined,
+			}),
+		);
 		expect(meta.label).toBe(deep);
-		expect(meta.verdict).toBe('•  overflows 30px');
+		expect(meta.verdict).toBe('•  no bounds');
+		expect(meta.tooltip).toBe('This layer has no rendered box, so there is nothing to measure against.');
+	});
+
+	it.each([
+		[
+			'missing-font',
+			'font missing',
+			"The font isn't installed, so Figma won't re-flow this text. Install it and scan again.",
+		],
+		['mixed-font-missing', 'font missing', "One of several fonts on this layer isn't installed."],
+		['no-bounds', 'no bounds', 'This layer has no rendered box, so there is nothing to measure against.'],
+		[
+			'unsupported-language',
+			'not supported yet',
+			'Overflow in this language depends on glyph width, which the engine does not model yet.',
+		],
+		['empty', 'empty', 'This layer has no text.'],
+	] as const)('surfaces the %s reason as a word and tooltip', (reason, word, tooltip) => {
+		expect(rowMeta(verdict({ verdict: 'unmeasurable', reason, overflowPx: undefined }))).toEqual({
+			label: 'Button',
+			verdict: `•  ${word}`,
+			tooltip,
+		});
+	});
+
+	it('falls back to un-measurable when the optional reason is absent', () => {
+		const meta = rowMeta(verdict({ verdict: 'unmeasurable', reason: undefined, overflowPx: undefined }));
+		expect(meta.verdict).toBe('•  un-measurable');
+		expect(meta).not.toHaveProperty('tooltip');
+	});
+
+	it('does not add a tooltip to a measurable verdict', () => {
+		const meta = rowMeta(verdict());
+		expect(meta).not.toHaveProperty('tooltip');
 	});
 
 	it('ceils the delta so a sub-pixel overshoot never reports 0px', () => {

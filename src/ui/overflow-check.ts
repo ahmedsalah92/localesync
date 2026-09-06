@@ -4,8 +4,8 @@
 //   1. sends a genuine page-scoped overflow-scan-request (['de']) over the real bridge — the LS-8
 //      handler answers it (pass 2's real round trip), and the main-side check
 //      (src/main/overflow/check.ts) piggybacks on the same message to run pass 1;
-//   2. asserts the three pass-2 rows on the verdict array (matched by their authored `characters`
-//      — see fixtures/overflow-spike.md) plus the self-sufficiency fields;
+//   2. asserts the three authored pass-2 rows plus both font-related unmeasurable rows on the
+//      verdict array, and confirms the empty direct-caller row was excluded from the real scan;
 //   3. relays the main-side per-label 'ls8:…' progress notes to the console and awaits 'ls8:done';
 //   4. re-requests with ['ja'] and asserts the refusal path (every row unmeasurable /
 //      unsupported-language — the main check ignores unsupported-language requests);
@@ -41,6 +41,11 @@ const pass2Rows: {
 		severity: 'warn',
 		reason: 'maxLines-cap',
 	},
+];
+
+const unmeasurableRows: { label: string; reason: OverflowReason }[] = [
+	{ label: 'missing-font', reason: 'missing-font' },
+	{ label: 'mixed-font-missing', reason: 'mixed-font-missing' },
 ];
 
 const timeout = <T>(ms: number, value: T): Promise<T> => new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -110,7 +115,11 @@ export async function runOverflowCheck(): Promise<void> {
 			for (const row of pass2Rows) {
 				const verdict = verdicts.find((v) => v.characters === row.characters);
 				if (!verdict) {
-					log(false, `pass2 ${row.label}`, 'row missing — authored characters not set? see fixtures/overflow-spike.md');
+					log(
+						false,
+						`pass2 ${row.label}`,
+						'row missing — authored characters not set? see fixtures/overflow-spike.md',
+					);
 					continue;
 				}
 				const failures: string[] = [];
@@ -136,6 +145,21 @@ export async function runOverflowCheck(): Promise<void> {
 			console.log('[overflow] SKIP  pass2 rows (authored strings not found — see fixtures/overflow-spike.md)');
 		}
 
+		for (const row of unmeasurableRows) {
+			const result = verdicts.find((verdict) => verdict.containerLabel === row.label);
+			log(
+				result?.verdict === 'unmeasurable' && result.reason === row.reason,
+				`pass2 ${row.label}`,
+				result === undefined
+					? 'row missing — complete the manual font setup in fixtures/overflow-spike.md'
+					: `verdict=${result.verdict} reason=${String(result.reason)}`,
+			);
+		}
+		log(
+			!verdicts.some((verdict) => verdict.containerLabel === 'empty'),
+			'pass2 empty layers are excluded from scanOverflow',
+		);
+
 		// 3: wait for the main-side pass-1 report before the refusal probe, so its clones are gone.
 		const reported = await Promise.race([mainDone, timeout(30000, false)]);
 		if (!reported) console.log('[overflow] SKIP  main-side notes never arrived (check not registered, or it hung)');
@@ -146,7 +170,9 @@ export async function runOverflowCheck(): Promise<void> {
 			const rows = refusal.verdicts;
 			const allRefused =
 				rows.length > 0 &&
-				rows.every((v) => v.verdict === 'unmeasurable' && v.reason === 'unsupported-language' && v.candidate === '');
+				rows.every(
+					(v) => v.verdict === 'unmeasurable' && v.reason === 'unsupported-language' && v.candidate === '',
+				);
 			log(allRefused, 'ja refusal: every row unmeasurable / unsupported-language', `rows=${rows.length}`);
 			if (verdicts.length > 0) {
 				log(
@@ -169,7 +195,11 @@ export async function runOverflowCheck(): Promise<void> {
 					v.reason !== 'maxHeight-cap' &&
 					v.overflowPx === undefined,
 			);
-			log(missing.length === 0, 'pass3 every flagged row carries overflowPx', missing.map((v) => v.characters).join('; '));
+			log(
+				missing.length === 0,
+				'pass3 every flagged row carries overflowPx',
+				missing.map((v) => v.characters).join('; '),
+			);
 
 			const capped = verdicts.filter((v) => v.reason === 'maxHeight-cap' && v.overflowPx !== undefined);
 			log(capped.length === 0, 'pass3 maxHeight-cap rows carry no delta', `${capped.length} violation(s)`);
@@ -177,10 +207,18 @@ export async function runOverflowCheck(): Promise<void> {
 			const unflagged = verdicts.filter(
 				(v) => (v.verdict === 'fits' || v.verdict === 'unmeasurable') && v.overflowPx !== undefined,
 			);
-			log(unflagged.length === 0, 'pass3 no fits/unmeasurable row carries a delta', `${unflagged.length} violation(s)`);
+			log(
+				unflagged.length === 0,
+				'pass3 no fits/unmeasurable row carries a delta',
+				`${unflagged.length} violation(s)`,
+			);
 
 			const nonPositive = verdicts.filter((v) => v.overflowPx !== undefined && !(v.overflowPx > 0));
-			log(nonPositive.length === 0, 'pass3 every present overflowPx is > 0', `${nonPositive.length} violation(s)`);
+			log(
+				nonPositive.length === 0,
+				'pass3 every present overflowPx is > 0',
+				`${nonPositive.length} violation(s)`,
+			);
 
 			// LS-7's immediate-parent rule must survive the amendment.
 			const hugPageParent = verdicts.find((v) => v.reason === 'no-container');

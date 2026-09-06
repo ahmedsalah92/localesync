@@ -62,6 +62,14 @@ const rows: CheckRow[] = [
 	{ label: 'hug-overflows', candidate: LONG, expected: 'overflows', reason: 'parent-escape' },
 	{ label: 'hug-page-parent', candidate: LONG, expected: 'fits', reason: 'no-container' },
 	{ label: 'missing-font', candidate: SHORT, expected: 'unmeasurable', reason: 'missing-font' },
+	{
+		label: 'mixed-font-missing',
+		candidate: SHORT,
+		expected: 'unmeasurable',
+		reason: 'mixed-font-missing',
+	},
+	// scanOverflow excludes empty layers (LS-25), but direct callers still need this guard.
+	{ label: 'empty', candidate: SHORT, expected: 'unmeasurable', reason: 'empty' },
 	{ label: 'mixed-font-ok', candidate: SHORT, expected: 'measurable' },
 	{ label: 'rotated-fixed', candidate: LONG, expected: 'overflows', reason: 'exceeds-fixed-box' },
 ];
@@ -118,7 +126,9 @@ async function runChecks(): Promise<string[]> {
 			);
 			await checkMagnitude(row, node, model, measurement, notes);
 		} catch (err) {
-			notes.push(`ls8:${row.label}:FAIL measureOverflow threw: ${err instanceof Error ? err.message : String(err)}`);
+			notes.push(
+				`ls8:${row.label}:FAIL measureOverflow threw: ${err instanceof Error ? err.message : String(err)}`,
+			);
 		}
 	}
 
@@ -150,7 +160,8 @@ async function checkMagnitude(
 
 	// Field-presence rules, on every row regardless of mode.
 	if (measurement.verdict === 'fits' || measurement.verdict === 'unmeasurable') {
-		if (px !== undefined) notes.push(`ls8:${row.label}-px:FAIL ${measurement.verdict} row carries overflowPx=${px}`);
+		if (px !== undefined)
+			notes.push(`ls8:${row.label}-px:FAIL ${measurement.verdict} row carries overflowPx=${px}`);
 		return;
 	}
 	if (measurement.reason === 'maxHeight-cap') {

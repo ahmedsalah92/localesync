@@ -425,6 +425,8 @@ the spike harness.
 | `hug-overflows` | `LONG` | `overflows` | `parent-escape` |
 | `hug-page-parent` | `LONG` | `fits` | `no-container` |
 | `missing-font` | `SHORT` | `unmeasurable` | `missing-font` |
+| `mixed-font-missing` | `SHORT` | `unmeasurable` | `mixed-font-missing` |
+| `empty` | `SHORT` | `unmeasurable` | `empty` (direct `measureOverflow` caller; excluded from `scanOverflow`) |
 | `mixed-font-ok` | `SHORT` | any verdict ≠ `unmeasurable` | — |
 | `rotated-fixed` | `LONG` | `overflows` | `exceeds-fixed-box` |
 
@@ -444,8 +446,9 @@ together. Authored strings to set in the fixture:
 four-letter English button that breaks in German. **Under the old flat 1.35 this row returned
 `fits`** — it is the regression test for the model defect, and it must stay in the short band.
 
-Pass 2 additionally asserts the refusal path: `scanOverflow('page', ['ja'])` returns every eligible
-node as `unmeasurable` / `'unsupported-language'`, and no clone is created.
+Pass 2 additionally asserts the two manual unavailable-font rows retain their distinct reasons,
+that the empty row is excluded, and that `scanOverflow('page', ['ja'])` returns every eligible node
+as `unmeasurable` / `'unsupported-language'` without creating a clone.
 
 ### Pass 3 — `select-node`
 
@@ -470,8 +473,9 @@ npm run dev   # → open fixtures/overflow-spike.fig → dev-only overflow check
 
 ### Done when
 
-- [ ] Pass 1: 14/14, verdict **and** reason matching the table.
-- [ ] Pass 2: 3/3 through `scanOverflow` with `targetLanguages: ['de']`.
+- [ ] Pass 1: 17/17, verdict **and** reason matching the table.
+- [ ] Pass 2: 3/3 authored rows, both unavailable-font reasons, and empty-layer exclusion through
+      `scanOverflow` with `targetLanguages: ['de']`; Japanese refusal passes.
 - [ ] Pass 3: selection lands on the right node; the fabricated id yields `node-gone`.
 - [ ] `npm test` green, including the three Vitest files above.
 - [ ] `overflowSpike.ts` deleted and its sentinel removed from `main.ts`.

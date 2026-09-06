@@ -3,7 +3,7 @@
 // Every user-facing string the overflow panel renders, plus the menu data behind them. LS-8.2 owns
 // the *format*; LS-14 owns the *words* and edits this one file (LS-8.2 §2.9).
 import type { OverflowFilter, OverflowSort } from '../../common/overflow';
-import type { OverflowVerdict, OverflowVerdictValue } from '../../common/models';
+import type { OverflowReason, OverflowVerdict, OverflowVerdictValue } from '../../common/models';
 import type { DropdownOption } from '../shell/primitives/Dropdown';
 import type { RowMeta } from '../shell/ResultsRow';
 import type { ScanScope } from '../../common/messages';
@@ -87,6 +87,38 @@ export const VERDICT_WORD: Record<OverflowVerdictValue, string> = {
 	unmeasurable: 'un-measurable',
 };
 
+/** Explanations for un-measurable rows. Exhaustive so a new engine reason must make an explicit
+ *  presentation choice here. LS-14 owns the final wording and edits this file. */
+export const REASON_COPY: Record<OverflowReason, { word: string; tooltip: string } | null> = {
+	'missing-font': {
+		word: 'font missing',
+		tooltip: "The font isn't installed, so Figma won't re-flow this text. Install it and scan again.",
+	},
+	'mixed-font-missing': {
+		word: 'font missing',
+		tooltip: "One of several fonts on this layer isn't installed.",
+	},
+	empty: {
+		word: 'empty',
+		tooltip: 'This layer has no text.',
+	},
+	'no-bounds': {
+		word: 'no bounds',
+		tooltip: 'This layer has no rendered box, so there is nothing to measure against.',
+	},
+	'unsupported-language': {
+		word: 'not supported yet',
+		tooltip: 'Overflow in this language depends on glyph width, which the engine does not model yet.',
+	},
+	'exceeds-fixed-box': null,
+	'truncated-fixed-box': null,
+	'maxLines-cap': null,
+	'maxHeight-cap': null,
+	'exceeds-container-height': null,
+	'parent-escape': null,
+	'no-container': null,
+};
+
 /**
  * The row's meta line, split into the part that may truncate and the part that must not.
  *
@@ -102,10 +134,14 @@ export const VERDICT_WORD: Record<OverflowVerdictValue, string> = {
  */
 export function rowMeta(verdict: OverflowVerdict): RowMeta {
 	const amount = verdict.overflowPx === undefined ? '' : ` ${Math.ceil(verdict.overflowPx)}px`;
-	return {
+	const reasonCopy =
+		verdict.verdict === 'unmeasurable' && verdict.reason !== undefined ? REASON_COPY[verdict.reason] : null;
+	const meta: RowMeta = {
 		label: verdict.containerLabel,
-		verdict: `•  ${VERDICT_WORD[verdict.verdict]}${amount}`,
+		verdict: `•  ${reasonCopy?.word ?? VERDICT_WORD[verdict.verdict]}${amount}`,
 	};
+	if (reasonCopy !== null) meta.tooltip = reasonCopy.tooltip;
+	return meta;
 }
 
 /** `shown of scanned` — true under every filter state, unlike `N issues` (design.md). */

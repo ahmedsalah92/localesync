@@ -10,11 +10,13 @@ export type RowTone = OverflowVerdictValue | 'neutral';
  *
  * `label` is the container path and is the only part allowed to truncate; `verdict` carries the
  * status word and the pixel delta (`•  overflows 30px`), which the Linear issue requires every
- * flagged row to state. Assembly lives with the copy (overflow/copy.ts `rowMeta`), not here.
+ * flagged row to state. `tooltip`, when present, explains that status without changing the meta
+ * line's layout. Assembly lives with the copy (overflow/copy.ts `rowMeta`), not here.
  */
 export interface RowMeta {
 	label: string;
 	verdict: string;
+	tooltip?: string;
 }
 
 /**
@@ -116,7 +118,15 @@ export function ResultsRow(props: {
 						>
 							{props.meta.label}
 						</span>
-						<span style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>{props.meta.verdict}</span>
+						<span style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>
+							{props.meta.tooltip === undefined ? (
+								props.meta.verdict
+							) : (
+								<Tooltip wide label={props.meta.tooltip}>
+									{props.meta.verdict}
+								</Tooltip>
+							)}
+						</span>
 					</div>
 				</div>
 				<Tooltip label={props.jumpLabel}>

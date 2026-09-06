@@ -39,7 +39,12 @@ export function Tooltip(props: { label: string; children: ReactNode; wide?: bool
 						fontWeight: 'var(--ls-text-weight)',
 						boxShadow: 'var(--ls-tooltip-shadow)',
 						...(props.wide
-							? { maxWidth: 220, textAlign: 'left' as const, whiteSpace: 'normal' as const }
+							? {
+									width: 'max-content',
+									maxWidth: '220px',
+									textAlign: 'left' as const,
+									whiteSpace: 'normal' as const,
+								}
 							: { whiteSpace: 'nowrap' as const }),
 						pointerEvents: 'none',
 					}}

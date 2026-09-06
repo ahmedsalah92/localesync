@@ -118,7 +118,13 @@ export function ResultsRow(props: {
 						>
 							{props.meta.label}
 						</span>
-						<span style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>
+						<span
+							style={{
+								flex: '0 0 auto',
+								whiteSpace: 'nowrap',
+								...(props.meta.tooltip === undefined ? {} : { cursor: 'help' }),
+							}}
+						>
 							{props.meta.tooltip === undefined ? (
 								props.meta.verdict
 							) : (

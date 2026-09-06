@@ -1,3 +1,5 @@
+import { SHELL_DEFAULT_SIZE } from '../../common/shell';
+
 /**
  * Band geometry for the shell, per docs/specs/LS-5.md §2.1. The canvas shells are drawn 400×720,
  * but the top 40px of that is Figma's own window chrome (not a band the plugin renders) — the
@@ -12,18 +14,21 @@
 /** Every horizontal band (tab bar, control bar, summary bar, banner, footer) is 40px. */
 export const BAND_HEIGHT = 40;
 
-/** Content Area height: full when no banner is present, compressed by one band when it is. */
-export const CONTENT_AREA = {
-	full: 640,
-	withBanner: 600,
-} as const;
+/** Iframe height minus the tab bar, minus the Applied Banner when present. */
+export function contentAreaHeight(hasBanner: boolean, iframeHeight: number = SHELL_DEFAULT_SIZE.height): number {
+	return iframeHeight - BAND_HEIGHT - (hasBanner ? BAND_HEIGHT : 0);
+}
 
 /**
  * Rows height: Content Area minus Control Bar, Summary Bar, and (if present) Footer — compressed
  * further by one band when the Applied Banner is present.
  */
-export function rowsHeight(hasFooter: boolean, hasBanner: boolean): number {
-	const content = hasBanner ? CONTENT_AREA.withBanner : CONTENT_AREA.full;
+export function rowsHeight(
+	hasFooter: boolean,
+	hasBanner: boolean,
+	iframeHeight: number = SHELL_DEFAULT_SIZE.height,
+): number {
+	const content = contentAreaHeight(hasBanner, iframeHeight);
 	const footer = hasFooter ? BAND_HEIGHT : 0;
 	return content - BAND_HEIGHT * 2 - footer;
 }

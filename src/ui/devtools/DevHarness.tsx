@@ -63,6 +63,18 @@ export function DevHarness() {
 				    onmessage wrapper. Intentionally bypasses the typed bridge — not feature code. */}
 				<button
 					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:resize-probe' } }, '*')}
+				>
+					Resize probe 100x100
+				</button>
+				<button
+					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:resize-clear-size' } }, '*')}
+				>
+					Clear window size
+				</button>
+				<button
+					type="button"
 					onClick={() =>
 						parent.postMessage({ pluginMessage: { type: '__dev:generate-snapshot-restore' } }, '*')
 					}

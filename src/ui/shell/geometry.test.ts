@@ -19,4 +19,12 @@ describe('rowsHeight', () => {
 	it('returns 520 with no footer and a banner', () => {
 		expect(rowsHeight(false, true)).toBe(520);
 	});
+
+	it('returns 320 at minimum height with no footer and no banner', () => {
+		expect(rowsHeight(false, false, 440)).toBe(320);
+	});
+
+	it('returns 280 at minimum height with a footer and no banner', () => {
+		expect(rowsHeight(true, false, 440)).toBe(280);
+	});
 });

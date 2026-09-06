@@ -17,6 +17,7 @@ const ALL_TYPES = [
 	'revert-preview',
 	'select-node',
 	'overflow-scan-cancel',
+	'resize-window',
 	'scan-result',
 	'extraction-result',
 	'overflow-scan-partial',

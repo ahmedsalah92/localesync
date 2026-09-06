@@ -58,6 +58,11 @@ export interface SelectNode extends Envelope<'select-node'> {
 // id of the scan it cancels; the outcome is that scan's eventual `overflow-scan-result` with
 // `stopped: true` (LS-8.2 §1.2).
 export type OverflowScanCancel = Envelope<'overflow-scan-cancel'>;
+// Fire-and-forget command. Every move in one drag reuses that gesture's correlation id.
+export interface ResizeWindow extends Envelope<'resize-window'> {
+	width: number;
+	height: number;
+}
 
 export type UiToMain =
 	| ScanRequest
@@ -70,7 +75,8 @@ export type UiToMain =
 	| ApplyPreview
 	| RevertPreview
 	| SelectNode
-	| OverflowScanCancel;
+	| OverflowScanCancel
+	| ResizeWindow;
 
 // ── main → UI ────────────────────────────────────────────────────────────────
 export interface ScanResult extends Envelope<'scan-result'> {
@@ -146,6 +152,7 @@ const UI_TO_MAIN_TYPES = [
 	'revert-preview',
 	'select-node',
 	'overflow-scan-cancel',
+	'resize-window',
 ] as const;
 
 const MAIN_TO_UI_TYPES = [

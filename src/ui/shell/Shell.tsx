@@ -5,6 +5,7 @@ import { DevHarness } from '../devtools/DevHarness';
 import { PANELS, type PanelDef, type PanelId } from './panels';
 import { selectPanel } from './tabs';
 import { TabBar } from './TabBar';
+import { ResizeHandle } from './ResizeHandle';
 
 function ShellBody(props: { panels: readonly PanelDef[]; initialPanel?: PanelId }) {
 	const firstId = props.panels[0]?.id ?? 'overflow';
@@ -23,6 +24,7 @@ function ShellBody(props: { panels: readonly PanelDef[]; initialPanel?: PanelId 
 			<div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
 				<Panel />
 			</div>
+			<ResizeHandle />
 			{import.meta.env.DEV && <DevHarness />}
 		</div>
 	);

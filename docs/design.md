@@ -485,7 +485,7 @@ Same placeholder-content finding. Replaced with:
 
 | State | Extract | Preview | Pseudo-loc | RTL Mirror |
 |---|---|---|---|---|
-| First run | — | **Nothing to preview yet** — Extract strings first, then choose a language to preview translations in place. | **Nothing to pseudo-localize yet** — Extract strings first, then set an expansion ratio to preview how your layout holds up. | **Nothing to mirror yet** — Extract strings first, then apply the mirror to stress-test your layout in RTL. |
+| First run | Already built — see Empty Extract Shell ("No strings extracted") | **Nothing to preview yet** — Extract strings first, then choose a language to preview translations in place. | **Nothing to pseudo-localize yet** — Extract strings first, then set an expansion ratio to preview how your layout holds up. | **Nothing to mirror yet** — Extract strings first, then apply the mirror to stress-test your layout in RTL. |
 | No selection | **Nothing selected** — Select a frame or layer to extract from, or switch scope to Page. | **Nothing selected** — Select a frame or layer to preview, or switch scope to Page. | **Nothing selected** — Select a frame or layer to pseudo-localize, or switch scope to Page. | **Nothing selected** — Select a frame or layer to mirror, or switch scope to Page. |
 | No text on page | **No text layers here** — This page has nothing to extract. Try another page. | **No text layers here** — This page has nothing to preview. Try another page. | **No text layers here** — This page has nothing to pseudo-localize. Try another page. | **No text layers here** — This page has nothing to mirror. Try another page. |
 | Fonts unavailable | **Fonts unavailable** — 3 fonts could not be loaded. Text using them will be skipped and flagged. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged in the fallback list. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not expanded. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not mirrored. |
@@ -498,7 +498,7 @@ Same placeholder-content finding. Replaced with:
 #### Post-build fixes — same session
 
 - **Pro Stub / Report merge.** `Pro Stub/Report` existed as a standalone component outside the `Pro Stub` component set, when it should have been a 4th `Pillar` variant alongside Matrix/Translate/Sync. Merged via rename + reparent, which preserves the node ID so existing instances — including the live one in the Extract shell — stay correctly linked. All 5 live instances verified file-wide post-merge.
-- **Full hex-literal audit.** Scanned every fill/stroke across the whole page. Found and fixed two gaps introduced this session (the Export Modal header's unbound white fill; a stray unbound highlight-blue fill inside Preview's inline-edit input, now bound to the same focus token as the input's own border) and one genuine pre-existing gap (a tooltip caret vector in `Foundations › Jump Affordance`, now bound to match its tooltip body's background token). File-wide violation count is now **zero**, aside from the documented Plugin Header brand-identity exemption.
+- **Full hex-literal audit.** Scanned every fill/stroke across the whole page. Found and fixed two gaps introduced this session (the Export Modal header's unbound white fill; a stray unbound highlight-blue fill inside Preview's inline-edit input, now bound to the same focus token as the input's own border) and one genuine pre-existing gap (a tooltip caret vector in `Foundations › Jump Affordance`, now bound to match its tooltip body's background token). File-wide violation count is now **zero**, aside from the documented Plugin Header brand-identity exemption. **Audit scope:** this covered the `🧩 Plugin — Phase 1` page only. Other pages in the file have not been audited against this rule.
 - **Mark / Light swap.** Figma doesn't support logo swapping across light/dark mode changes, so `Mark / Dark` wasn't safely readable in both modes. Swapped to `Mark / Light` at the shared `Figma host chrome` master — all 17 occurrences across every plugin surface inherit from this one master with no individual overrides, so the fix cascaded everywhere in a single edit. Verified: zero `Mark / Dark` instances remain anywhere in the file.
 
 #### Page organization
@@ -517,7 +517,11 @@ Copy and the `openExternal` wiring remain LS-13's.
 
 ## 🔲 To be done
 
-**Phase-1 design is complete.** LS-19 (DES-1) closed the overflow anatomy, control cluster and apply/revert pattern; LS-24 (DES-2) closed the supporting feature surfaces and the panel-agnostic state block — both recorded under *Completed* above. Nothing on the plugin's product surface is owed a design.
+**LS-24's five supporting-surface deliverables** — Export sub-surface, Preview, Pseudo-loc, RTL Mirror, and the state block + copy table — **are complete**, recorded under *Completed* above, alongside LS-19 (DES-1)'s overflow anatomy, control cluster and apply/revert pattern.
+
+**Phase-1 design as a whole is not.** Still outstanding: **LS-16** (Community Listing) is in progress; the **middle severity-tier naming** (see the bullet below); the **UI3 component-instance swap** is pending; and the **brand error-color decision** is undecided.
+
+> *On the component-instance swap:* **✅ Review item 8** above records this as closed under LS-19 — every hand-built control audited, the swappable ones swapped, and five surfaces recorded as genuinely absent from UI3 and staying custom. Read as "pending" here, the outstanding part is whatever that audit left open rather than the swap as a whole. Worth reconciling the two the next time this doc is revised.
 
 What remains is **build**, not design:
 

@@ -75,6 +75,7 @@ src/common/messages.ts     LS-2  shared message union (imported by both sides)
 src/common/models.ts       LS-2   shared wire DTOs (both sides import; owned upstream, stubbed here)
 src/common/overflow.ts     LS-8  display order, filters and sorting (both sides import)
 src/main/bridge.ts         LS-2   main-side send/on/respond transport
+src/main/window.ts         LS-21  window size: restore, clamp, persist
 src/ui/bridge.ts           LS-2   ui-side send/on/request transport
 src/main/main.ts                 Figma main-thread entry (Plugma)
 src/main/traversal/        LS-3  scene-graph traversal + text-node model            (new)
@@ -84,6 +85,7 @@ src/ui/ui.tsx                    UI iframe entry (Plugma)
 src/ui/App.tsx                   root React component
 src/ui/styles.css                UI3 token alias layer — names only, no values (see §7)
 src/ui/shell/              LS-5  UI shell + design system                           (new)
+src/ui/shell/ResizeHandle.tsx LS-21 edge + corner resize grip
 src/ui/export/             LS-6  export serializers (JSON / iOS / Android)          (new)
 src/ui/overflow/           LS-8  overflow results panel (LS-8.2)
 src/ui/devtools/                 dev-only in-Figma acceptance harness buttons
@@ -115,6 +117,16 @@ consult the live docs — never invent API shape from memory.**
   Check `hasMissingFont` before loading fonts or writing any layout-affecting property; when true,
   **skip and flag**, never mutate. (Official guidance: "check `text.hasMissingFont` before loading
   a font … do not ignore this.")
+
+### Plugin window & timers
+
+- **`figma.ui.resize(width, height)` takes iframe dimensions and enforces only Figma's 70×0
+  minimum.** Product minimums must be clamped by the plugin. Figma's own ~40px window chrome sits
+  above and outside the supplied height.
+  <https://developers.figma.com/docs/plugins/api/figma-ui/>
+- **Main-thread timers are declared globals.** `@figma/plugin-typings@1.130.0` declares
+  `setTimeout(callback, timeout): number` and `clearTimeout(handle: number): void`; the timeout is
+  required and the handle is a number. `figma.closePlugin()` cancels pending timers.
 
 ### Fonts
 

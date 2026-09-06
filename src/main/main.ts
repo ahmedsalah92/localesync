@@ -1,4 +1,3 @@
-import { SHELL_DEFAULT_SIZE } from '../common/shell';
 import { applyBatchLeave } from './devtools/applyBatchLeave';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
@@ -10,12 +9,14 @@ import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
 import { registerTraversal } from './traversal';
 import { registerTraversalCheck } from './traversal/check';
+import { loadWindowSize, registerWindow } from './window';
 
 export default async function () {
 	// `title` is set explicitly rather than left to its plugin-name default: Figma's own window
 	// title bar is the only place the product name and close control now live — the shell no
 	// longer draws a duplicate Plugin Header band (docs/specs/LS-5.md §5.7).
-	figma.showUI(__html__, { ...SHELL_DEFAULT_SIZE, themeColors: true, title: 'LocaleSync' });
+	const windowSize = await loadWindowSize();
+	figma.showUI(__html__, { ...windowSize, themeColors: true, title: 'LocaleSync' });
 
 	// LS-4 safety guarantee: restore-on-launch. A non-empty mutation manifest means a previous
 	// session ended mid-mutation — heal it BEFORE any handler can start a new one (Design model §3).
@@ -36,6 +37,7 @@ export default async function () {
 	// the UI's dev-only __test:roundtrip button drives them; scan-request is owned by LS-3 and
 	// overflow-scan-request/select-node by LS-8 above.
 	registerRoundtrip();
+	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
 	// the LS-8 overflow acceptance passes (piggybacks on page overflow-scan-request + select-node).

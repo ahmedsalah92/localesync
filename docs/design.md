@@ -523,7 +523,7 @@ Copy and the `openExternal` wiring remain LS-13's.
 
 > *On the component-instance swap:* **✅ Review item 8** above records this as closed under LS-19 — every hand-built control audited, the swappable ones swapped, and five surfaces recorded as genuinely absent from UI3 and staying custom. Read as "pending" here, the outstanding part is whatever that audit left open rather than the swap as a whole. Worth reconciling the two the next time this doc is revised.
 
-What remains is **build**, not design:
+What remains is a mix of **design decisions still open** (above) and **build work**:
 
 - **LS-14** — build and wire `State Block` instances into the four non-Overflow panels, using the copy table settled under LS-24 Deliverable 5. Implementation only.
 - **LS-6, LS-10, LS-11, LS-12** — the panels are designed and on canvas; these tickets carry their implementation.

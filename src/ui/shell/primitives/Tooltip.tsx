@@ -25,10 +25,9 @@ export function Tooltip(props: { label: string; children: ReactNode; wide?: bool
 					role="tooltip"
 					style={{
 						position: 'absolute',
-						right: '100%',
-						top: '50%',
-						transform: 'translateY(-50%)',
-						marginRight: 'var(--spacer-2)',
+						right: '0%',
+						top: '100%',
+						marginTop: 'var(--spacer-1)',
 						padding: `var(--spacer-1) var(--spacer-2)`,
 						borderRadius: 'var(--radius-medium)',
 						backgroundColor: 'var(--ls-bg-tooltip)',

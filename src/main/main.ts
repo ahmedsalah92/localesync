@@ -1,3 +1,4 @@
+import { clampWindowSize } from '../common/shell';
 import { applyBatchLeave } from './devtools/applyBatchLeave';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
@@ -9,15 +10,21 @@ import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
 import { registerTraversal } from './traversal';
 import { registerTraversalCheck } from './traversal/check';
-import { loadWindowSize, registerWindow } from './window';
+import { loadWindowSize, registerWindow, WINDOW_SIZE_KEY } from './window';
 
 export default async function () {
 	const windowSize = await loadWindowSize();
+	if (import.meta.env.DEV) {
+		console.log(`[ls21] launch | showUI receiving ${windowSize.width}x${windowSize.height}`);
+	}
 
 	// `title` is set explicitly rather than left to its plugin-name default: Figma's own window
 	// title bar is the only place the product name and close control now live — the shell no
 	// longer draws a duplicate Plugin Header band (docs/specs/LS-5.md §5.7).
 	figma.showUI(__html__, { ...windowSize, themeColors: true, title: 'LocaleSync' });
+	if (import.meta.env.DEV) {
+		console.log('[ls21] launch | showUI returned');
+	}
 
 	// LS-4 safety guarantee: restore-on-launch. A non-empty mutation manifest means a previous
 	// session ended mid-mutation — heal it BEFORE any handler can start a new one (Design model §3).
@@ -43,6 +50,7 @@ export default async function () {
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
 	// the LS-8 overflow acceptance passes (piggybacks on page overflow-scan-request + select-node).
 	if (import.meta.env.DEV) {
+		let resizeProbeSequence = 0;
 		registerTraversalCheck();
 		registerSnapshotCheck();
 		registerOverflowCheck();
@@ -57,6 +65,44 @@ export default async function () {
 		figma.ui.onmessage = (message: unknown, props) => {
 			const devType =
 				typeof message === 'object' && message !== null ? (message as { type?: unknown }).type : undefined;
+
+			if (devType === '__dev:resize-probe') {
+				const requested = { width: 100, height: 100 };
+				void Promise.resolve()
+					.then(() => {
+						if (bridgeHandler === undefined) throw new Error('bridge handler unavailable');
+						bridgeHandler(
+							{
+								type: 'resize-window',
+								id: `__dev:resize-probe-${resizeProbeSequence++}`,
+								...requested,
+							},
+							props,
+						);
+						return clampWindowSize(requested);
+					})
+					.then((clamped) => {
+						console.log(`[ls21] probe | requested 100x100 | clamped ${clamped.width}x${clamped.height}`);
+					})
+					.catch((err: unknown) => {
+						console.error(`[ls21] probe failed: ${err instanceof Error ? err.message : String(err)}`);
+					});
+				return;
+			}
+
+			if (devType === '__dev:resize-clear-size') {
+				void figma.clientStorage
+					.deleteAsync(WINDOW_SIZE_KEY)
+					.then(() => {
+						console.log('[ls21] cleared stored window size');
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[ls21] clear stored window size failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
 
 			if (devType === '__dev:generate-snapshot-restore') {
 				void generateSnapshotRestore()

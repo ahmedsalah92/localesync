@@ -50,6 +50,8 @@ describe('DevHarness reachability in DEV builds', () => {
 			'__test:traversal',
 			'Run LS-4 snapshot check',
 			'Run LS-8 overflow check',
+			'Resize probe 100x100',
+			'Clear window size',
 			'Generate overflow-spike',
 			'Generate large-file',
 		]) {

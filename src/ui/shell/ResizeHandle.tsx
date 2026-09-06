@@ -43,8 +43,10 @@ export function ResizeHandle(): JSX.Element {
 	function end(event: ReactPointerEvent<HTMLDivElement>): void {
 		const active = gesture.current;
 		if (active === null || active.pointerId !== event.pointerId) return;
-		event.currentTarget.releasePointerCapture(event.pointerId);
 		gesture.current = null;
+		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		}
 	}
 
 	return (
@@ -63,6 +65,7 @@ export function ResizeHandle(): JSX.Element {
 				onPointerMove={move}
 				onPointerUp={end}
 				onPointerCancel={end}
+				onLostPointerCapture={end}
 			/>
 			<div
 				style={{
@@ -78,6 +81,7 @@ export function ResizeHandle(): JSX.Element {
 				onPointerMove={move}
 				onPointerUp={end}
 				onPointerCancel={end}
+				onLostPointerCapture={end}
 			/>
 		</>
 	);

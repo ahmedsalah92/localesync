@@ -12,10 +12,11 @@ import { registerTraversalCheck } from './traversal/check';
 import { loadWindowSize, registerWindow } from './window';
 
 export default async function () {
+	const windowSize = await loadWindowSize();
+
 	// `title` is set explicitly rather than left to its plugin-name default: Figma's own window
 	// title bar is the only place the product name and close control now live — the shell no
 	// longer draws a duplicate Plugin Header band (docs/specs/LS-5.md §5.7).
-	const windowSize = await loadWindowSize();
 	figma.showUI(__html__, { ...windowSize, themeColors: true, title: 'LocaleSync' });
 
 	// LS-4 safety guarantee: restore-on-launch. A non-empty mutation manifest means a previous

@@ -1,7 +1,9 @@
-# LocaleSync — Design (design.md) v3.3
+# LocaleSync — Design (design.md) v3.4
 
 *The UI/UX design state of the **plugin** — what exists, what's left, and the concrete mocks to produce. Scope is the plugin's product surface only. Brand identity, marketing, and validation design are complete and live outside this doc.*
 
+> **v3.4 (2026-09-06) — LS-24 (DES-2) design pass.** The five supporting-surface deliverables are built and move out of *To be done* into *Completed*: the Export sub-surface, the Preview/Pseudo-loc/RTL Mirror panels, and the panel-agnostic `State Block` with its state × panel copy table now carrying final copy rather than `copy owed`. Three consequences recorded elsewhere in this doc: the **sheet-vs-popover** open decision is closed — Export is a **Modal**, the only UI3 pattern with native coverage for a multi-control form with a terminal action; `Plugin Shell — States` is renamed **`Plugin Shell — States (Overflow)`**, and the *Operation failed* re-homing is resolved; and one **new local component**, `icon.16.chevron.left (local)`, joins the mirrored `Tooltip` as a documented exception to the strict kit rule — UI3 ships no left-chevron at any size. Also this session: `Pro Stub/Report` merged into the `Pro Stub` set as a 4th `Pillar` variant, a file-wide hex-literal audit taking violations to zero, and a `Mark / Dark` → `Mark / Light` swap at the shared host-chrome master. **Phase-1 plugin design is now complete**; what remains is build.
+>
 > **v3.3 (2026-09-06) — design-ownership pass.** Five tabs confirmed, closing the collapse-to-four option and making Export a sub-surface of Extract rather than a tab. The remaining supporting surfaces are now owned by **LS-24 (DES-2)** instead of living only in this doc's *To be done* section. `Plugin Shell — States` recorded as the overflow panel's state set, not a shared component — DES-2 owns factoring a panel-agnostic state block and the state × panel copy table; LS-14 stays implementation-only. Three stale claims repaired: the LS-19 section's *In progress* status, the LS-14 note asserting its Linear ticket carries outdated wording, and the preview surface described as JSON-only.
 >
 > **v3.2 (2026-09-03) — canvas reconciliation.** Six divergences found by reading the canvas during LS-5 spec prep. Corrected: control bar 43px → 40px; severity vocabulary `clips` → `truncates`, matching `OverflowVerdictValue`, which carries no `'clips'`; Results Row, Extract Row and Applied Banner type corrected from Inter 12 to the 11px `body/body.medium` ramp. Recorded as built: the four LS-13 Pro stubs, the Applied Banner's `Restored` variant, and the seventh shell state (`Operation failed`). Component-set inventory corrected to four sets. Also corrected: the jump affordance is `icon.16.arrow`, not `icon.24.select`, and its rationale is replaced rather than re-keyed — the target metaphor was explicitly rejected on canvas (`301:1549`, 2026-08-21) because concentric circles read as a selected radio button inside a row that already carries a `Selected` state. **No design decision changed** — this pass records what is on canvas and repairs stale transcription. *(Updated 2026-09-04 during LS-5 visual QA: the shell's own Plugin Header band was found to duplicate Figma's own, non-suppressible window title bar, and was removed from code. The "Shell framing convention" annotation (`435:1442`) now records that every 400×720 shell is host chrome 40 + plugin iframe 680, so `SHELL_DEFAULT_SIZE` and the Content Area geometry read 680/640/600 rather than 720/680/640.)*
@@ -30,9 +32,9 @@
 | Plugin Shell — Extract Empty | Extract first-run |
 | Plugin Shell — Preview / Pseudo-loc / RTL Mirror Applied | Apply/revert pattern ×3 |
 
-**4 component sets:** `Results Row` (8 variants, `184:96`) · `Extract Row` (2, `199:244`) · `Applied Banner` (2, `321:1613`) · `Plugin Shell — States` (7, `289:1420`)
+**4 component sets:** `Results Row` (8 variants, `184:96`) · `Extract Row` (2, `199:244`) · `Applied Banner` (2, `321:1613`) · `Plugin Shell — States (Overflow)` (7, `289:1420`, renamed from `Plugin Shell — States` by LS-24) · `State Block` (LS-24, panel-agnostic)
 
-`Plugin Shell — States` is the **overflow panel's** state set, not a panel-agnostic component — every one of its seven variants is a complete overflow shell with `Tab/Overflow (active)` and the Control Bar (Language Select · Scope Select · Scan Button) baked in, the state content being two text layers inside an `Empty State` frame (verified `289:1415`).
+`Plugin Shell — States (Overflow)` is the **overflow panel's** state set, not a panel-agnostic component — every one of its seven variants is a complete overflow shell with `Tab/Overflow (active)` and the Control Bar (Language Select · Scope Select · Scan Button) baked in, the state content being two text layers inside an `Empty State` frame (verified `289:1415`). *(Renamed from `Plugin Shell — States` by LS-24 to make that scoping explicit; the panel-agnostic `State Block` it factored out is the shared component — see LS-24 Deliverable 5.)*
 
 ---
 
@@ -157,7 +159,7 @@
 
 > **The UI3 `Tooltip` set exists but is unpublished.** Set `12837607d4953c3334106301244d0fe63a4b7841`, on the library's **Tooltips** page, 8 variants on a `Direction` property. Neither `importComponentSetByKeyAsync` nor `importComponentByKeyAsync` on individual variant keys resolves it — the same wall as `_Tab`. It is therefore **mirrored exactly**, not approximated: `#1E1E1E` fill, 5px radius, 4/8 padding, Inter Medium 11 / 16px line-height / 0.5% letter-spacing, white label, the `M 6 0 L 12 6 L 0 6 L 6 0 Z` arrow, and all three drop shadows (`0/1/3 @10%`, `0/5/12 @13%`, `0/0/0.5 @15%`).
 >
-> This is the **only mirrored component on the surface** and the only thing that will not track a UI3 update. Swap it for the real instance if Figma ever publishes the set. Recorded here so it is not mistaken for an invention.
+> This is the **only mirrored component on the surface** and the only thing that will not track a UI3 update. *(It remains the only* mirrored *one. LS-24 added one genuinely new local component — `icon.16.chevron.left (local)`, for the RTL panel's flipped jump affordance, UI3 shipping no left-chevron at any size — which is a separate kind of exception: built from UI3 geometry rather than copied from an unpublished set. Both are documented exceptions to the strict kit rule; there are no others.)* Swap it for the real instance if Figma ever publishes the set. Recorded here so it is not mistaken for an invention.
 
 
 ### Tried and rejected
@@ -194,7 +196,7 @@ Mark: a text bar interrupted at a dashed boundary with a marigold overflow tail.
 
 All six plugin states, with resolved copy: **No selection · No text on page · Fonts unavailable · Scan stopped · Large file · First run**. This copy is the durable artefact — it is what the states were rebuilt from.
 
-Built as the `Plugin Shell — States` component set (`289:1420`) — see *Deliverable 3* under LS-19.
+Built as the `Plugin Shell — States (Overflow)` component set (`289:1420`) — see *Deliverable 3* under LS-19. *(Renamed by LS-24; built as `Plugin Shell — States`.)*
 
 Per the strict kit rule the states get Figma icons where one is needed and no illustration where it isn't, matching Figma's own empty-state approach. The marigold-on-light accessibility gap dissolves along with the illustrations.
 
@@ -232,7 +234,7 @@ Built on the `🧩 Plugin — Phase 1` page in the LocaleSync Figma file (root `
 
 **Deliverable 1 — Overflow results-panel anatomy (LS-5 + LS-8):**
 - **Plugin Header** (40px, persistent at top of every shell): `Mark / Dark` logo (24×24 compact variant, purpose-built for small sizes with solid boundary where the dashed line would otherwise vanish) + "LocaleSync" name (Inter 13 Semi Bold) on the left, `✕` close button (24×24) on the right. This is **identity, not chrome** — the UI3 rule applies to controls/tokens/patterns, not to the plugin's own logo and name.
-- **Plugin Shell** (`400×720`, min `340×480`, resizable): 5-tab feature nav (Overflow · Extract · Preview · Pseudo · RTL). Tab Bar and tabs are `FILL`, so they distribute — 80px each at default width, 68px at minimum. Active shows `border/selected-strong` 2px underline + `text/default`; inactive `text/secondary`. Nine standalone shells plus the `Plugin Shell — States` set.
+- **Plugin Shell** (`400×720`, min `340×480`, resizable): 5-tab feature nav (Overflow · Extract · Preview · Pseudo · RTL). Tab Bar and tabs are `FILL`, so they distribute — 80px each at default width, 68px at minimum. Active shows `border/selected-strong` 2px underline + `text/default`; inactive `text/secondary`. Nine standalone shells plus the `Plugin Shell — States (Overflow)` set.
 - **Results Row component set** (8 variants: 4 severity × 2 selected): 3px severity strip + string + container•status + jump target (`icon.16.arrow`). 56px tall, two-line content — **both lines `body/body.medium`** (11px / 16px line-height / +0.5% letter-spacing); hierarchy is carried by colour alone, not size, because UI3's ramp has no 12px step. 3px strip, 16px horizontal / 8px vertical content padding, 8px gap, 4px between the two text lines. Verified against `184:68`.
 - **Row string truncation** (review item 6): single-line ellipsis at row width — `textTruncation: ENDING`, `maxLines: 1`, `layoutSizingHorizontal: FILL`. The row does not grow, wrap, or clip mid-glyph. Full string is reachable via jump-to-node. **Meta line truncates on the same rule** — container names in real files get long too.
   - **Demonstrated, not just specified.** Both overflow shells carry a 141-character consent string (`ConsentBanner • overflows 96px`) whose natural width is 770px against a 349px box — a 421px overshoot. The properties were set from the start, but until this row existed no frame on the canvas actually triggered them, so a reviewer had nothing to check the behaviour against. A truncation rule that never fires in the mock is an assertion, not a decision.
@@ -422,46 +424,86 @@ The only route to five is **detaching** a `Tabs` instance — which produces a d
 
 **One exception, and it is not an override:** the `Tooltip` on the jump affordance is a faithful **mirror** of an unpublished UI3 set — it cannot be instanced, so it cannot track updates. See *Jump affordance*. It is the single component on the surface that will need manual reconciliation if Figma publishes or changes that set.
 
----
+### LS-24 (DES-2) — Supporting feature surfaces: export, preview, pseudo-loc, RTL — DONE
 
-## 🔲 To be done
+*Second and final Phase-1 design pass, continuing DES-1 (LS-19). All five deliverables built and verified on the `🧩 Plugin — Phase 1` page, file `UlcEw6zdZzpIpxqrBz4X53`, 2026-09-06.*
 
-The LS-19 panel control cluster is built and no longer blocks the LS-8 spec. What remains is the P1 supporting feature surfaces (each reuses the shell and results-list row) and the state matrix — both now owned by **LS-24 (DES-2)** on the design side, with LS-14 carrying the build.
+**Five tabs confirmed:** Overflow · Extract · Preview · Pseudo-loc · RTL Mirror. Export is a sub-surface of Extract, not a tab.
 
-### P1 — Supporting feature surfaces — owned by LS-24 (DES-2)
+#### ✅ Deliverable 1 — Export sub-surface (LS-6)
 
-**LS-24 (DES-2) — "Design pass: supporting feature surfaces — export, preview, pseudo-loc, RTL"** owns this section. In Progress with Muhammed Hesham, priority Urgent; it blocks LS-6, LS-10, LS-11, LS-12 and LS-14, and is blocked by LS-5 and LS-19. It was created 2026-09-06 because DES-1 (LS-19) closed with these surfaces owned by nothing in Linear — they lived only in this section, which is exactly the failure recorded below for LS-3 and LS-15.
+Built as a **Modal**, not a sheet or popover — *this closes the sheet-vs-popover question left open under* Still open. UI3 has no native Sheet/Popover primitive for a multi-control form with a terminal action; Modal (header/body/footer) is the only pattern in the kit with full native coverage for this shape. Opens from the existing `Export ▸` link in the Extract summary bar.
 
-Lower lift — these reuse the shell and the results list — but each needs layout decisions:
-- **Export sub-surface** (LS-6) — **not a panel and not a tab.** It opens from the `Export ▸` action link already built in the Extract summary bar, and carries format selection (i18next-compatible JSON as the anchor format), a dedup toggle defaulting off, and download. A one-shot terminal action, not a filter adjusted while reading rows. Whether it renders as a sheet or a popover against the UI3 kit is an open DES-2 call — see *Still open*.
-- **Preview panel** (LS-12) — active-language indicator; import entry covering **JSON and CSV** *(corrected 2026-09-06: this doc said JSON only; LS-12 requires both)*; fallback display for untranslated strings; inline edit affordance. One language at a time is a simultaneity limit, not a coverage cap.
-- **Pseudo-loc panel** (LS-10) — expansion ratio, accent style and **boundary markers** *(corrected 2026-09-06: this doc listed two of the three controls LS-10 requires)*, plus the apply/revert banner.
-- **RTL Mirror panel** (LS-11) — mirror toggle, scope, apply/revert banner.
-- **Panel-agnostic state block + the state × panel copy table** — the design half of LS-14, immediately below.
+Composition — all published UI3 components, no custom construction:
 
-### 🔲 State matrix — DES-2 designs it, LS-14 builds it
-Originally a two-part job. Part (1), replacing the Clipped Bar illustration compositions on the DES-1 frames, **no longer exists** — those frames were lost with the deleted legacy Page 1, and the six states were rebuilt from the surviving copy as `Plugin Shell — States` (`289:1420`) with no illustrations, per the strict kit rule.
+- `Modal header` (Default variant) — title "Export"
+- `Modal body/Input` (Dropdown variant) — Format field: title "Format", value "i18next JSON", support text "Choose the export format for your strings."
+- `Menu row/Toggle` (Off, hasIcon=false) — dedup toggle, using the native `Switch` component, label "Remove duplicate strings"
+- `Modal footer` (Default variant) — Cancel / Download
 
-**Part (2) is not "wire the state set into the appropriate feature panels."** *(Corrected 2026-09-06.)* That framing implies a reusability the component does not have: the set is a single `State` axis of seven variants, each a complete **overflow** shell with `Tab/Overflow (active)` and the Control Bar baked into it (verified `289:1415`). There is no panel-agnostic block to wire, because none has been factored. The work splits: **DES-2 owns** factoring that block and resolving the copy table below; **LS-14 owns** building and wiring it — implementation only.
+Width **400px**, matching the Extract panel it opens over — not the UI3 template's 320px default.
 
-*(Also corrected 2026-09-06: this section claimed the Linear ticket "still carries the original two-part wording and should be updated to match." Verified — LS-14 already carries a 2026-08-09 *Scope change* paragraph recording the illustration work as gone. The doc was the stale side.)*
+#### ✅ Deliverable 2 — Preview panel (LS-12)
 
-**State × panel copy table.** `built` means the copy exists on canvas today; `N/A` means the state cannot arise on that panel.
+`Plugin Shell — Preview Applied`'s content area previously held placeholder Overflow-panel rows and Filter/Sort controls — leftover from the LS-19 apply/revert banner proof, which only needed *a* row list, not Preview-specific content. Replaced with real content:
 
-| State | Overflow | Extract | Preview | Pseudo-loc | RTL |
-|---|---|---|---|---|---|
-| First run | built | built (`No strings extracted`) | copy owed | copy owed | copy owed |
-| No selection | built | copy owed | copy owed | copy owed | copy owed |
-| No text on page | built | copy owed | copy owed | copy owed | copy owed |
-| Fonts unavailable | built | copy owed | copy owed | copy owed | copy owed |
-| Large file | built | copy owed | N/A | N/A | N/A |
-| Scan stopped | built | copy owed | N/A | N/A | N/A |
-| Operation failed | **N/A — re-home** | N/A | copy owed | copy owed | copy owed |
+- **Active-language indicator** — already covered by the existing applied banner ("Preview: French (fr-FR)")
+- **Import entry point** — "Import ▸" link in the control bar, styled to match Extract's "Export ▸" link. Covers both JSON and CSV via the same action; format is auto-detected on import, so no separate picker is needed at this UI layer
+- **Fallback display** — 2 of 7 rows show untranslated strings with a warning-colored "fallback — no French translation" label
+- **Inline edit affordance** — 1 row shows a live UI3 input field mid-edit instead of static text
+- 7 rows total, reusing the Extract Row anatomy (strip + content + jump chevron) for visual consistency across panels
+- `Pro Stub / Translate` left untouched at the bottom — LS-13 scope
 
-Two findings the table encodes:
+#### ✅ Deliverable 3 — Pseudo-loc panel (LS-10)
 
-- **Fonts unavailable differs in substance, not wording.** Overflow lists those nodes un-measurable; the three mutating panels skip and flag them per LS-4 `missing-font`. One state name, two behaviours to describe.
-- **Operation failed is mis-homed.** It is the LS-4 `SnapshotError` / mid-batch-rollback surface, and per the LS-4 spec measurement does not use the snapshot primitive — so it currently sits on the one panel that cannot raise it and is absent from the three that can. The built variant `321:1554` stays as the visual reference; the panel assignment moves.
+Same placeholder-content finding as Preview. Replaced with:
+
+- **Three controls** in the control bar, compact selects cloned from the same pattern as Extract's Scope Select: Expansion Ratio (`+40%`), Accent Style (`Full accents`), Boundary Markers (`[[ ]]`) — three, not the two this doc previously listed
+- **7 preview rows** showing the pseudo-localized transform applied to the same 7 source strings used in Preview (same keys — `auth.signin.button`, `product.price.display`, etc.) for narrative continuity across panels
+- Rows use a **neutral strip color**, no severity concept — pseudo-loc is a uniform transform, not a per-string validation
+
+#### ✅ Deliverable 4 — RTL Mirror panel (LS-11)
+
+Same placeholder-content finding. Replaced with:
+
+- **Mirror toggle** — labeled Switch (On), consistent with the existing banner ("RTL mirror applied")
+- **Scope select** — cloned from the same Scope Select pattern as Extract, value "Page"
+- **7 rows with mirrored anatomy** — strip moved to the right edge, jump chevron moved to the left, text right-aligned. A **structural** mirror (anatomy flipped), not a text-content change, since RTL mirroring is a layout stress-test rather than a translation
+- The jump chevron uses a genuine **new local component**, `icon.16.chevron.left (local)` — UI3 has no native left-chevron at any size. Built by detaching an instance of `icon.16.chevron.right`, moving just the inner vector mark into a fresh component shell, and mirroring that mark's geometry **once** (not via a runtime instance-level transform). Documented on canvas in `Foundations › Section — Jump Affordance`.
+- `Pro Stub / Sync` left untouched at the bottom — LS-13 scope
+
+#### ✅ Deliverable 5 — Panel-agnostic state block + copy table (LS-14 design half)
+
+`Plugin Shell — States` was a single `State` axis of seven variants, each baking in a complete Overflow shell (tab bar + control bar) — the Overflow panel's own state set, not a shared component, as this doc recorded and canvas confirmed.
+
+- **Renamed** the component set to `Plugin Shell — States (Overflow)`, making the scoping explicit. Copy inside is unchanged.
+- **Built `State Block`**, a new panel-agnostic component: optional icon (hidden by default) · title · body · optional action (hidden by default), centered as a group within a 400×600 area — matching the centering math found in the existing built states ((600 − content height) / 2 on both sides). Any panel composes an instance and overrides text/visibility per state.
+- **"Operation failed"** (`321:1554`) stays in the Overflow set as a **visual reference only**. Real ownership is Preview/Pseudo-loc/RTL Mirror (the LS-4 `SnapshotError`/rollback surface); Overflow's own cell for this state is N/A. *This resolves the "mis-homed" finding recorded during DES-1.*
+- **Fonts-unavailable copy differs in substance, not wording**, between Overflow (lists affected text as "un-measurable") and the four other panels (skip + flag instead), since none of the other panels use the measurement primitive.
+
+**State × panel copy table.** Final copy, resolved. Overflow's own seven states are unchanged — see `Plugin Shell — States (Overflow)`.
+
+| State | Extract | Preview | Pseudo-loc | RTL Mirror |
+|---|---|---|---|---|
+| First run | Already built — see Empty Extract Shell ("No strings extracted") | **Nothing to preview yet** — Extract strings first, then choose a language to preview translations in place. | **Nothing to pseudo-localize yet** — Extract strings first, then set an expansion ratio to preview how your layout holds up. | **Nothing to mirror yet** — Extract strings first, then apply the mirror to stress-test your layout in RTL. |
+| No selection | **Nothing selected** — Select a frame or layer to extract from, or switch scope to Page. | **Nothing selected** — Select a frame or layer to preview, or switch scope to Page. | **Nothing selected** — Select a frame or layer to pseudo-localize, or switch scope to Page. | **Nothing selected** — Select a frame or layer to mirror, or switch scope to Page. |
+| No text on page | **No text layers here** — This page has nothing to extract. Try another page. | **No text layers here** — This page has nothing to preview. Try another page. | **No text layers here** — This page has nothing to pseudo-localize. Try another page. | **No text layers here** — This page has nothing to mirror. Try another page. |
+| Fonts unavailable | **Fonts unavailable** — 3 fonts could not be loaded. Text using them will be skipped and flagged. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged in the fallback list. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not expanded. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not mirrored. |
+| Large file | **Large file — 3,410 nodes** — Extracting may take a moment. You can stop at any time. | N/A | N/A | N/A |
+| Scan stopped | **Stopped at 1,284 of 3,410** — 6 strings found so far. | N/A | N/A | N/A |
+| Operation failed | N/A | **Couldn't complete** — The preview failed and your canvas was restored. Nothing was left changed. [Try again] | **Couldn't complete** — The pseudo-loc transform failed and your canvas was restored. Nothing was left changed. [Try again] | **Couldn't complete** — The mirror failed and your canvas was restored. Nothing was left changed. [Try again] |
+
+**LS-14 remains implementation-only** — building and wiring the `State Block` instances per panel.
+
+#### Post-build fixes — same session
+
+- **Pro Stub / Report merge.** `Pro Stub/Report` existed as a standalone component outside the `Pro Stub` component set, when it should have been a 4th `Pillar` variant alongside Matrix/Translate/Sync. Merged via rename + reparent, which preserves the node ID so existing instances — including the live one in the Extract shell — stay correctly linked. All 5 live instances verified file-wide post-merge.
+- **Full hex-literal audit.** Scanned every fill/stroke across the whole page. Found and fixed two gaps introduced this session (the Export Modal header's unbound white fill; a stray unbound highlight-blue fill inside Preview's inline-edit input, now bound to the same focus token as the input's own border) and one genuine pre-existing gap (a tooltip caret vector in `Foundations › Jump Affordance`, now bound to match its tooltip body's background token). File-wide violation count is now **zero**, aside from the documented Plugin Header brand-identity exemption. **Audit scope:** this covered the `🧩 Plugin — Phase 1` page only. Other pages in the file have not been audited against this rule.
+- **Mark / Light swap.** Figma doesn't support logo swapping across light/dark mode changes, so `Mark / Dark` wasn't safely readable in both modes. Swapped to `Mark / Light` at the shared `Figma host chrome` master — all 17 occurrences across every plugin surface inherit from this one master with no individual overrides, so the fix cascaded everywhere in a single edit. Verified: zero `Mark / Dark` instances remain anywhere in the file.
+
+#### Page organization
+
+The `🧩 Plugin — Phase 1` page is organized as `Page Root` → 7 horizontally-arranged feature columns, each a vertical stack of that feature's sections: **Foundations**, **Overflow (LS-19)**, **Extract (LS-9)**, **Feature Panels — Preview · Pseudo-loc · RTL (LS-24)**, **Export (LS-6)**, **Pro Stub (LS-13)**, **State System (LS-14)**. Both `Page Root` and every column are auto-layout self-sizing.
 
 ### ✅ Paid-intent affordance (LS-13) — placed
 
@@ -470,6 +512,27 @@ All four paid pillars are stubbed on the surface as a 40px band pinned to the bo
 **One pillar per panel**, so the willingness-to-pay signal stays per-pillar rather than collapsing into one blurred upgrade click. Pseudo-loc carries no stub — there is no fifth pillar, so the absence is principled, not an omission. Absent also from both empty states, All Nodes and Scanning, which is exactly why those shells need the scroll-clearance rule recorded under *Window dimensions*.
 
 Copy and the `openExternal` wiring remain LS-13's.
+
+---
+
+## 🔲 To be done
+
+**LS-24's five supporting-surface deliverables** — Export sub-surface, Preview, Pseudo-loc, RTL Mirror, and the state block + copy table — **are complete**, recorded under *Completed* above, alongside LS-19 (DES-1)'s overflow anatomy, control cluster and apply/revert pattern.
+
+**Phase-1 design as a whole is not.** Still outstanding: **LS-16** (Community Listing) is in progress; the **middle severity-tier naming** (see the bullet below); the **UI3 component-instance swap** is pending; and the **brand error-color decision** is undecided.
+
+> *On the component-instance swap:* **✅ Review item 8** above records this as closed under LS-19 — every hand-built control audited, the swappable ones swapped, and five surfaces recorded as genuinely absent from UI3 and staying custom. Read as "pending" here, the outstanding part is whatever that audit left open rather than the swap as a whole. Worth reconciling the two the next time this doc is revised.
+
+What remains is a mix of **design decisions still open** (above) and **build work**:
+
+- **LS-14** — build and wire `State Block` instances into the four non-Overflow panels, using the copy table settled under LS-24 Deliverable 5. Implementation only.
+- **LS-6, LS-10, LS-11, LS-12** — the panels are designed and on canvas; these tickets carry their implementation.
+- **LS-13** — copy and the `openExternal` wiring for the four Pro stubs, which are placed but not wired.
+
+Two design items sit outside Phase 1 and are tracked where they belong, not here:
+
+- **Middle severity tier naming** (`Clips` / `Truncates` / `clips 8px` are inconsistent) — deferred to the LS-16 hero work per prior direction. Not part of LS-24.
+- **Error color inside the Clipped Bar brand palette** — see *Still open*, to be resolved in a full brand design-system pass rather than a one-off pick.
 
 ---
 
@@ -499,7 +562,7 @@ These three came out of the review response and are not design calls. Recorded h
 ### Still open
 
 1. **Error color inside the Clipped Bar brand palette.** Currently borrowing `#E5484D` (Radix `red-9`), which hitchhiked in through early plugin frames before the strict kit rule and now sits orphaned. Will be resolved as part of a complete Clipped-Bar-native design system pass — not a one-off color pick. Not blocking any Linear ticket.
-2. **Export sub-surface type — sheet vs popover.** The `Export ▸` link opens the export sub-surface; which UI3 pattern that surface is has not been chosen. A DES-2 call, currently unmade. Blocks nothing until DES-2 reaches its deliverable 1 (the export sub-surface).
+2. ~~**Export sub-surface type — sheet vs popover.**~~ **Resolved 2026-09-06 by LS-24 — neither: it is a `Modal`.** UI3 ships no native Sheet or Popover primitive covering a multi-control form with a terminal action; Modal (header/body/footer) is the only pattern in the kit with full native coverage for that shape, so the question as posed had no answer inside the kit rule. Built at 400px to match the Extract panel it opens over. *(Details under LS-24 Deliverable 1.)*
 
 **Resolved:**
 - ~~Theme adaptation vs. brand override.~~ Chrome uses Figma standard theme colors, which naturally adapts to Figma's light/dark modes via `--figma-color-*` variables. The brand palette holds regardless on marketing surfaces. Dark mode is in for Phase 1 by virtue of following Figma.
@@ -535,11 +598,13 @@ All four LS-19 deliverables are built and the ticket closed 2026-08-21. Supporti
 | Panel control cluster | LS-19, LS-8, LS-3, LS-15 | P0 | ✅ **DONE** — language selector, scan trigger, scope, filter, in-flight state |
 | Apply/revert affordance pattern | LS-19, LS-10, LS-11, LS-12 | P0 | ✅ **DONE** — banner component applied identically across 3 features |
 | Extraction list + shell | LS-9 | P1 | ✅ **DONE** — Extract Row component set + populated + empty state |
-| Supporting surfaces | **LS-24 (DES-2)** — LS-6, LS-12, LS-10, LS-11 | **P1** | In Progress with Muhammed. Layouts reusing shell + results list; export is a sub-surface of Extract, not a panel and not a tab |
-| State matrix — panel-agnostic block + wiring | **LS-24 (DES-2)** + LS-14 | **P1** | Seven variants built as `Plugin Shell — States` (`289:1420`), but that set is the overflow panel's own. DES-2 factors the panel-agnostic block and settles the state × panel copy table; LS-14 builds and wires it |
+| Supporting surfaces | **LS-24 (DES-2)** — LS-6, LS-12, LS-10, LS-11 | **P1** | ✅ **DONE** — Export Modal (400px, sub-surface of Extract); Preview, Pseudo-loc and RTL Mirror panels each with real content replacing the LS-19 placeholder rows |
+| State matrix — panel-agnostic block + wiring | **LS-24 (DES-2)** + LS-14 | **P1** | ✅ **DONE (design)** — `Plugin Shell — States` renamed `Plugin Shell — States (Overflow)`; panel-agnostic `State Block` factored; state × panel copy table settled with final copy. **LS-14 builds and wires it** — implementation outstanding |
 | Paid-intent affordance | LS-13 | **P2** | ✅ **DONE** — four Pro stubs placed: `Pro Stub / Matrix` (`350:1404`), `Pro Stub / Report` (`350:1420`), `Pro Stub / Translate` (`350:1412`), `Pro Stub / Sync` (`351:1411`) |
 
-Brand identity (Clipped Bar) is done and DES-1 copy carries forward. LS-19's anatomy, apply/revert pattern, panel control cluster and state matrix are all built — **the LS-8 spec is unblocked**, because the panel's inputs are now enumerated and the spec can state what the UI sends. Remaining: the P1 supporting layouts that reuse the shell + row, and the panel-agnostic state block behind LS-14 — both owned on the design side by **LS-24 (DES-2)**, In Progress with Muhammed.
+Brand identity (Clipped Bar) is done and DES-1 copy carries forward. LS-19's anatomy, apply/revert pattern, panel control cluster and state matrix are all built — **the LS-8 spec is unblocked**, because the panel's inputs are now enumerated and the spec can state what the UI sends.
+
+**With LS-24 closed, every deliverable in this table is designed.** Phase-1 plugin design is complete; what remains on these rows is build — chiefly LS-14 wiring `State Block` per panel, and LS-13's copy and `openExternal` wiring.
 
 ---
 

@@ -64,7 +64,47 @@ at the three test configs. (LS-22, 2026-09-04.)
   is on (recommended config, default options), so an interface that only extends another and adds no
   members — e.g. a payload-free bridge message, `interface RevertPreview extends Envelope<'…'> {}` —
   **fails `npx eslint .`**. Write it as a type alias instead: `type RevertPreview = Envelope<'revert-preview'>`.
-  
+
+### The main bundle must be emitted at ES2017
+
+`vite.config.ts` sets `build.target: 'es2017'` for the `main` context only. The UI is unaffected —
+it runs in a real browser iframe and needs no downlevelling. The two bounds on that target have
+very different standing:
+
+- **Floor — verified.** Below ES2017 there is no native `async`/`await`, so esbuild rewrites every
+  async function into a generator plus a Promise driver. Figma's plugin VM (QuickJS compiled to
+  wasm) fails to compile that output. Measured: at `es6` the bundle carried 13 `function*` bodies
+  and the plugin did not load; at `es2017` it carries none and the plugin loads, in both dev and
+  production builds. Which half of the rewrite QuickJS actually chokes on — the generators or the
+  driver around them — is not established; they always appear together.
+- **Ceiling — precautionary.** No target above ES2017 has ever been observed failing in Figma. The
+  ES2017 cap exists because it is the lowest target known to work, not because anything newer is
+  known to break. Raising it is allowed; it costs one experiment (build at the new target, load the
+  plugin in Figma, both dev and production) and contradicts no measured result. If it passes, move
+  the cap in `vite.config.ts` and `check:dist` together.
+
+A floor failure is **total and silent**: the VM rejects the whole script at bytecode compilation,
+so *no line of plugin code executes*. There is no stack, because there was never any execution to
+have one. All you see is `InternalError: stack underflow (op=113, pc=263)` from Figma's vendor
+bundle; a `console.log` on the first line of `main.ts` does not print.
+
+**"Set no target" does not mean "Vite's default" here — it means Plugma's `es6`.** Plugma
+hard-codes `target: 'es6'` for the main context (`create-vite-configs.js`, both dev and build), and
+that is exactly what shipped the floor failure above. Our `vite.config.ts` value wins only because
+Plugma merges user config as `mergeConfig`'s second argument — delete it and you are back on `es6`.
+
+`npm run check:dist` enforces both bounds on `dist/main.js`: acorn parses it at `ecmaVersion: 2017`
+(the ceiling) and walks the AST for generator functions (the floor). The parse alone cannot catch
+the floor — generators are ES2015 and parse clean at 2017 — so the walk is the load-bearing check.
+It is a proxy: a hand-written `function*` in `src/main/` would also trip it, and the failure message
+points here so whoever hits it gets the real diagnosis — usually a regressed `build.target`.
+
+This is invisible from the source, and every other gate is blind to it: all three tsconfigs are
+`emitDeclarationOnly`, so `tsc -b` emits no JS and has no opinion on output syntax; ESLint reads
+source, not bundle; Vitest runs in Node, which supports everything; and `plugma build` succeeding
+means only that a bundle was produced. Nothing but `check:dist` inspects the artifact that Figma
+actually loads.
+
 ### Folder ownership map
 
 Entry files live **inside** their subfolders (Plugma points the manifest at them); our modules

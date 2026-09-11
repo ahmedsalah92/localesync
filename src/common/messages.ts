@@ -84,6 +84,9 @@ export interface ScanResult extends Envelope<'scan-result'> {
 }
 export interface ExtractionResult extends Envelope<'extraction-result'> {
 	entries: ExtractedString[];
+	// Rejected stamps, reason 'instance-locked' (LS-9 §2.17). On the result rather than a trailing
+	// `nodes-blocked` error: sent after the result, that error had no pending request to match.
+	blocked: BlockedNode[];
 }
 // Streamed mid-scan on the 25-node progress tick, under the scan request's own correlation id.
 export interface OverflowScanPartial extends Envelope<'overflow-scan-partial'> {

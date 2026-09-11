@@ -12,6 +12,8 @@ function makeModel(overrides: Partial<TextNodeModel> = {}): TextNodeModel {
 	return {
 		nodeId: '1:2',
 		characters: 'auto-width',
+		name: 'auto-width',
+		ancestorFrameNames: ['header', 'home'],
 		textAutoResize: 'WIDTH_AND_HEIGHT',
 		textTruncation: 'ENDING',
 		maxLines: 2,
@@ -35,7 +37,8 @@ function makeModel(overrides: Partial<TextNodeModel> = {}): TextNodeModel {
 describe('toScannedTextNode', () => {
 	it('projects to exactly the nine DTO fields and drops every main-side field', () => {
 		// toEqual is strict about extra keys, so this asserts the projection AND that no
-		// main-side field (bounds, fonts, resize/truncation, rotation) leaks onto the wire.
+		// main-side field (bounds, fonts, resize/truncation, rotation, name, ancestorFrameNames)
+		// leaks onto the wire.
 		expect(toScannedTextNode(makeModel())).toEqual({
 			nodeId: '1:2',
 			characters: 'auto-width',

@@ -1,0 +1,23 @@
+{
+	"$comment": "Transcription of docs/specs/LS-9.md §3.2 — the spec table is the authority; regenerate from it, never edit independently. ancestorFrameNames is nearest-first, as TextNodeModel stores it.",
+	"deriveKey": [
+		{ "n": 1, "name": "Total", "ancestorFrameNames": ["Summary", "Checkout"], "scheme": "dot", "expected": "checkout.summary.total", "exercises": "baseline" },
+		{ "n": 2, "name": "Button", "ancestorFrameNames": ["Sign in", "Auth"], "scheme": "dot", "expected": "auth.sign_in.button", "exercises": "rule 2 separator" },
+		{ "n": 3, "name": "Welcome back!", "ancestorFrameNames": ["Home"], "scheme": "dot", "expected": "home.welcome_back", "exercises": "trailing punctuation trimmed" },
+		{ "n": 4, "name": "الإجمالي", "ancestorFrameNames": ["Home"], "scheme": "dot", "expected": "home.text", "exercises": "empty leaf fallback" },
+		{ "n": 5, "name": "---", "ancestorFrameNames": ["Home"], "scheme": "dot", "expected": "home.text", "exercises": "punctuation-only leaf" },
+		{ "n": 6, "name": "Total", "ancestorFrameNames": ["Rows", "Summary", "Checkout", "App"], "scheme": "dot", "expected": "checkout.summary.rows.total", "exercises": "depth cap drops App" },
+		{ "n": 7, "name": "Total", "ancestorFrameNames": [], "scheme": "dot", "expected": "total", "exercises": "page-level node" },
+		{ "n": 8, "name": "Title", "ancestorFrameNames": ["Home / Header"], "scheme": "dot", "expected": "home_header.title", "exercises": "separator in a layer name is not a boundary" },
+		{ "n": 9, "name": "A very long descriptive layer name for the total", "ancestorFrameNames": ["Summary"], "scheme": "dot", "expected": "summary.a_very_long_descriptive_layer", "exercises": "32-char cut at a _" },
+		{ "n": 10, "name": "Total", "ancestorFrameNames": ["Summary", "Checkout"], "scheme": "snake", "expected": "checkout_summary_total", "exercises": "scheme join" },
+		{ "n": 11, "name": "Sign in", "ancestorFrameNames": ["Auth"], "scheme": "snake", "expected": "auth_sign_in", "exercises": "snake ambiguity, documented not fixed" },
+		{ "n": 12, "name": "الإجمالي", "ancestorFrameNames": ["منتجات", "Home"], "scheme": "dot", "expected": "home.text", "exercises": "empty ancestor dropped, not home..text" }
+	],
+	"uniqueKey": [
+		{ "base": "checkout.summary.total", "reserved": [], "expected": "checkout.summary.total" },
+		{ "base": "checkout.summary.total", "reserved": ["checkout.summary.total"], "expected": "checkout.summary.total_2" },
+		{ "base": "checkout.summary.total", "reserved": ["checkout.summary.total", "checkout.summary.total_2"], "expected": "checkout.summary.total_3" },
+		{ "base": "home.text", "reserved": ["home.text"], "expected": "home.text_2" }
+	]
+}

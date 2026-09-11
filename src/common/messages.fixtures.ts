@@ -51,7 +51,8 @@ export const fixtures: readonly AnyMessage[] = [
 	{
 		type: 'extraction-result',
 		id: 'fx-extraction-result',
-		entries: [{ key: 'home.title', nodeId: '1:2', value: 'Home' }],
+		entries: [{ key: 'home.title', nodeId: '1:2', value: 'Home', drifted: false }],
+		blocked: [{ nodeId: 'I4:5;6:7', reason: 'instance-locked' }],
 	},
 	{
 		// One chunk, not the running total — the UI accumulates across partials (LS-8.2 §1.2).

@@ -1,3 +1,4 @@
+import { runExtractCheck } from '../extract-check';
 import { runBridgeRegression, runOverflowCheck } from '../overflow-check';
 import { runRoundtrip } from '../roundtrip';
 import { runSnapshotCheck } from '../snapshot-check';
@@ -59,6 +60,10 @@ export function DevHarness() {
 				<button type="button" onClick={() => void runBridgeRegression()}>
 					Run LS-8.2 bridge regression (large-file)
 				</button>
+				{/* Writes plugin data — extract-keys.fig only; main refuses without its sentinel row. */}
+				<button type="button" onClick={() => void runExtractCheck()}>
+					Run LS-9 extract check
+				</button>
 				{/* Dev scaffold: raw postMessage of a `__dev:` sentinel intercepted by main.ts's
 				    onmessage wrapper. Intentionally bypasses the typed bridge — not feature code. */}
 				<button
@@ -94,6 +99,12 @@ export function DevHarness() {
 					}
 				>
 					Generate overflow-spike
+				</button>
+				<button
+					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:generate-extract-keys' } }, '*')}
+				>
+					Generate extract-keys
 				</button>
 				<button
 					type="button"

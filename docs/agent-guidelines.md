@@ -262,6 +262,31 @@ consult the live docs — never invent API shape from memory.**
   sessions. **5 MB total per plugin**; may be cleared by the user clearing their browser/app cache,
   so treat it as a cache, not durable truth.
 
+### Plugin data on real nodes — measured (LS-9 probes)
+
+Observed in a real Figma runtime against `fixtures/extract-keys.fig`, by the LS-9 in-Figma harness
+(`docs/specs/LS-9.md` §3.4). The live docs are silent on all of these, so they are measurements, not
+documented guarantees.
+
+- **`setPluginData` on an instance child of a *local* component lands** (probe 1): 1 stamped,
+  0 blocked.
+- **`setPluginData` on a *locked* node lands** (probe 3): 1 stamped, 0 blocked.
+- **A node duplicated via `clone()` carries its plugin data** (probe 4). Cmd-D is assumed to behave
+  the same and is **not measured**.
+- **Node ids survive file duplication** (probe 5): the same group reported id `17:44` in both the
+  original and the copy. One observation, on one Figma version, by one method of duplication — it is
+  evidence, not a guarantee. Code must not depend on it.
+- **Programmatic selection of a locked node lands** (probe 7): `figma.currentPage.selection` accepts
+  it.
+- **Unresolved:** probe 2 (`setPluginData` on an instance child of a *published-library* component —
+  its fixture row needs library publishing and is unbuilt) and probe 6 (whether a batch of writes
+  closed by one `figma.commitUndo()` reverts as a single undo step). Neither is pinned; do not assume
+  an answer.
+
+**No `setPluginData` write has ever been rejected in a real runtime.** Probes 1 and 3 both reported
+zero blocked, so the rejection path in [`docs/specs/LS-9.md` §2, default 22](specs/LS-9.md#persistence)
+is unexercised. It stays because probe 2 is still open.
+
 ### Network & measurement
 
 - **The plugin UI iframe is origin `null` and CORS-restricted.** Phase 1 ships

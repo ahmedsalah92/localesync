@@ -1,8 +1,11 @@
 import { clampWindowSize } from '../common/shell';
 import { applyBatchLeave } from './devtools/applyBatchLeave';
+import { generateExtractKeys } from './devtools/generateExtractKeys';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
 import { generateSnapshotRestore } from './devtools/generateSnapshotRestore';
+import { registerExtraction } from './extract';
+import { registerExtractionCheck } from './extract/check';
 import { registerOverflow } from './overflow';
 import { registerOverflowCheck } from './overflow/check';
 import { registerRoundtrip } from './roundtrip';
@@ -12,7 +15,10 @@ import { registerTraversal } from './traversal';
 import { registerTraversalCheck } from './traversal/check';
 import { loadWindowSize, registerWindow, WINDOW_SIZE_KEY } from './window';
 
+console.log('boot');
 export default async function () {
+	console.log('boot');
+
 	const windowSize = await loadWindowSize();
 	if (import.meta.env.DEV) {
 		console.log(`[ls21] launch | showUI receiving ${windowSize.width}x${windowSize.height}`);
@@ -39,12 +45,16 @@ export default async function () {
 
 	// LS-3: the real scan-request handler (traverse → ScannedTextNode projection).
 	registerTraversal();
+	// LS-9: the real extraction-request handler (traverse → keys → stamps → one commitUndo).
+	registerExtraction();
 	// LS-8: the real overflow-scan-request + select-node handlers (scan → clone-measure → verdicts).
 	registerOverflow();
 	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
-	// the LS-8 overflow acceptance passes (piggybacks on page overflow-scan-request + select-node).
+	// the LS-8 overflow acceptance passes (piggybacks on page overflow-scan-request + select-node),
+	// and the LS-9 extract acceptance passes (piggybacks on page extraction-request; extract-keys.fig
+	// only — it writes plugin data).
 	if (import.meta.env.DEV) {
 		let resizeProbeSequence = 0;
 		// LS-2 transport round-trip scaffold, idle until the UI's dev-only __test:roundtrip button drives
@@ -52,12 +62,14 @@ export default async function () {
 		// run alongside the scaffold's, whose fixture match fails on every real message and answers the
 		// live request id with an `internal` error — every real apply/revert (LS-10/11/12) would reject
 		// while its mutation succeeded. In dev the two still coexist, so roundtrip.ts must keep excluding
-		// every type a real handler owns (scan-request → LS-3, overflow-scan-request/select-node → LS-8).
+		// every type a real handler owns (scan-request → LS-3, extraction-request → LS-9,
+		// overflow-scan-request/select-node → LS-8).
 		// scripts/check-dist.mjs fails the build if the scaffold or its fixtures reach dist/.
 		registerRoundtrip();
 		registerTraversalCheck();
 		registerSnapshotCheck();
 		registerOverflowCheck();
+		registerExtractionCheck();
 
 		// Dev-only harness hooks. bridge.ts claims the single `figma.ui.onmessage` slot at module load
 		// (before this function body runs), so we wrap it here: intercept the `__dev:` sentinels, then
@@ -137,6 +149,23 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(
 							`[dev] generateOverflowSpike failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:generate-extract-keys') {
+				void generateExtractKeys()
+					.then((report) => {
+						console.log(
+							`[dev] generateExtractKeys: created ${report.created.length} text node(s)`,
+							report.created,
+						);
+						console.log('[dev] manual steps remaining:', report.manualSteps);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] generateExtractKeys failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
 				return;

@@ -4,9 +4,10 @@
 // PASS/FAIL to the console:
 //   • main→UI — deep-equals each MainToUi fixture (echoed verbatim by main) against the canonical.
 //   • UI→main — sends each of the six commands; main reports pass/fail on the progress/error channel.
-//   • request/response — awaits the three request pairs. The scan and overflow pairs are answered
-//     by the real LS-3/LS-8 handlers (genuine results, type-only assertion); the extraction stub
-//     also sends a decoy result with a non-matching id (must be ignored) before the real answer.
+//   • request/response — awaits the scan and overflow pairs, answered by the real LS-3/LS-8 handlers
+//     (genuine results, type-only assertion). The extraction pair is not sent over the wire — a real
+//     pass stamps the file. Main calls extractStrings directly with `{ stamp: false }` instead and
+//     reports on a 'roundtrip:extract:' progress note, logged here.
 //   • guard-and-drop — dispatches malformed inbound window events; the bridge must drop them.
 //
 // Scaffolding only — never run by Vitest (needs a real Figma runtime). Invoke via the dev-only
@@ -59,14 +60,20 @@ export async function runRoundtrip(): Promise<void> {
 		const fixture = fixtures.find((m) => m.type === type);
 		on(type, (msg) => {
 			if (fixture && msg.id === fixture.id) log(deepEqual(msg, fixture), `main→ui ${type}`);
-			// Non-matching ids are correctly ignored (no log): the extraction decoy, and the real
-			// LS-3/LS-8 answers to the request probes below (their ids are minted per request).
+			// Non-matching ids are correctly ignored (no log): the real LS-3/LS-8 answers to the
+			// request probes below (their ids are minted per request).
 		});
 	}
 
 	// UI→main conformance: main reports each command back on progress (pass) / error (fail).
 	const pendingCmd = new Map<string, string>();
 	on('progress', (msg) => {
+		// Main's direct, non-stamping extractStrings probe — sent after the last command.
+		if (msg.note?.startsWith('roundtrip:extract:') === true) {
+			const outcome = msg.note.slice('roundtrip:extract:'.length);
+			log(outcome.startsWith('PASS'), `main extractStrings { stamp: false } — ${outcome}`);
+			return;
+		}
 		const type = pendingCmd.get(msg.id);
 		if (type) {
 			pendingCmd.delete(msg.id);
@@ -90,18 +97,12 @@ export async function runRoundtrip(): Promise<void> {
 		pendingCmd.set(mintedId, type);
 	}
 
-	// request/response correlation for the three pairs.
+	// request/response correlation for the scan and overflow pairs (extraction: see header).
 	try {
 		const scan = await request('scan-request', { scope: 'page' });
 		log(scan.type === 'scan-result', 'request scan-request → scan-result (matching id)');
 	} catch {
 		log(false, 'request scan-request (unexpected reject)');
-	}
-	try {
-		const extraction = await request('extraction-request', { scope: 'selection' });
-		log(extraction.type === 'extraction-result', 'request extraction-request → extraction-result');
-	} catch {
-		log(false, 'request extraction-request (unexpected reject)');
 	}
 	try {
 		// Answered by the real LS-8 handler: a genuine scan of the open page (read-only — it clones

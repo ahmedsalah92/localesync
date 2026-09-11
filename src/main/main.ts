@@ -41,16 +41,20 @@ export default async function () {
 	registerTraversal();
 	// LS-8: the real overflow-scan-request + select-node handlers (scan → clone-measure → verdicts).
 	registerOverflow();
-	// LS-2 dev scaffold: transport round-trip handlers for the remaining message types. Idle until
-	// the UI's dev-only __test:roundtrip button drives them; scan-request is owned by LS-3 and
-	// overflow-scan-request/select-node by LS-8 above.
-	registerRoundtrip();
 	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
 	// the LS-8 overflow acceptance passes (piggybacks on page overflow-scan-request + select-node).
 	if (import.meta.env.DEV) {
 		let resizeProbeSequence = 0;
+		// LS-2 transport round-trip scaffold, idle until the UI's dev-only __test:roundtrip button drives
+		// it. Dev-only because bridge.ts STACKS handlers per type: in production a real handler would
+		// run alongside the scaffold's, whose fixture match fails on every real message and answers the
+		// live request id with an `internal` error — every real apply/revert (LS-10/11/12) would reject
+		// while its mutation succeeded. In dev the two still coexist, so roundtrip.ts must keep excluding
+		// every type a real handler owns (scan-request → LS-3, overflow-scan-request/select-node → LS-8).
+		// scripts/check-dist.mjs fails the build if the scaffold or its fixtures reach dist/.
+		registerRoundtrip();
 		registerTraversalCheck();
 		registerSnapshotCheck();
 		registerOverflowCheck();

@@ -1,14 +1,18 @@
 // src/main/roundtrip.ts  (main thread; dev-only scaffold for the __test:roundtrip command)
 //
 // LS-2 transport-conformance harness, main side. Registers a handler for every UiToMain type it
-// still owns — scan-request is superseded by the real LS-3 traversal handler and
-// overflow-scan-request/select-node by the real LS-8 handlers (both registered first in main.ts),
-// which answer the roundtrip's probes with genuine results. Each remaining handler deep-equals the
-// inbound message against its canonical fixture (payload only — the id is minted UI-side) and
-// reports the outcome on the typed channel: the one remaining request type answers with its
-// *-result fixture (correlated by id); the six commands answer with a `progress` (pass) or `error`
-// (fail). Receipt of the last command additionally emits the six MainToUi fixtures verbatim so
-// the UI can assert the main→UI direction for every result/notification type.
+// still owns — scan-request is superseded by the real LS-3 traversal handler, extraction-request by
+// the real LS-9 handler, and overflow-scan-request/select-node by the real LS-8 handlers (all
+// registered first in main.ts), which answer the roundtrip's probes with genuine results. Each
+// remaining handler deep-equals the inbound message against its canonical fixture (payload only —
+// the id is minted UI-side) and reports the outcome on the typed channel: the six commands answer
+// with a `progress` (pass) or `error` (fail). Receipt of the last command additionally emits the six
+// MainToUi fixtures verbatim so the UI can assert the main→UI direction for every
+// result/notification type.
+//
+// The extraction pair is not probed over the wire: a real extraction-request stamps whatever is in
+// scope. Instead the last command also calls extractStrings directly with `{ stamp: false }` and
+// asserts that no stamp on the page changed ('roundtrip:extract:PASS|FAIL …' progress note).
 //
 // This is scaffolding only — real feature handlers (LS-3+) replace these registrations. It is never
 // exercised by Vitest (no `figma` runtime); run it via `npm run dev` and the UI's dev-only button.
@@ -21,7 +25,9 @@ import type {
 	ScanResult,
 } from '../common/messages';
 import { fixtures } from '../common/messages.fixtures';
-import { on, respond, send } from './bridge';
+import { nextMainId, on, send } from './bridge';
+import { DEFAULT_SCHEME, extractStrings } from './extract';
+import { KEY_DATA } from './extract/persist';
 
 // Deep structural equality for structured-clone-serializable data (objects, arrays, primitives).
 function deepEqual(a: unknown, b: unknown): boolean {
@@ -71,27 +77,33 @@ function emitVerbatim(): void {
 	send(errorFx);
 }
 
+// Direct, non-stamping extraction over the open page: resolves keys exactly as a real pass would,
+// then asserts the pass left every stamp on the page byte-identical.
+async function probeExtraction(): Promise<string> {
+	await figma.currentPage.loadAsync();
+	const stamps = (): Map<string, string> =>
+		new Map(
+			figma.currentPage
+				.findAllWithCriteria({ types: ['TEXT'] })
+				.map((node) => [node.id, node.getPluginData(KEY_DATA)]),
+		);
+	const before = stamps();
+	const outcome = await extractStrings('page', DEFAULT_SCHEME, () => undefined, { stamp: false });
+	const after = stamps();
+	const changed = [...before].filter(([id, raw]) => after.get(id) !== raw).length;
+	return changed === 0 && outcome.blocked.length === 0
+		? `roundtrip:extract:PASS ${outcome.entries.length} entries, 0 stamps written`
+		: `roundtrip:extract:FAIL ${changed} stamp(s) changed, ${outcome.blocked.length} blocked`;
+}
+
 export function registerRoundtrip(): void {
 	const report = (id: string, ok: boolean, label: string) => {
 		if (ok) send({ type: 'progress', id, completed: 1, total: 1, note: `ok:${label}` });
 		else send(fail(id, `mismatch:${label}`));
 	};
 
-	// Requests: answer with the matching *-result fixture (respond() attaches the request id).
-	// scan-request and overflow-scan-request are deliberately absent — the LS-3 and LS-8 handlers
-	// own them; a second registration here would double-answer every real scan.
-	on('extraction-request', (msg) => {
-		if (!matches('extraction-request', msg)) {
-			send(fail(msg.id, 'mismatch:extraction-request'));
-			return;
-		}
-		// A decoy with a NON-matching id first — the UI's pending map must ignore it — then the real
-		// answer, whose id matches and resolves the promise. Looked up here, not at module scope (see
-		// emitVerbatim).
-		const extractionResult = fixtures.find((m) => m.type === 'extraction-result') as ExtractionResult;
-		send({ ...extractionResult, id: 'decoy-ignored-id' });
-		respond<'extraction-request'>(msg.id, extractionResult);
-	});
+	// No request handlers remain: scan-request, extraction-request and overflow-scan-request are owned
+	// by the LS-3, LS-9 and LS-8 handlers; a second registration here would double-answer them.
 
 	// Commands: fire-and-forget; report pass/fail on the progress/error channel, correlated by id.
 	on('apply-pseudoloc', (msg) => report(msg.id, matches('apply-pseudoloc', msg), 'apply-pseudoloc'));
@@ -103,5 +115,8 @@ export function registerRoundtrip(): void {
 		report(msg.id, matches('revert-preview', msg), 'revert-preview');
 		// Last command received → echo the MainToUi fixtures for the main→UI conformance check.
 		emitVerbatim();
+		void probeExtraction()
+			.catch((err: unknown) => `roundtrip:extract:FAIL threw ${err instanceof Error ? err.message : String(err)}`)
+			.then((note) => send({ type: 'progress', id: nextMainId(), completed: 1, total: 1, note }));
 	});
 }

@@ -24,11 +24,15 @@ export interface ScannedTextNode {
 
 // ── owned by LS-9 (extraction) — expand here, do not fork ──
 // Shape matches the `ExtractedString` the LS-6 export spec imports; this is the one definition
-// both LS-6 (ui) and LS-9 (main) share. If LS-9's panel needs `duplicateOf`, add it HERE.
+// both LS-6 (ui) and LS-9 (main) share. Duplicates are derived UI-side from `value` (LS-9 §2.26),
+// never carried here.
 export interface ExtractedString {
 	key: string;
 	nodeId: string;
 	value: string;
+	// The stored key no longer matches a fresh derivation from the layer name and its ancestor
+	// frames. Main-side only can tell: neither input crosses the bridge (LS-9 §1.2).
+	drifted: boolean;
 }
 
 // ── owned by LS-8 (overflow) — expand here, do not fork ──

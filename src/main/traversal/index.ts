@@ -31,7 +31,10 @@ function isFrameLike(node: BaseNode): node is FrameLike {
 	);
 }
 
-function collectTextNodes(scope: ScanScope): TextNode[] {
+/** Every text node in `scope`, in document order, as live nodes — no model built. The caller must have
+ *  awaited `figma.currentPage.loadAsync()` (traverse does). Exported for LS-9, which reads a stamp off
+ *  every node on the page and needs none of buildModel's upward walk, bounds or font reads. */
+export function collectTextNodes(scope: ScanScope): TextNode[] {
 	if (scope === 'page') {
 		// Descends the whole subtree, including into instances (skipInvisibleInstanceChildren stays
 		// at its default false — hidden nodes are characterized, never silently dropped).
@@ -82,6 +85,8 @@ function buildModel(node: TextNode): TextNodeModel {
 	return {
 		nodeId: node.id,
 		characters: node.characters,
+		name: node.name,
+		ancestorFrameNames: frameNames,
 		textAutoResize: node.textAutoResize,
 		textTruncation: node.textTruncation,
 		maxLines: node.maxLines,

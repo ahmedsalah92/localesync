@@ -9,7 +9,10 @@
 //
 // Markers are the fixture ids, read from the fixtures source so a renamed or added fixture is
 // covered automatically, plus the literal `roundtrip` (the harness's console prefixes and dev
-// button label). Minification strips identifiers, so function names are not usable markers.
+// button label) and `__dev:` — the prefix of every dev sentinel main.ts's DEV-only onmessage wrapper
+// intercepts and every DevHarness generator button posts. A sentinel string in a bundle means a dev
+// hook escaped its `import.meta.env.DEV` gate. Minification strips identifiers, so function names are
+// not usable markers.
 //
 // Runs as `postbuild`, so `npm run build` fails on a leak. Standalone: `npm run check:dist` after a
 // production build — NOT after `npm run dev`, whose dist/ legitimately contains all of this.
@@ -63,7 +66,7 @@ if (fixtureIds.length === 0) {
 	console.error('check:dist — FAIL: no fixture ids found in src/common/messages.fixtures.ts; update the pattern.');
 	process.exit(1);
 }
-const markers = ['roundtrip', ...fixtureIds];
+const markers = ['roundtrip', '__dev:', ...fixtureIds];
 
 let leaks = 0;
 for (const bundle of BUNDLES) {

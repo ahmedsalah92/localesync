@@ -3,9 +3,13 @@
 	"compilerOptions": {
 		"composite": true,
 		"noEmit": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		// LS-9's derivation goldens live in fixtures/extract-cases.json (agent-guidelines §6: .json
+		// fixtures are generatable). A composite project must list every file it imports, hence the
+		// explicit include below.
+		"resolveJsonModule": true
 	},
-	"include": ["**/*.test.ts"],
+	"include": ["**/*.test.ts", "../../fixtures/extract-cases.json"],
 	"exclude": [],
 	"references": [{ "path": "./tsconfig.json" }]
 }

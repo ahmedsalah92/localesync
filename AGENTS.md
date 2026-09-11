@@ -21,8 +21,10 @@ Keep `npx tsc -b`, `npx eslint .`, and `npm test` green on every change.
 
 - **Main thread has NO DOM and NO Node.** `src/main/*` uses only the `figma` global and
   `@figma/plugin-typings`. `document` / `window` / `process` there is a compile error — keep it so.
-- **Never mutate a node with `hasMissingFont === true`** — it won't re-layout and silently
-  corrupts state. Skip and flag.
+- **Never mutate the content or layout of a node with `hasMissingFont === true`** — it won't
+  re-layout and silently corrupts state. Skip and flag. Plugin data is not a mutation in this
+  sense: `setPluginData` cannot affect layout and is permitted on such nodes
+  (`docs/specs/LS-9.md` §2.16).
 - **All `main` ↔ `ui` traffic goes through `src/common/messages.ts`** (typed discriminated union,
   correlation ids). No raw `postMessage` in feature code.
 - **Always `figma.getNodeByIdAsync`** — the manifest is `documentAccess: "dynamic-page"`; the sync

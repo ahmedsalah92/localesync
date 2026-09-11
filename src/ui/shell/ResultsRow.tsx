@@ -8,14 +8,16 @@ export type RowTone = OverflowVerdictValue | 'neutral';
 /**
  * The row's second line, as two independently-laid-out parts rather than one prepared string.
  *
- * `label` is the container path and is the only part allowed to truncate; `verdict` carries the
- * status word and the pixel delta (`•  overflows 30px`), which the Linear issue requires every
- * flagged row to state. `tooltip`, when present, explains that status without changing the meta
- * line's layout. Assembly lives with the copy (overflow/copy.ts `rowMeta`), not here.
+ * `label` is the only part allowed to truncate — the container path on an Overflow row, the key on
+ * an Extract row. `verdict` is the fixed-width chunk that never yields: on an Overflow row the
+ * status word and pixel delta (`•  overflows 30px`), which every flagged row must state; on an
+ * Extract row the duplicate marker (`2×`), present only when the string is duplicated (LS-9 §2.26).
+ * Absent, it renders nothing — no empty span, no leading gap. `tooltip`, when present, explains the
+ * verdict without changing the meta line's layout. Assembly lives with each panel's copy module.
  */
 export interface RowMeta {
 	label: string;
-	verdict: string;
+	verdict?: string;
 	tooltip?: string;
 }
 
@@ -118,21 +120,23 @@ export function ResultsRow(props: {
 						>
 							{props.meta.label}
 						</span>
-						<span
-							style={{
-								flex: '0 0 auto',
-								whiteSpace: 'nowrap',
-								...(props.meta.tooltip === undefined ? {} : { cursor: 'help' }),
-							}}
-						>
-							{props.meta.tooltip === undefined ? (
-								props.meta.verdict
-							) : (
-								<Tooltip wide label={props.meta.tooltip}>
-									{props.meta.verdict}
-								</Tooltip>
-							)}
-						</span>
+						{props.meta.verdict === undefined ? null : (
+							<span
+								style={{
+									flex: '0 0 auto',
+									whiteSpace: 'nowrap',
+									...(props.meta.tooltip === undefined ? {} : { cursor: 'help' }),
+								}}
+							>
+								{props.meta.tooltip === undefined ? (
+									props.meta.verdict
+								) : (
+									<Tooltip wide label={props.meta.tooltip}>
+										{props.meta.verdict}
+									</Tooltip>
+								)}
+							</span>
+						)}
 					</div>
 				</div>
 				<Tooltip label={props.jumpLabel}>

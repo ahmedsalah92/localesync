@@ -12,6 +12,10 @@ personal session token, not a share credential, so it does not belong in the rep
 | `snapshot-restore.fig` | Byte-identical restore proof → LS-4 | `snapshot-restore.md` | **Generate snapshot-restore** | <https://www.figma.com/design/K8TMI8Hru5B2RMTgXr1zvQ/snapshot-restore.fig> |
 | `overflow-spike.fig` | LS-7 spike validation; **promoted to the LS-8 acceptance fixture** (the `known-overflow` role from LS-17) — extend with additional real-world rows when LS-8 starts | `overflow-spike.md` | **Generate overflow-spike** | <https://www.figma.com/design/HiLWfAMbi4oRgjoKys6aCa/overflow-spike.fig> |
 | `large-file.fig` | ≈1500 text nodes for the LS-15 performance pass | `large-file.md` | **Generate large-file** | <https://www.figma.com/design/t7vi7mnvpFH0eQtG0fZSsU/> (still titled "Untitled" — rename to `large-file.fig`) |
+| `extract-keys.fig` | Key persistence, ownership, eligibility and undo grouping → LS-9. **Writes plugin data** — never reuse another fixture for it | `extract-keys.md` | **Generate extract-keys** | <https://www.figma.com/design/VcmOkAgmRfRZq0Xi4xvqXe/extract-keys.fig> |
+
+`extract-cases.json` is the LS-9 §3.2 derivation table, transcribed for `src/main/extract/key.test.ts`.
+The spec table is the authority; regenerate from it rather than editing the JSON on its own.
 
 **Link access:** these are personal drafts by default (private to the owner). Before anyone else
 needs them, set each file's Share → link access to *Anyone with the link → can view*, or move it

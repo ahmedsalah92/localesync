@@ -23,6 +23,8 @@ that cannot cross the bridge (`figma.mixed`, `FontName`). This is the rich model
 export interface TextNodeModel {
 	nodeId: string;
 	characters: string;
+	name: string; // node.name — added by LS-9 §1.2, the leaf key segment
+	ancestorFrameNames: string[]; // added by LS-9 §1.2 — frame-like ancestors, nearest-first, uncapped, raw
 
 	// resize / truncation — RAW API values, NOT interpreted (see Resolved Defaults §2, Flag B).
 	textAutoResize: TextNode['textAutoResize']; // incl. legacy 'TRUNCATE' (read-only, never written)

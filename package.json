@@ -4,6 +4,8 @@
   "scripts": {
     "dev": "plugma dev",
     "build": "plugma build",
+    "postbuild": "npm run check:dist",
+    "check:dist": "node scripts/check-dist.mjs",
     "release": "plugma release",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

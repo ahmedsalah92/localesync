@@ -45,20 +45,24 @@ function matches(type: string, msg: { id: string }): boolean {
 	return deepEqual({ ...fixture, id: msg.id }, msg);
 }
 
-const scanResult = fixtures.find((m) => m.type === 'scan-result') as ScanResult;
-const extractionResult = fixtures.find((m) => m.type === 'extraction-result') as ExtractionResult;
-const overflowPartial = fixtures.find((m) => m.type === 'overflow-scan-partial') as OverflowScanPartial;
-const overflowResult = fixtures.find((m) => m.type === 'overflow-scan-result') as OverflowScanResult;
-const progressFx = fixtures.find((m) => m.type === 'progress') as ProgressMessage;
-const errorFx = fixtures.find((m) => m.type === 'error') as ErrorMessage;
-
 function fail(id: string, message: string): ErrorMessage {
 	return { type: 'error', id, code: 'internal', severity: 'error', message };
 }
 
 // Emit every MainToUi fixture verbatim (with its own fixture id) so the UI can deep-equal the
 // main→UI transport for all six result/notification types.
+//
+// The lookups live inside the function, never at module scope. A top-level `fixtures.find(…)` is a
+// call the bundler must assume has side effects, so it kept `fixtures` in dist/main.js even with
+// registerRoundtrip() unreachable in production. Inside a function that nothing calls, the whole
+// module tree-shakes away (scripts/check-dist.mjs asserts it).
 function emitVerbatim(): void {
+	const scanResult = fixtures.find((m) => m.type === 'scan-result') as ScanResult;
+	const extractionResult = fixtures.find((m) => m.type === 'extraction-result') as ExtractionResult;
+	const overflowPartial = fixtures.find((m) => m.type === 'overflow-scan-partial') as OverflowScanPartial;
+	const overflowResult = fixtures.find((m) => m.type === 'overflow-scan-result') as OverflowScanResult;
+	const progressFx = fixtures.find((m) => m.type === 'progress') as ProgressMessage;
+	const errorFx = fixtures.find((m) => m.type === 'error') as ErrorMessage;
 	send(scanResult);
 	send(extractionResult);
 	send(overflowPartial);
@@ -82,7 +86,9 @@ export function registerRoundtrip(): void {
 			return;
 		}
 		// A decoy with a NON-matching id first — the UI's pending map must ignore it — then the real
-		// answer, whose id matches and resolves the promise.
+		// answer, whose id matches and resolves the promise. Looked up here, not at module scope (see
+		// emitVerbatim).
+		const extractionResult = fixtures.find((m) => m.type === 'extraction-result') as ExtractionResult;
 		send({ ...extractionResult, id: 'decoy-ignored-id' });
 		respond<'extraction-request'>(msg.id, extractionResult);
 	});

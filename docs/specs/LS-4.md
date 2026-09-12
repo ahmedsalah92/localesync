@@ -22,6 +22,18 @@ output**, not assumed here.
    per-op table (Resolved Defaults §1) over LS-3's flags — no runtime probing.
 5. **Batches are all-or-nothing.** Any failure mid-batch restores every node already mutated in
    that call before returning.
+6. **Apply is not idempotent, so a node already holding a snapshot is blocked.** *(Added 2026-09-12,
+   requested by LS-10 §1.2 — the first production caller of `withSnapshot`.)* §2 above says
+   "idempotent" of *restore* only. Apply wrote `SNAPSHOT_KEY` unconditionally, so a second apply over
+   a still-mutated node captured the **transformed** text as the original, destroying the real one
+   and compounding the mutation. `alreadyMutated` is now the first row of the eligibility table and
+   blocks every op with reason `already-mutated`, reported through the existing `blocked[]` channel.
+   It outranks `missing-font` deliberately: a mutated node's font and empty state describe the
+   mutation rather than the original, so any lower reason would be reported about the wrong text.
+7. **Revert is op-scoped; restore-on-launch is not.** *(Added 2026-09-12, same request.)*
+   `restoreByOp(op)` restores only the nodes one op mutated, leaving other ops' manifest entries
+   untouched — a feature's Revert must not tear down another feature's work. `restoreAll()` stays
+   op-blind and is the restore-on-launch path, where healing the whole manifest is the point.
 
 ---
 

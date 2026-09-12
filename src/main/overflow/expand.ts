@@ -3,7 +3,7 @@
 // The single pseudo-loc implementation in the codebase (LS-8 §1): LS-10 imports `transform`
 // rather than writing a second one; further options expand `PseudoLocOptions` and `transform`
 // in place. The overflow path uses `expandForLanguage` — banded ratio, accent and brackets off.
-import type { PseudoLocOptions } from '../../common/models';
+import type { AccentStyle, BoundaryMarker, PseudoLocOptions } from '../../common/models';
 
 // Expansion is a function of source length first and language second (IBM/W3C model, LS-8 §2):
 // short strings reserve proportionally more room. Growth values are the midpoint of each
@@ -127,20 +127,90 @@ const ACCENT_MAP: Readonly<Record<string, string>> = {
 	Y: 'Ý',
 };
 
-function accentize(text: string): string {
+/** `partial` is the five vowels only, so `full` is a strict superset (LS-10 §2.2). */
+const PARTIAL_ACCENT_MAP: Readonly<Record<string, string>> = {
+	a: 'á',
+	e: 'é',
+	i: 'í',
+	o: 'ó',
+	u: 'ú',
+	A: 'Á',
+	E: 'É',
+	I: 'Í',
+	O: 'Ó',
+	U: 'Ú',
+};
+
+function accentize(text: string, style: AccentStyle): string {
+	if (style === 'none') return text;
+	const map = style === 'full' ? ACCENT_MAP : PARTIAL_ACCENT_MAP;
 	let out = '';
-	for (const ch of text) out += ACCENT_MAP[ch] ?? ch;
+	for (const ch of text) out += map[ch] ?? ch;
 	return out;
 }
 
-/** Deterministic pseudo-loc transform. Shared surface: LS-10 drives it with user-chosen options. */
+/**
+ * Interpolation tokens, treated as opaque by `transform` (LS-10 §2.10). Capturing, so `split`
+ * returns tokens at the odd indices and literal runs at the even ones.
+ *
+ * A bare `%` is deliberately NOT a token — `%1$s got 50% off` must protect the specifier while
+ * leaving `50%` as ordinary literal text and as padding material. Widening this to `%` alone would
+ * silently shrink the padding material of every string containing a percentage.
+ */
+const PLACEHOLDER = /(\{\{[^}]*\}\}|\{\d+\}|%\d+\$s|%[@s])/g;
+
+const MARKERS: Readonly<Record<BoundaryMarker, (body: string) => string>> = {
+	none: (body) => body,
+	single: (body) => `[${body}]`,
+	// Inner spaces are the canvas's, not decoration: `[[ Šîgñ îñ … ]]` (LS-10 §2.3).
+	double: (body) => `[[ ${body} ]]`,
+};
+
+/**
+ * Deterministic pseudo-loc transform. Shared surface: LS-10 drives it with user-chosen options.
+ *
+ * Placeholders survive byte-identically: the source is split on `PLACEHOLDER`, only the literal
+ * runs are accented, and padding is drawn only from literal words. Accenting `{{count}}` into
+ * `{{çóúñt}}` would make a pseudo-loc artefact indistinguishable from a genuinely broken
+ * placeholder, which is the thing the panel exists to reveal (LS-6's preserve-not-generate, applied
+ * to the canvas).
+ *
+ * The padding TARGET still spans the whole source, placeholders included — they occupy real width —
+ * while the padding MATERIAL comes only from literals. A source with no literal characters
+ * (`"{{count}}"`) therefore gets markers and no padding: there is nothing to pad with, and
+ * inventing material would mean generating a placeholder-like string (§2.11).
+ */
 export function transform(source: string, options: PseudoLocOptions): string {
 	if (source.length === 0) return '';
+
+	const segments = source.split(PLACEHOLDER);
+	const literalWords = segments
+		.filter((_, index) => index % 2 === 0)
+		.join(' ')
+		.split(/\s+/)
+		.filter((word) => word.length > 0);
+
 	const ratio = 1 + Math.max(0, options.expansionPct) / 100;
-	let out = padToLength(source, Math.ceil(source.length * ratio));
-	if (options.accent) out = accentize(out);
-	if (options.brackets) out = `[${out}]`;
-	return out;
+	const deficit = Math.ceil(source.length * ratio) - source.length;
+
+	let pad = '';
+	if (deficit > 0 && literalWords.length > 0) {
+		if (source.length <= SINGLE_TOKEN_MAX_CHARS || literalWords.length <= 1) {
+			// Single-token path: no added break opportunities (the LS-8 §2 compound-noun case).
+			const material = literalWords.join('');
+			while (pad.length < deficit) pad += material;
+		} else {
+			for (let i = 0; pad.length < deficit; i++) pad += ` ${literalWords[i % literalWords.length] ?? ''}`;
+		}
+		// Trailing whitespace is trimmed AFTER slicing: the phrase path prepends a space per word, so
+		// an exact-deficit slice can end on one and put a double space inside the markers (§2.11a).
+		pad = pad.slice(0, deficit).replace(/\s+$/, '');
+	}
+
+	const body =
+		segments.map((seg, index) => (index % 2 === 1 ? seg : accentize(seg, options.accent))).join('') +
+		accentize(pad, options.accent);
+	return MARKERS[options.markers](body);
 }
 
 /** Overflow-path wrapper: banded ratio, accent and brackets off.

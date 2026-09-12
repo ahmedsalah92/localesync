@@ -15,7 +15,7 @@ export const fixtures: readonly AnyMessage[] = [
 		type: 'apply-pseudoloc',
 		id: 'fx-apply-pseudoloc',
 		scope: 'selection',
-		options: { expansionPct: 40, accent: true, brackets: true },
+		options: { expansionPct: 40, accent: 'full', markers: 'double' },
 	},
 	{ type: 'revert-pseudoloc', id: 'fx-revert-pseudoloc' },
 	{ type: 'apply-rtl-mirror', id: 'fx-apply-rtl-mirror', scope: 'page' },

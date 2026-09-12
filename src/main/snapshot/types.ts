@@ -52,6 +52,13 @@ export interface EligibilityFlags {
 	isMixedFont: boolean;
 	inInstance: boolean;
 	empty: boolean;
+	/**
+	 * The node already carries a durable snapshot — it is mid-mutation and has not been restored.
+	 * Unlike the other four this is session/durable state rather than a property of the text, but it
+	 * belongs here so the precedence stays data in the eligibility table rather than a special case
+	 * in `withSnapshot` (LS-10 §1.2).
+	 */
+	alreadyMutated: boolean;
 }
 
 export interface RestoreResult {

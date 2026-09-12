@@ -28,7 +28,7 @@ export default defineConfig([
 	// three test configs directly instead; every *.test.ts(x) now belongs to one of them, so no
 	// default-project allowance is needed.
 	{
-		files: ['src/*/*.test.ts', 'src/*/*/*.test.ts'],
+		files: ['src/**/*.test.ts'],
 		languageOptions: {
 			parserOptions: {
 				projectService: false,

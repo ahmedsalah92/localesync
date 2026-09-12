@@ -8,7 +8,7 @@ export interface TextNodeModel {
 	characters: string;
 	name: string; // node.name — the leaf segment of an LS-9 key (LS-9 §1.2)
 	// Frame-like ancestor names, nearest-first, uncapped and raw. LS-9 derives keys from these;
-	// containerLabel is a joined, depth-capped display string and cannot be split back (LS-9 §1.2).
+	// containerLabel is only the nearest of them, so the chain cannot be recovered from it (LS-9 §1.2).
 	ancestorFrameNames: string[];
 
 	// resize / truncation — RAW API values, NOT interpreted. Overflow semantics are LS-7's.
@@ -23,9 +23,9 @@ export interface TextNodeModel {
 	parentClipsContent: boolean; // context for LS-7 ancestor selection; false when parent has no such prop
 	rotation: number; // degrees, -180..180
 
-	// display path for the wire DTO, e.g. "home / header" — derived from ancestorFrameNames, depth
-	// capped at 3. (Model expansion over the spec §1 block: toScannedTextNode(model) is
-	// single-argument and the DTO carries containerLabel, so the model must too.)
+	// display label for the wire DTO, e.g. "header" — the nearest of ancestorFrameNames, the container
+	// the verdict is measured against. (Model expansion over the spec §1 block: toScannedTextNode(model)
+	// is single-argument and the DTO carries containerLabel, so the model must too.)
 	containerLabel: string;
 
 	// fonts — main-side only (FontName & figma.mixed are non-serializable)

@@ -32,6 +32,9 @@ export function Dropdown(props: {
 	/** Default false (hug). True = fill the available width. */
 	fill?: boolean;
 	disabled?: boolean;
+	/** Accessible name, when the visible prefix is shorter than the name a screen reader needs.
+	 *  Defaults to `label`. */
+	ariaLabel?: string;
 }) {
 	const stroke = props.stroke ?? true;
 	const prefixLabel = props.prefixLabel ?? true;
@@ -49,7 +52,7 @@ export function Dropdown(props: {
 			}}
 		>
 			<select
-				aria-label={props.label}
+				aria-label={props.ariaLabel ?? props.label}
 				value={props.value}
 				disabled={props.disabled}
 				onChange={(e) => props.onChange(e.target.value)}
@@ -86,6 +89,11 @@ export function Dropdown(props: {
 					color: 'var(--ls-icon-secondary)',
 					width: 16,
 					height: 16,
+					// Flex-centred so this 16px box is honoured whatever the icon's intrinsic width/height
+					// attributes say — without it an oversized SVG anchors top-left and overhangs the control.
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
 				}}
 			>
 				<ChevronDownIcon />
@@ -94,9 +102,13 @@ export function Dropdown(props: {
 	);
 }
 
+/** The text a single `<option>` renders: `label: value` when the control prefixes, bare otherwise. */
+export function optionText(label: string, option: DropdownOption, prefixLabel: boolean): string {
+	return prefixLabel ? `${label}: ${option.label}` : option.label;
+}
+
 /** Consecutive options sharing a `group` render inside one `<optgroup>`; ungrouped ones stay flat. */
 function renderOptions(options: readonly DropdownOption[], label: string, prefixLabel: boolean) {
-	const text = (option: DropdownOption): string => (prefixLabel ? `${label}: ${option.label}` : option.label);
 	const groups: { group: string | undefined; options: DropdownOption[] }[] = [];
 
 	for (const option of options) {
@@ -108,7 +120,7 @@ function renderOptions(options: readonly DropdownOption[], label: string, prefix
 	return groups.map((entry, index) => {
 		const items = entry.options.map((option) => (
 			<option key={option.value} value={option.value} disabled={option.disabled}>
-				{text(option)}
+				{optionText(label, option, prefixLabel)}
 			</option>
 		));
 		if (entry.group === undefined) return items;

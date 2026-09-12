@@ -15,7 +15,7 @@ export const SCOPES: readonly { value: ScanScope; label: string }[] = [
 export const LABELS = {
 	scope: 'Scope',
 	scan: 'Scan',
-	jump: 'Zoom to node',
+	jump: 'Jump to node',
 	tryAgain: 'Try Again',
 	footer: 'Report', // LS-13 paid-intent stub — preserved, not a placeholder (LS-9 §1.4)
 } as const;

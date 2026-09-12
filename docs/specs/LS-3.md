@@ -146,6 +146,13 @@ id and re-measures rather than trusting a snapshot. If a UI mode-tag is later wa
     depth-capped at 3, using layer names. Overlaps LS-9's per-node key path but is **separate**:
     LS-9 owns keys; keep the derivations aligned so they don't visibly diverge, but do not couple
     them.
+    *(Amended 2026-09-12: `containerLabel` is now the **nearest** frame-like ancestor's name only —
+    no `' / '` join, no depth cap. The nearest segment is the container the verdict is measured
+    against, and it was the one the results row's tail ellipsis cut first, leaving the outermost
+    segments visible instead. The label is now the nearest segment of the key's path rather than a
+    parallel rendering of it, so the two still never contradict. **Key derivation is unaffected:**
+    `deriveKey` reads `ancestorFrameNames` — raw, uncapped, with `key.ts`'s own `MAX_ANCESTORS` —
+    and never reads `containerLabel`, so no stored key moves and no drift is introduced.)*
 15. **Empty-scope handling** → selection scope with empty selection → `error` `no-selection`
     (severity `error`). Scope traversed but zero text nodes → `scan-result { nodes: [] }` (the UI
     empty-state owns it, LS-14), **not** an error. Unexpected failure → `error` `internal`.
@@ -191,7 +198,8 @@ above, per §6 — never hand-typed independently).
 ### Pure unit tests (Vitest, no `figma`) — `src/main/traversal/*.test.ts`
 
 - `toScannedTextNode(model)` → projects to exactly the nine DTO fields; drops every main-side field.
-- `deriveContainerLabel(names)` → correct join, `' / '` separator, depth cap 3.
+- `deriveContainerLabel(names)` → correct join, `' / '` separator, depth cap 3. *(Amended
+  2026-09-12: → the first, nearest, name; `''` for none. No join and no cap — see §2 rule 14.)*
 - `resolveEffectiveFlags(...)` → `hidden`/`locked` OR-fold over a mock ancestor chain (self-visible node under an invisible ancestor → `hidden: true`; self-unlocked under a locked ancestor → `locked: true`).
 - classification → `empty` for `''`; `isMixedFont` for a `figma.mixed` sentinel input.
 

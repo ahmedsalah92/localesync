@@ -22,7 +22,7 @@ function makeModel(overrides: Partial<TextNodeModel> = {}): TextNodeModel {
 		containerBounds: { x: -10, y: -10, width: 400, height: 300 },
 		parentClipsContent: true,
 		rotation: 30,
-		containerLabel: 'home / header',
+		containerLabel: 'header',
 		fonts: [inter],
 		isMixedFont: false,
 		hasMissingFont: false,
@@ -42,7 +42,7 @@ describe('toScannedTextNode', () => {
 		expect(toScannedTextNode(makeModel())).toEqual({
 			nodeId: '1:2',
 			characters: 'auto-width',
-			containerLabel: 'home / header',
+			containerLabel: 'header',
 			hasMissingFont: false,
 			isMixedFont: false,
 			inInstance: true,
@@ -67,11 +67,11 @@ describe('deriveContainerLabel', () => {
 	it.each([
 		[[], ''],
 		[['home'], 'home'],
-		[['header', 'home'], 'home / header'],
-		[['cta', 'header', 'home'], 'home / header / cta'],
-		// depth cap 3 — the nearest three win; the outermost 'home' falls off.
-		[['deep', 'cta', 'header', 'home'], 'header / cta / deep'],
-	])('joins nearest-first %j outermost-first with " / "', (names, expected) => {
+		// Several names — the first wins: names arrive nearest-first, and the nearest is the container
+		// the verdict is measured against.
+		[['header', 'home'], 'header'],
+		[['deep', 'cta', 'header', 'home'], 'deep'],
+	])('returns the nearest of nearest-first %j', (names, expected) => {
 		expect(deriveContainerLabel(names)).toBe(expected);
 	});
 });

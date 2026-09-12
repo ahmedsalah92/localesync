@@ -136,7 +136,7 @@ export function OverflowPanel() {
 					value={state.language}
 					options={LANGUAGES}
 					onChange={(language) => dispatch({ kind: 'set-language', language })}
-					prefixLabel={false}
+					ariaLabel={LABELS.languageAria}
 					fill
 					disabled={scanning}
 				/>

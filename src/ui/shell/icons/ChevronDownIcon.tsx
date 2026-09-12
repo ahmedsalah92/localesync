@@ -1,23 +1,35 @@
 /**
- * icon.24.chevron.down — UI3 published library component
- * key: 7f5a02264f2e41b8e1f354cca35b8d616b430b6b (node 278:944 in UlcEw6zdZzpIpxqrBz4X53)
- * Path is Figma's own exportAsync SVG_STRING output, unmodified except for the paint attribute —
- * the flattened black-at-90%-opacity fill Figma exports is swapped for currentColor so the
- * `icon/*` colour tokens drive it from CSS, per docs/specs/LS-5.md §2.6.
+ * icon.16.chevron.down — UI3 published library component
+ * key: ff0c4fdf34401994a32ade80aafcabf167ca17d8 (docs/design.md § Icon components: "Language
+ * select, scope select, Show filter, Sort")
+ *
+ * Geometry is this repo's own `icon.16.chevron.right` export (key
+ * af9f3d00455a37f1c1dcba495ad583eaac59d17f) rotated a quarter turn about the 16px box centre —
+ * one mark at four rotations, and the same derivation the design file used to build
+ * `icon.16.chevron.left (local)` from that chevron. Rotating in the SVG rather than transcribing
+ * fresh path data keeps this traceable to a real UI3 export.
+ *
+ * Replaces `icon.24.chevron.down`, which was the wrong kit component and drew in a 24-box inside a
+ * 16px wrapper: the intrinsic attributes won, so the caret sat 4px low and overhung the control's
+ * right border.
+ *
+ * The paint attribute is `currentColor` so the `icon/*` colour tokens drive it from CSS, per
+ * docs/specs/LS-5.md §2.6.
  */
 export function ChevronDownIcon(props: { className?: string }) {
 	return (
 		<svg
 			className={props.className}
-			width="24"
-			height="24"
-			viewBox="0 0 24 24"
+			width="16"
+			height="16"
+			viewBox="0 0 16 16"
 			fill="none"
 			aria-hidden="true"
 			xmlns="http://www.w3.org/2000/svg"
 		>
 			<path
-				d="M13.6465 11.1465C13.8417 10.9512 14.1583 10.9512 14.3535 11.1465C14.5488 11.3417 14.5488 11.6583 14.3535 11.8535L12.3535 13.8535C12.1583 14.0488 11.8417 14.0488 11.6465 13.8535L9.64648 11.8535C9.45122 11.6583 9.45122 11.3417 9.64648 11.1465C9.84175 10.9512 10.1583 10.9512 10.3535 11.1465L12 12.793L13.6465 11.1465Z"
+				transform="rotate(90 8 8)"
+				d="M6.76777 6.23223C6.5725 6.03697 6.5725 5.72039 6.76777 5.52512C6.96303 5.32986 7.27961 5.32986 7.47487 5.52512L9.94974 8L7.47487 10.4749C7.27961 10.6701 6.96303 10.6701 6.76777 10.4749C6.5725 10.2796 6.5725 9.96303 6.76777 9.76777L8.53553 8L6.76777 6.23223Z"
 				fill="currentColor"
 			/>
 		</svg>

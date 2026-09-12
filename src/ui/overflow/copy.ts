@@ -63,13 +63,14 @@ export const SORTS: readonly { value: OverflowSort; label: string }[] = [
 ];
 
 export const LABELS = {
-	language: 'Language',
+	language: 'Target',
+	languageAria: 'Target language',
 	scope: 'Scope',
 	show: 'Show',
 	sort: 'Sort',
 	scan: 'Scan',
 	stop: 'Stop',
-	jump: 'Zoom to node',
+	jump: 'Jump to node',
 	tryAgain: 'Try Again',
 	footer: 'Matrix',
 } as const;

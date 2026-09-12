@@ -32,6 +32,9 @@ export function Dropdown(props: {
 	/** Default false (hug). True = fill the available width. */
 	fill?: boolean;
 	disabled?: boolean;
+	/** Accessible name, when the visible prefix is shorter than the name a screen reader needs.
+	 *  Defaults to `label`. */
+	ariaLabel?: string;
 }) {
 	const stroke = props.stroke ?? true;
 	const prefixLabel = props.prefixLabel ?? true;
@@ -49,7 +52,7 @@ export function Dropdown(props: {
 			}}
 		>
 			<select
-				aria-label={props.label}
+				aria-label={props.ariaLabel ?? props.label}
 				value={props.value}
 				disabled={props.disabled}
 				onChange={(e) => props.onChange(e.target.value)}

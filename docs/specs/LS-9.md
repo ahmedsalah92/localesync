@@ -406,9 +406,11 @@ samples are illustrative row content, not a specification; the divergence is del
     decision the user has not made. Tooltip carries the explanation.
 34. **Drift count in the summary band** beside the string count, from `driftedCount`. Copy owed by
     DES-2; the shipped wording is a placeholder.
-35. **The `Export ▸` link is omitted** until LS-6 wires it — a deliberate deviation from a
-    signed-off design. A disabled control is a submission risk under LS-16's review checklist and
-    teaches users that controls here may do nothing. Bundled with 34 as one band revision for DES-2.
+35. ~~**The `Export ▸` link is omitted**~~ **Resolved — LS-6 wired it, 2026-09-12.** The omission was
+    a deliberate deviation from a signed-off design while there was nothing to open: a disabled
+    control is a submission risk under LS-16's review checklist and teaches users that controls here
+    may do nothing. The link now opens the export modal; see `docs/specs/LS-6.md` §2.9.34. Item 34's
+    drift-count wording remains a DES-2 band revision.
 36. `blocked` reaches `ExtractState` intact but is **not rendered** in Phase 1. Copy owed by DES-2,
     same band pass.
 37. Row tone is `'neutral'` (`--ls-border-neutral`) with `monoMeta`; `primary` is the string,

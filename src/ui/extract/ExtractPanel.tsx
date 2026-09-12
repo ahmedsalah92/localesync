@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { on, requestWithId, send } from '../bridge';
+import { ExportModal } from '../export/ExportModal';
+import { LABELS as EXPORT_LABELS } from '../export/copy';
 import { ControlBar, SummaryBar } from '../shell/bands';
+import { ChevronRightIcon } from '../shell/icons/ChevronRightIcon';
 import { FooterStub } from '../shell/FooterStub';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
@@ -15,12 +18,15 @@ import type { ErrorCode, ScanScope, SelectNode } from '../../common/messages';
  * The Extract tab: every eligible text node in scope as a keyed row (LS-9).
  *
  * Owns its control bar, summary band, scroll region and Pro footer, like OverflowPanel (LS-8.2
- * §1.7). No language selector — extraction reads source strings (design.md), no Stop — interruption
- * is safe and there is no cancel message (LS-9 §2.24), and no `Export ▸` link until LS-6 wires it
- * (§2.28).
+ * §1.7). No language selector — extraction reads source strings (design.md), and no Stop —
+ * interruption is safe and there is no cancel message (LS-9 §2.24).
+ *
+ * The `Export ▸` link is now present: LS-9 §2.35 deliberately omitted it rather than ship a control
+ * that did nothing, and LS-6 restores it now that there is a surface to open (LS-6 §2.9.34).
  */
 export function ExtractPanel() {
 	const [state, dispatch] = useReducer(extractReducer, undefined, initialExtractState);
+	const [exportOpen, setExportOpen] = useState(false);
 	// The pass in flight — also the correlation id its progress ticks arrive under.
 	const scanId = useRef<string | null>(null);
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for a scan failure.
@@ -114,6 +120,8 @@ export function ExtractPanel() {
 			</ResultsList>
 
 			{hasFooter ? <FooterStub name={LABELS.footer} /> : null}
+
+			{exportOpen ? <ExportModal entries={state.entries} onClose={() => setExportOpen(false)} /> : null}
 		</>
 	);
 
@@ -129,7 +137,38 @@ export function ExtractPanel() {
 			);
 		}
 		if (state.entries.length === 0) return null; // the empty shells show no summary
-		return <SummaryBar count={summaryCount(state.entries.length, driftedCount(state.entries))} />;
+		return (
+			<SummaryBar
+				count={summaryCount(state.entries.length, driftedCount(state.entries))}
+				controls={
+					/* design.md, Composite labels: a label text plus an icon instance in a 2px wrapper,
+					   so the chevron tokenises independently of the label. Both bind `text/brand` — the
+					   chevron is part of the link, not neutral chrome. */
+					<button
+						type="button"
+						onClick={() => setExportOpen(true)}
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: 2,
+							padding: 0,
+							border: 'none',
+							background: 'none',
+							cursor: 'pointer',
+							color: 'var(--ls-text-brand)',
+							fontSize: 'var(--ls-text-size)',
+							lineHeight: 'var(--ls-text-line)',
+							letterSpacing: 'var(--ls-text-tracking)',
+							fontWeight: 'var(--ls-text-weight-strong)',
+							whiteSpace: 'nowrap',
+						}}
+					>
+						{EXPORT_LABELS.open}
+						<ChevronRightIcon />
+					</button>
+				}
+			/>
+		);
 	}
 
 	function renderState(shellState: ShellState) {

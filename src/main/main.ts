@@ -1,5 +1,6 @@
 import { clampWindowSize } from '../common/shell';
 import { applyBatchLeave } from './devtools/applyBatchLeave';
+import { generateExportCases } from './devtools/generateExportCases';
 import { generateExtractKeys } from './devtools/generateExtractKeys';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
@@ -166,6 +167,23 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(
 							`[dev] generateExtractKeys failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:generate-export-cases') {
+				void generateExportCases()
+					.then((report) => {
+						console.log(
+							`[dev] generateExportCases: created ${report.created.length} text node(s)`,
+							report.created,
+						);
+						console.log('[dev] manual steps remaining:', report.manualSteps);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] generateExportCases failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
 				return;

@@ -1,0 +1,63 @@
+{
+  "$comment": "LS-18 (FIX-2) input half — the export case set. Authored AHEAD of docs/specs/LS-6.md: the spec does not exist yet, and this set is what gets fed through Gleef to anchor the spec's escaping rules and JSON shape. Once LS-6 §3 lands, THAT table becomes the authority and this file is its transcription (agent-guidelines §6); until then this file is the draft of record and the spec must be reconciled to it. Keys follow the LS-9 `dot` scheme and stay LS-9's — only output shape and escaping are Gleef-anchored.",
+  "$usage": "Each entry maps to an ExtractedString (src/common/models.ts) as { key, nodeId, value } with drifted: false — `drifted` is not an export input. Array order IS document order, which the dedup survivor rule depends on; do not sort this file.",
+  "$notCovered": "Very large exports (the issue's perf edge case) are a volume property, not a per-string one, and are exercised by a generated N-row set in the serializer tests, not by this table.",
+  "entries": [
+    { "n": 1, "group": "baseline", "key": "home.title", "nodeId": "1:10", "value": "Welcome back", "exercises": "no escaping in any format — the control row" },
+
+    { "n": 2, "group": "quotes", "key": "home.greeting_quote", "nodeId": "1:11", "value": "He said \"hi\"", "exercises": "double quote — escaped in all three, but by three different mechanisms" },
+    { "n": 3, "group": "quotes", "key": "cart.item_apostrophe", "nodeId": "1:12", "value": "Don't forget your bag", "exercises": "apostrophe — Android must escape or quote it; JSON and iOS leave it literal" },
+    { "n": 4, "group": "quotes", "key": "auth.sign_in_mixed", "nodeId": "1:13", "value": "\"Don't\" she said", "exercises": "both quote kinds in one value" },
+
+    { "n": 5, "group": "backslash", "key": "path.windows_example", "nodeId": "1:14", "value": "C:\\Users\\name", "exercises": "backslash — doubled in all three formats" },
+    { "n": 6, "group": "backslash", "key": "debug.escape_token", "nodeId": "1:15", "value": "Line A\\nLine B", "exercises": "a LITERAL backslash-n (two characters) must survive as two characters and never become a newline — the inverse of row 7" },
+
+    { "n": 7, "group": "control", "key": "address.multiline", "nodeId": "1:16", "value": "12 High Street\nLondon", "exercises": "a REAL newline — the inverse of row 6" },
+    { "n": 8, "group": "control", "key": "table.column_gap", "nodeId": "1:17", "value": "Name\tQuantity", "exercises": "a real tab" },
+    { "n": 9, "group": "control", "key": "paragraph.line_separator", "nodeId": "1:18", "value": "First line\u2028Second line", "exercises": "U+2028 — the character Figma writes for a soft line break inside a paragraph, so it reaches export from real files" },
+
+    { "n": 10, "group": "xml", "key": "legal.terms_link", "nodeId": "1:19", "value": "Terms & Conditions", "exercises": "bare ampersand — invalid raw in XML" },
+    { "n": 11, "group": "xml", "key": "compare.range_hint", "nodeId": "1:20", "value": "Use 5 > 3 and 2 < 4", "exercises": "angle brackets" },
+    { "n": 12, "group": "xml", "key": "entity.already_escaped", "nodeId": "1:21", "value": "&amp; is how you write an ampersand", "exercises": "an entity-LOOKING literal: its & is still escaped, so Android correctly emits &amp;amp; and round-trips. Emitting &amp; here would silently corrupt the string" },
+    { "n": 13, "group": "xml", "key": "format.bold_markup", "nodeId": "1:22", "value": "Use <b>bold</b> for emphasis", "exercises": "tag-looking content — escaped as text, NOT passed through as Android inline markup" },
+
+    { "n": 14, "group": "android-leading", "key": "mention.handle", "nodeId": "1:23", "value": "@designer", "exercises": "leading @ — Android reserves it for resource references" },
+    { "n": 15, "group": "android-leading", "key": "help.shortcut", "nodeId": "1:24", "value": "?shortcuts", "exercises": "leading ? — Android reserves it for theme attributes" },
+
+    { "n": 16, "group": "placeholders", "key": "cart.item_count", "nodeId": "1:25", "value": "You have {{count}} items", "exercises": "i18next interpolation preserved verbatim — preserved, never generated" },
+    { "n": 17, "group": "placeholders", "key": "profile.greeting", "nodeId": "1:26", "value": "Hello, {{name}}!", "exercises": "named i18next interpolation" },
+    { "n": 18, "group": "placeholders", "key": "ios.welcome", "nodeId": "1:27", "value": "Welcome, %@", "exercises": "iOS format specifier preserved" },
+    { "n": 19, "group": "placeholders", "key": "android.welcome", "nodeId": "1:28", "value": "Welcome, %1$s", "exercises": "Android positional specifier preserved" },
+    { "n": 20, "group": "placeholders", "key": "dotnet.greeting", "nodeId": "1:29", "value": "Hello, {0}", "exercises": "brace-indexed placeholder preserved" },
+
+    { "n": 21, "group": "percent", "key": "sale.discount", "nodeId": "1:30", "value": "50% off today", "exercises": "a bare percent with no format specifier — Android convention would write %% here" },
+    { "n": 22, "group": "percent", "key": "sale.mixed_percent", "nodeId": "1:31", "value": "%1$s got 50% off", "exercises": "a positional specifier AND a literal percent in one value. Escaping % to %% would rewrite the specifier and violate preserve-not-generate; leaving it bare diverges from Android convention. The spec must state the rule, not inherit it from a generic escaper" },
+
+    { "n": 23, "group": "plural-keys", "key": "cart.item_one", "nodeId": "1:32", "value": "1 item", "exercises": "plural-LOOKING key carried as an ordinary key; Phase 1 does not interpret plural forms" },
+    { "n": 24, "group": "plural-keys", "key": "cart.item_other", "nodeId": "1:33", "value": "{{count}} items", "exercises": "the other half of the plural pair — still just two independent keys" },
+
+    { "n": 25, "group": "unicode", "key": "home.title_ar", "nodeId": "1:34", "value": "مرحبا بك", "exercises": "RTL Arabic — emitted as UTF-8, not escaped to \\u sequences" },
+    { "n": 26, "group": "unicode", "key": "home.title_ja", "nodeId": "1:35", "value": "ようこそ", "exercises": "CJK" },
+    { "n": 27, "group": "unicode", "key": "status.shipped", "nodeId": "1:36", "value": "Shipped 🎉", "exercises": "emoji outside the BMP — a surrogate pair that must not be split" },
+    { "n": 28, "group": "unicode", "key": "team.role", "nodeId": "1:37", "value": "Engineer 👩‍💻", "exercises": "ZWJ emoji sequence — must survive as one grapheme" },
+    { "n": 29, "group": "unicode", "key": "name.cafe_precomposed", "nodeId": "1:38", "value": "Café", "exercises": "precomposed é (U+00E9)" },
+    { "n": 30, "group": "unicode", "key": "name.cafe_combining", "nodeId": "1:39", "value": "Cafe\u0301", "exercises": "decomposed e + combining acute. Renders identically to row 29 but is a different string: no Unicode normalisation may be applied, and dedup must NOT merge the two" },
+
+    { "n": 31, "group": "empty", "key": "footer.spacer", "nodeId": "1:40", "value": "", "exercises": "empty value — LS-9 excludes empty nodes, so the spec must state whether this is reachable at all" },
+    { "n": 32, "group": "empty", "key": "footer.indent", "nodeId": "1:41", "value": "   ", "exercises": "whitespace-only — Android trims unquoted values, so preserving this takes a deliberate rule" },
+
+    { "n": 33, "group": "dedup", "key": "settings.save", "nodeId": "1:42", "value": "Save", "exercises": "dedup group, member 1 of 3" },
+    { "n": 34, "group": "dedup", "key": "profile.save", "nodeId": "1:43", "value": "Save", "exercises": "dedup group, member 2 of 3" },
+    { "n": 35, "group": "dedup", "key": "editor.save", "nodeId": "1:44", "value": "Save", "exercises": "dedup group, member 3 of 3 — with the toggle on, one key survives and the rule picking it must be deterministic" },
+    { "n": 36, "group": "dedup", "key": "dialog.save_confirm", "nodeId": "1:45", "value": "Save ", "exercises": "differs from the group by a single trailing space — exact-value grouping must not merge it" },
+
+    { "n": 37, "group": "key-shape", "key": "home.title.sub", "nodeId": "1:46", "value": "Good to see you", "exercises": "a strict prefix collision with row 1's key. Unrepresentable in nested JSON — home.title cannot be both a string and an object — so this forces the leaf/branch rule" },
+    { "n": 38, "group": "key-shape", "key": "nav.item_2", "nodeId": "1:47", "value": "Second item", "exercises": "remaps to nav_item_2 for Android" },
+    { "n": 39, "group": "key-shape", "key": "nav.item.2", "nodeId": "1:48", "value": "Item two", "exercises": "ALSO remaps to nav_item_2 — the genuine collision that keyMap exists to record, and the reason keyMap is scoped to collisions rather than every remapped key" },
+    { "n": 40, "group": "key-shape", "key": "2024.summary", "nodeId": "1:49", "value": "Annual summary", "exercises": "leading digit — a legal LS-9 key but invalid as an Android resource name, which must match [a-zA-Z][a-zA-Z0-9_]*" },
+
+    { "n": 41, "group": "url", "key": "docs.link", "nodeId": "1:50", "value": "Visit https://example.com/docs?q=1&lang=en", "exercises": "forward slashes (JSON may or may not escape /), plus & and ? inside a URL rather than at the start" },
+
+    { "n": 42, "group": "length", "key": "legal.disclaimer", "nodeId": "1:51", "value": "This product is provided on an as-is basis without warranties of any kind, either express or implied, including but not limited to the implied warranties of merchantability and fitness for a particular purpose, to the fullest extent permitted by applicable law.", "exercises": "a long single-line value — no format may introduce line wrapping to fit a column width" }
+  ]
+}

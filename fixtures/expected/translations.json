@@ -1,0 +1,105 @@
+{
+  "2024": {
+    "summary": "Annual summary"
+  },
+  "home": {
+    "greeting_quote": "He said \"hi\"",
+    "title_ar": "مرحبا بك",
+    "title_ja": "ようこそ",
+    "title": {
+      "sub": "Good to see you"
+    }
+  },
+  "cart": {
+    "item_apostrophe": "Don't forget your bag",
+    "item_count": "You have {{count}} items",
+    "item_one": "1 item",
+    "item_other": "{{count}} items"
+  },
+  "auth": {
+    "sign_in_mixed": "\"Don't\" she said"
+  },
+  "path": {
+    "windows_example": "C:\\Users\\name"
+  },
+  "debug": {
+    "escape_token": "Line A\\nLine B"
+  },
+  "address": {
+    "multiline": "12 High Street\nLondon"
+  },
+  "table": {
+    "column_gap": "Name\tQuantity"
+  },
+  "paragraph": {
+    "line_separator": "First line Second line"
+  },
+  "legal": {
+    "terms_link": "Terms & Conditions",
+    "disclaimer": "This product is provided on an as-is basis without warranties of any kind, either express or implied, including but not limited to the implied warranties of merchantability and fitness for a particular purpose, to the fullest extent permitted by applicable law."
+  },
+  "compare": {
+    "range_hint": "Use 5 > 3 and 2 < 4"
+  },
+  "entity": {
+    "already_escaped": "&amp; is how you write an ampersand"
+  },
+  "format": {
+    "bold_markup": "Use <b>bold</b> for emphasis"
+  },
+  "mention": {
+    "handle": "@designer"
+  },
+  "help": {
+    "shortcut": "?shortcuts"
+  },
+  "profile": {
+    "greeting": "Hello, {{name}}!",
+    "save": "Save"
+  },
+  "ios": {
+    "welcome": "Welcome, %@"
+  },
+  "android": {
+    "welcome": "Welcome, %1$s"
+  },
+  "dotnet": {
+    "greeting": "Hello, {0}"
+  },
+  "sale": {
+    "discount": "50% off today",
+    "mixed_percent": "%1$s got 50% off"
+  },
+  "status": {
+    "shipped": "Shipped 🎉"
+  },
+  "team": {
+    "role": "Engineer 👩‍💻"
+  },
+  "name": {
+    "cafe_precomposed": "Café",
+    "cafe_combining": "Café"
+  },
+  "footer": {
+    "spacer": "",
+    "indent": "   "
+  },
+  "settings": {
+    "save": "Save"
+  },
+  "editor": {
+    "save": "Save"
+  },
+  "dialog": {
+    "save_confirm": "Save "
+  },
+  "nav": {
+    "item_2": "Second item",
+    "item": {
+      "2": "Item two"
+    }
+  },
+  "docs": {
+    "link": "Visit https://example.com/docs?q=1&lang=en"
+  }
+}

@@ -96,6 +96,10 @@ i18n-text {
 	--ls-text-tooltip: var(--figma-color-text-oninverse);
 
 	--ls-icon-default: var(--figma-color-icon);
+	/* LS-6: the Switch knob binds `icon/onbrand` on canvas (Export modal, node I588:24;2015:24722).
+	   Same value as --ls-text-onbrand today; aliased separately so the knob tracks the icon token
+	   rather than borrowing a text one. */
+	--ls-icon-onbrand: var(--figma-color-icon-onbrand);
 	--ls-icon-secondary: var(--figma-color-icon-secondary);
 	--ls-icon-warning: var(--figma-color-icon-warning);
 	--ls-icon-danger: var(--figma-color-icon-danger);

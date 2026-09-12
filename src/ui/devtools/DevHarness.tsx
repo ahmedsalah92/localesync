@@ -112,6 +112,14 @@ export function DevHarness() {
 				>
 					Generate large-file
 				</button>
+				{/* LS-18 / FIX-2: builds the 42 export cases as text layers so Gleef can be run over
+				    them. Reads every node back and reports any value Figma normalised on write. */}
+				<button
+					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:generate-export-cases' } }, '*')}
+				>
+					Generate export-cases
+				</button>
 			</div>
 		</details>
 	);

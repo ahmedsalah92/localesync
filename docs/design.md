@@ -526,7 +526,8 @@ Copy and the `openExternal` wiring remain LS-13's.
 What remains is a mix of **design decisions still open** (above) and **build work**:
 
 - **LS-14** — build and wire `State Block` instances into the four non-Overflow panels, using the copy table settled under LS-24 Deliverable 5. Implementation only.
-- **LS-6, LS-10, LS-11, LS-12** — the panels are designed and on canvas; these tickets carry their implementation.
+- ~~**LS-6**~~ — **built 2026-09-12.** The Export sub-surface is implemented as specified: a 400px Modal opened from the `Export ▸` link in the Extract summary bar, with format selection, the dedup toggle and Download. Composed from the UI3 kit, both icons taken from Figma's exported assets. `docs/specs/LS-6.md`.
+- **LS-10, LS-11, LS-12** — the panels are designed and on canvas; these tickets carry their implementation.
 - **LS-13** — copy and the `openExternal` wiring for the four Pro stubs, which are placed but not wired.
 
 Two design items sit outside Phase 1 and are tracked where they belong, not here:

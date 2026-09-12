@@ -11,6 +11,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "check:docs": "node scripts/check-doc-twins.mjs",
+    "check:android": "node scripts/check-android-golden.mjs",
     "vitest": "npx vitest",
     "test": "vitest run"
   },

@@ -102,9 +102,13 @@ export function Dropdown(props: {
 	);
 }
 
+/** The text a single `<option>` renders: `label: value` when the control prefixes, bare otherwise. */
+export function optionText(label: string, option: DropdownOption, prefixLabel: boolean): string {
+	return prefixLabel ? `${label}: ${option.label}` : option.label;
+}
+
 /** Consecutive options sharing a `group` render inside one `<optgroup>`; ungrouped ones stay flat. */
 function renderOptions(options: readonly DropdownOption[], label: string, prefixLabel: boolean) {
-	const text = (option: DropdownOption): string => (prefixLabel ? `${label}: ${option.label}` : option.label);
 	const groups: { group: string | undefined; options: DropdownOption[] }[] = [];
 
 	for (const option of options) {
@@ -116,7 +120,7 @@ function renderOptions(options: readonly DropdownOption[], label: string, prefix
 	return groups.map((entry, index) => {
 		const items = entry.options.map((option) => (
 			<option key={option.value} value={option.value} disabled={option.disabled}>
-				{text(option)}
+				{optionText(label, option, prefixLabel)}
 			</option>
 		));
 		if (entry.group === undefined) return items;

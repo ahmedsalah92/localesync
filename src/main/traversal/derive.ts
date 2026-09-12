@@ -5,10 +5,11 @@
 import type { ScannedTextNode } from '../../common/models';
 import type { TextNodeModel } from './model';
 
-/** Join ancestor frame names (nearest-first, as collected walking up) into the display path:
- *  depth-capped at the nearest 3, rendered outermost-first, ' / '-separated — "home / header". */
+/** The nearest frame-like ancestor's name (names arrive nearest-first, as collected walking up) —
+ *  the container the verdict is measured against; '' when there is none. The previous nearest-3
+ *  path, joined outermost-first, lost exactly this segment first to the row's tail ellipsis. */
 export function deriveContainerLabel(names: string[]): string {
-	return names.slice(0, 3).reverse().join(' / ');
+	return names[0] ?? '';
 }
 
 /** Effective hidden/locked: self OR any ancestor (node.visible / node.locked are self-only).

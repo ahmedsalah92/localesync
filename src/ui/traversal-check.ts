@@ -101,8 +101,8 @@ export async function runTraversalCheck(): Promise<void> {
 			const emptyRows = rows.filter((row) => row.empty);
 			log(emptyRows.length === 1 && emptyRows[0]?.characters === '', 'dto empty (single empty:true row)');
 			log(
-				rows.every((row) => row.containerLabel.split(' / ').length <= 3),
-				'dto containerLabel depth cap 3',
+				rows.every((row) => row.containerLabel.split(' / ').length === 1),
+				'dto containerLabel single segment (nearest container only)',
 			);
 		} else {
 			console.log('[traversal] SKIP  dto golden checks (kitchen-sink fixture not open)');

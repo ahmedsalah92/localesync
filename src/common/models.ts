@@ -13,7 +13,7 @@
 export interface ScannedTextNode {
 	nodeId: string;
 	characters: string;
-	containerLabel: string; // display path, e.g. "home / header"
+	containerLabel: string; // nearest frame-like ancestor's name, e.g. "header"
 	hasMissingFont: boolean;
 	isMixedFont: boolean;
 	inInstance: boolean;
@@ -62,7 +62,7 @@ export interface OverflowVerdict {
 	severity?: 'warn' | 'error';
 	reason?: OverflowReason;
 	characters: string; // source string, for the results row
-	containerLabel: string; // display path, for the results row
+	containerLabel: string; // nearest container's name, for the results row
 	candidate: string; // the string actually measured
 	measuredWidth: number;
 	measuredHeight: number;

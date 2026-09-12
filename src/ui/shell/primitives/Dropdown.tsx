@@ -86,6 +86,11 @@ export function Dropdown(props: {
 					color: 'var(--ls-icon-secondary)',
 					width: 16,
 					height: 16,
+					// Flex-centred so this 16px box is honoured whatever the icon's intrinsic width/height
+					// attributes say — without it an oversized SVG anchors top-left and overhangs the control.
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
 				}}
 			>
 				<ChevronDownIcon />

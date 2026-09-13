@@ -1,0 +1,66 @@
+# The gates CLAUDE.md requires green on every change, enforced rather than remembered.
+#
+# Until this existed every PR merged on gates run by hand on someone's laptop and reported in the
+# description. That worked while one person was merging; it left nothing to stop a red merge.
+#
+# `check:android` is a separate job because it needs aapt2, which is not an npm dependency. It is
+# the only check that would catch fixtures/expected/strings.xml no longer building as an Android
+# resource — a byte-diff regression would be updated alongside whatever change caused it, so
+# `npm test` cannot notice.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gates:
+    name: typecheck · lint · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Ordered cheapest-first so an obvious break reports quickly.
+      - name: Typecheck
+        run: npx tsc -b
+      - name: Lint
+        run: npx eslint .
+      - name: Test
+        run: npm test
+      # Runs check:dist as postbuild: no dev scaffolding in the bundle, and dist/main.js stays
+      # ES2017 and generator-free — the floor Figma's QuickJS VM requires.
+      - name: Build
+        run: npm run build
+      - name: Docs twins
+        run: npm run check:docs
+
+  android-golden:
+    name: aapt2 golden
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # aapt2 ships as a standalone Maven artifact — no Android SDK, no licence acceptance, ~4MB.
+      # Pinned: a floating version would let a toolchain change turn into a mystery red build.
+      - name: Fetch aapt2
+        env:
+          AAPT2_VERSION: 9.3.2-15703166
+        run: |
+          curl -fsSL -o aapt2.jar \
+            "https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/${AAPT2_VERSION}/aapt2-${AAPT2_VERSION}-linux.jar"
+          unzip -o -q aapt2.jar -d aapt2dir
+          chmod +x aapt2dir/aapt2
+
+      - name: Compile and link the Android golden
+        run: AAPT2="$PWD/aapt2dir/aapt2" npm run check:android

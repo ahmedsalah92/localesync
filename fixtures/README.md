@@ -34,6 +34,14 @@ hand-written**, which is how §2.11a (trim the padding run before applying marke
 phrase path prepends a space per word, so an exact-deficit slice can end on one and put a double
 space inside `[[ … ]]`.
 
+`expansion-p90.json` is the LS-23 calibration evidence — the 90th-percentile translation growth
+observed per source-length band across 144,812 professionally-translated UI string pairs (GNOME,
+KDE and GIMP gettext catalogues, 12 locales). **Its authority is the corpus, not a spec table**,
+which makes it the one fixture here that is not a transcription of anything: regenerate it with
+`node scripts/measure-expansion.mjs --fixture`, never by hand. It records only the *observed* grid
+and never the fitted band table, so `src/main/overflow/expand.test.ts` cannot be satisfied by a
+table that merely restates itself. Method, filters and provenance: `docs/expansion-calibration.md`.
+
 `expected/` holds the LS-18 golden outputs — `translations.json`, `Localizable.strings`,
 `strings.xml` — derived from `docs/specs/LS-6.md` §2, never hand-typed (agent-guidelines §6). They
 carry **no comments and no trailing newline**, because they are diffed byte-for-byte against

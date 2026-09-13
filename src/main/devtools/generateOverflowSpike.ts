@@ -18,9 +18,9 @@ const BOLD: FontName = { family: 'Inter', style: 'Bold' };
 // explicit candidate strings against clones). Three rows carry AUTHORED characters instead — the
 // LS-8 §3 pass-2 table drives the real scanOverflow path through them (fixtures/overflow-spike.md).
 const SOURCE = 'Source label';
-const AUTHORED_FIXED_FITS = 'Your changes have been saved automatically.'; // 43 chars, de ratio 1.575 → 68
-const AUTHORED_FIXED_OVERFLOWS = 'Save'; // 4 chars, de ratio 2.725 → 11 — the launch-narrative row
-const AUTHORED_MAXLINES = 'Continue to checkout'; // 20 chars, de ratio 2.035 → 41
+const AUTHORED_FIXED_FITS = 'Your changes have been saved automatically.'; // 43 chars, de ratio 1.5047 → 65
+const AUTHORED_FIXED_OVERFLOWS = 'Save'; // 4 chars, de ratio 2.0712 → 9 — the launch-narrative row
+const AUTHORED_MAXLINES = 'Continue to checkout'; // 20 chars, de ratio 1.7519 → 36
 // 43 chars — at ~7.8 px/char and Inter Regular 16 that is ≈335px of text, so it CANNOT fit the
 // 200px box on one line and must wrap. Two lines ≈38px, comfortably inside the 60px box height.
 const WRAPS_FITS = 'The quick brown fox jumps over the lazy dog';
@@ -117,8 +117,9 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 	}
 
 	// ── fixed-overflows — NONE, box cut snug to the English word (LS-8 §3: the four-letter button
-	// that breaks in German; at the old 200×40 the 11-char candidate would FIT). Author auto-width
-	// to capture the snug size, then pin it as a fixed box.
+	// that breaks in German; at the old 200×40 the candidate would FIT). Author auto-width to
+	// capture the snug size, then pin it as a fixed box. Snug-to-source is why LS-23's shorter
+	// candidate (9 chars, was 11) does not weaken this row: anything past 4 characters overflows.
 	{
 		const f = makeFrame('fixed-overflows');
 		const t = makeText('fixed-overflows', f);
@@ -164,9 +165,15 @@ export async function generateOverflowSpike(): Promise<OverflowSpikeReport> {
 	}
 
 	// ── autoheight-maxlines — HEIGHT, maxLines 2, truncation ENDING, width 140 ─
-	// Width 140, not 200: at 200 the 41-char de candidate wraps into exactly the 2 permitted lines
+	// Width 140, not 200: at 200 the de candidate wraps into exactly the 2 permitted lines
 	// (capped == free ⇒ `fits`); at 140 free growth needs 3 lines, so the cap detection fires
 	// (LS-8 §3 pass 2). The authored 20-char label itself still lays out in 2 lines at 140.
+	//
+	// LS-23 shortened the candidate from 41 to 36 characters, so this row's margin narrowed. It
+	// should still need 3 lines at 140 — the padding adds no spaces, leaving a 24-character
+	// unbreakable token that cannot fit 140px and must character-wrap — but the 3-line claim is a
+	// LAYOUT prediction that only Figma can settle. Re-check this row when next running the LS-8
+	// acceptance pass over fixtures/overflow-spike.fig.
 	{
 		const f = makeFrame('autoheight-maxlines');
 		const t = makeText('autoheight-maxlines', f);

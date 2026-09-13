@@ -96,22 +96,29 @@ verdict projection together. Hand-edits to the live file:
 
 | Node label | Authored characters | Len | de ratio | Candidate | Geometry edit | Expected |
 |---|---|---:|---:|---|---|---|
-| `fixed-fits` | `Your changes have been saved automatically.` | 43 | 1.575 | 68 chars ≈ 530 px | Box **600×40**; widen frame to 640 | `fits` |
-| `fixed-overflows` | `Save` | 4 | 2.725 | 11 chars ≈ 86 px | Box **snug to the word**: set resizing to Hug (snaps ≈ 36×19), then back to Fixed size | `overflows` / `exceeds-fixed-box` |
-| `autoheight-maxlines` | `Continue to checkout` | 20 | 2.035 | 41 chars ≈ 320 px | **Narrow width 200 → 140** (keep Max lines 2, truncation on) | `truncates` / `maxLines-cap` |
+| `fixed-fits` | `Your changes have been saved automatically.` | 43 | 1.5047 | 65 chars ≈ 507 px | Box **600×40**; widen frame to 640 | `fits` |
+| `fixed-overflows` | `Save` | 4 | 2.0712 | 9 chars ≈ 70 px | Box **snug to the word**: set resizing to Hug (snaps ≈ 36×19), then back to Fixed size | `overflows` / `exceeds-fixed-box` |
+| `autoheight-maxlines` | `Continue to checkout` | 20 | 1.7519 | 36 chars ≈ 280 px | **Narrow width 200 → 140** (keep Max lines 2, truncation on) | `truncates` / `maxLines-cap` |
 
-- Ratios are the exact values (`1 + bandGrowth × 1.15`); the spec's §3 table shows them
-  display-rounded (2.73 / 1.90 — the latter also omits the de factor).
+- Ratios are the exact values (`1 + bandGrowth × 1.03`, the German factor). **Recalibrated by
+  LS-23 (2026-09-13):** every candidate above is shorter than the one this fixture was originally
+  built against, because the band table and language factors were fitted to measured translation
+  data (`docs/expansion-calibration.md`). The geometry edits are unchanged and the expected verdicts
+  should be unchanged — `fixed-overflows` is snug to a 4-character word, so any candidate overflows
+  it — but `autoheight-maxlines` has the least margin (its 3-line requirement at 140 px now rests on
+  a 24-character unbreakable token) and is the row to check first on the next acceptance pass.
 - Geometry is load-bearing, not cosmetic. At the old 200×40, `fixed-fits`'s 68-char candidate would
   wrap to ≈3 lines (≈57 px) and **overflow** the 40 px height, and `fixed-overflows`'s 11-char
-  candidate would sit on one line (≈19 px) and **fit**. Both rows would assert the opposite of what
+  candidate would sit on one line (≈19 px) and **fit**. (Candidate lengths in this bullet and the
+  next are the pre-LS-23 ones — now 65 and 9 — kept because they are what the geometry was chosen
+  against. Both conclusions hold at the shorter lengths.) Both rows would assert the opposite of what
   they exist to assert. `fixed-overflows` is the launch-narrative row — a four-letter English button
   that breaks in German — and the regression test for the flat-1.35 model defect: under the old flat
   ratio it returned `fits`. It must stay in the short band.
   *(Reasoning restated 2026-09-05: it used to be argued on unwrapped **width**. Figma never overflows
   text horizontally — it character-wraps — so the comparison is on height. The conclusion is
   unchanged; the arithmetic behind it was not.)*
-- At width 200, `autoheight-maxlines`'s 41-char candidate wraps into exactly the 2 permitted lines
+- At width 200, `autoheight-maxlines`'s 41-char candidate (now 36) wraps into exactly the 2 permitted lines
   (capped == free ⇒ `fits`); at 140 free growth needs 3 lines, so `maxLines-cap` fires. The
   authored label itself still lays out in 2 lines at 140.
 - Pixel widths are estimates from the LS-7 run's ≈ 7.8 px/char at Inter Regular 16 — if a row

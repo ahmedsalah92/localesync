@@ -10,35 +10,64 @@
 import { padToLength } from '../../common/pseudoloc';
 
 // Expansion is a function of source length first and language second (IBM/W3C model, LS-8 §2):
-// short strings reserve proportionally more room. Growth values are the midpoint of each
-// published range — the upper bound would flag nearly every button and train users to ignore
-// the tool. `expansionRatio` is the single calibration edit point.
-const FINAL_BAND_GROWTH = 0.3;
+// short strings reserve proportionally more room. `expansionRatio` is the single calibration edit
+// point.
+//
+// **Both tables below are measured, not assumed (LS-23).** They were fitted to the 90th percentile
+// of observed growth across 144,812 professionally-translated UI string pairs — GNOME, KDE and GIMP
+// catalogues, 12 locales — recorded in `fixtures/expansion-p90.json` with the method and full
+// results in `docs/expansion-calibration.md`. p90 means a flagged string is one that overflows in
+// the worst 10% of plausible phrasings.
+//
+// They replace the midpoints of the published IBM/W3C ranges, which were design-RESERVE guidance
+// ("how much room should a designer leave for any language, in any wording") used as a per-string
+// predictor. That over-flagged by construction: the old band 1 built a candidate 2.36x longer than
+// the real German translation, while the old final band sat BELOW observed growth and quietly
+// missed real overflow. The error was in the table's slope, not its level.
+//
+// Bands and factors were fitted TOGETHER (a rank-1 fit of the p90 grid): fitting bands first would
+// have baked the old, wrong factors into the new band values.
+const FINAL_BAND_GROWTH = 0.37;
 
-/** Growth fraction by source length band (IBM/W3C model — see LS-8 §2). */
+/** Growth fraction by source length band. Fitted to observed p90 growth — see above. */
 export const LENGTH_BANDS: readonly { maxChars: number; growth: number }[] = [
-	{ maxChars: 10, growth: 1.5 },
-	{ maxChars: 20, growth: 0.9 },
-	{ maxChars: 30, growth: 0.7 },
-	{ maxChars: 50, growth: 0.5 },
-	{ maxChars: 70, growth: 0.35 },
+	{ maxChars: 10, growth: 1.04 },
+	{ maxChars: 20, growth: 0.73 },
+	{ maxChars: 30, growth: 0.61 },
+	{ maxChars: 50, growth: 0.49 },
+	{ maxChars: 70, growth: 0.41 },
 	{ maxChars: Number.POSITIVE_INFINITY, growth: FINAL_BAND_GROWTH },
 ];
 
-/** Per-language multiplier applied to band growth. 1.0 = European average. */
+/**
+ * Per-language multiplier applied to band growth, fitted jointly with `LENGTH_BANDS`. Anchored so
+ * the European factors have geometric mean 1.0, which is what `DEFAULT_LANGUAGE_FACTOR` relies on.
+ *
+ * Two corrections here are large and counter-intuitive, and both replicate across all three corpora:
+ *
+ * - **French (0.95 -> 1.13) and Finnish (1.20 -> 0.83) swap ends of the table.** Measured on total
+ *   character count, French is the *most* expansive language in the set and Finnish one of the
+ *   least. German's reputation is real but lives in the longest unbreakable TOKEN (+129% at p90,
+ *   against French's +71%) — a wrapping property, not a length one. This factor multiplies total
+ *   length, the one quantity where German is the milder of the two, so applying the folklore here
+ *   was measuring the wrong thing. See `docs/expansion-calibration.md` and LS-27.
+ * - **Hebrew and Arabic drop to ~0.3.** Their translations are barely longer than English, and in
+ *   the long bands not longer at all. At 0.85 the model reserved over twice what those languages
+ *   actually need.
+ */
 export const LANGUAGE_FACTORS: Readonly<Record<string, number>> = {
-	fi: 1.2,
-	de: 1.15,
-	nl: 1.1,
-	pl: 1.05,
-	ru: 1.05,
-	es: 1.0,
-	pt: 0.95,
-	fr: 0.95,
-	it: 0.9,
-	he: 0.85,
-	tr: 0.85,
-	ar: 0.85,
+	fr: 1.13,
+	ru: 1.12,
+	pl: 1.04,
+	de: 1.03,
+	pt: 1.01,
+	it: 0.98,
+	es: 0.97,
+	nl: 0.92,
+	fi: 0.83,
+	tr: 0.7,
+	ar: 0.34,
+	he: 0.31,
 };
 
 export const DEFAULT_LANGUAGE_FACTOR = 1.0;

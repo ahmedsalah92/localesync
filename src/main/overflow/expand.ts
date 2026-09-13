@@ -1,9 +1,13 @@
 // src/main/overflow/expand.ts — pure expansion model (no figma access, no bridge import).
 //
-// The single pseudo-loc implementation in the codebase (LS-8 §1): LS-10 imports `transform`
-// rather than writing a second one; further options expand `PseudoLocOptions` and `transform`
-// in place. The overflow path uses `expandForLanguage` — banded ratio, accent and brackets off.
-import type { PseudoLocOptions } from '../../common/models';
+// The language/band MEASUREMENT model. `expandForLanguage` is the overflow path: banded ratio, no
+// accent, no markers.
+//
+// The pseudo-loc transform itself moved to `src/common/pseudoloc.ts` when LS-10 needed to run the
+// identical function UI-side to preview rows — a main-thread module cannot be pulled into the UI
+// bundle. It is still ONE implementation (LS-8 §1), and both paths still share `padToLength`
+// imported from there, so LS-8's candidates and LS-10's output cannot drift apart.
+import { padToLength } from '../../common/pseudoloc';
 
 // Expansion is a function of source length first and language second (IBM/W3C model, LS-8 §2):
 // short strings reserve proportionally more room. Growth values are the midpoint of each
@@ -80,67 +84,6 @@ export function expansionRatio(sourceLength: number, language: string): number {
 	const key = language.toLowerCase();
 	const factor = FACTOR_INDEX.get(key) ?? FACTOR_INDEX.get(normalizeLanguageTag(language)) ?? DEFAULT_LANGUAGE_FACTOR;
 	return 1 + growth * factor;
-}
-
-// Band 1–2 sources pad as one unbroken token (LS-8 §2): the compound-noun case is the dominant
-// one, and padding a button label with spaces fakes a wrap the real translation will not have.
-const SINGLE_TOKEN_MAX_CHARS = 20;
-
-/** Deterministic banded padding to an exact target length. No randomness anywhere. */
-function padToLength(source: string, targetLength: number): string {
-	if (targetLength <= source.length) return source;
-	const words = source.split(/\s+/).filter((word) => word.length > 0);
-	if (source.length <= SINGLE_TOKEN_MAX_CHARS || words.length <= 1) {
-		// Append the source's own characters, spaces stripped — zero added break opportunities.
-		const padChars = words.join('') || source;
-		let out = source;
-		while (out.length < targetLength) out += padChars;
-		return out.slice(0, targetLength);
-	}
-	// Phrase path: cycle the source's own words so wrap behaviour and character distribution
-	// track the real string.
-	let out = source;
-	for (let i = 0; out.length < targetLength; i++) {
-		out += ` ${words[i % words.length] ?? ''}`;
-	}
-	return out.slice(0, targetLength);
-}
-
-// Accented replacements are single code points, so accenting never changes string length —
-// diacritics add visual noise for LS-10's on-canvas check, not advance width (LS-8 §2).
-const ACCENT_MAP: Readonly<Record<string, string>> = {
-	a: 'á',
-	c: 'ç',
-	e: 'é',
-	i: 'í',
-	n: 'ñ',
-	o: 'ó',
-	u: 'ú',
-	y: 'ý',
-	A: 'Á',
-	C: 'Ç',
-	E: 'É',
-	I: 'Í',
-	N: 'Ñ',
-	O: 'Ó',
-	U: 'Ú',
-	Y: 'Ý',
-};
-
-function accentize(text: string): string {
-	let out = '';
-	for (const ch of text) out += ACCENT_MAP[ch] ?? ch;
-	return out;
-}
-
-/** Deterministic pseudo-loc transform. Shared surface: LS-10 drives it with user-chosen options. */
-export function transform(source: string, options: PseudoLocOptions): string {
-	if (source.length === 0) return '';
-	const ratio = 1 + Math.max(0, options.expansionPct) / 100;
-	let out = padToLength(source, Math.ceil(source.length * ratio));
-	if (options.accent) out = accentize(out);
-	if (options.brackets) out = `[${out}]`;
-	return out;
 }
 
 /** Overflow-path wrapper: banded ratio, accent and brackets off.

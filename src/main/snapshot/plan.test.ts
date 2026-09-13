@@ -16,7 +16,14 @@ import type { EligibilityFlags, Manifest, MutationOp, RestoreStep, TextNodeSnaps
 const OPS: MutationOp[] = ['pseudoloc', 'preview', 'rtl-mirror'];
 
 function flags(overrides: Partial<EligibilityFlags> = {}): EligibilityFlags {
-	return { hasMissingFont: false, isMixedFont: false, inInstance: false, empty: false, ...overrides };
+	return {
+		hasMissingFont: false,
+		isMixedFont: false,
+		inInstance: false,
+		empty: false,
+		alreadyMutated: false,
+		...overrides,
+	};
 }
 
 function makeSnapshot(overrides: Partial<TextNodeSnapshot> = {}): TextNodeSnapshot {
@@ -66,7 +73,26 @@ describe('mutationBlockReason — the op × flag matrix (Resolved Defaults §1)'
 		expect(mutationBlockReason(flags({ inInstance: true }), 'preview')).toBeNull();
 	});
 
+	// LS-10 §1.2. Without this row a second apply captures the already-transformed text as the
+	// original and the real one is gone for good, so it is blocked for every op.
+	it('blocks an already-mutated node for every op', () => {
+		for (const op of OPS) expect(mutationBlockReason(flags({ alreadyMutated: true }), op)).toBe('already-mutated');
+	});
+
 	describe('precedence — first matching row wins, top-to-bottom', () => {
+		it('already-mutated outranks every other flag, for every op', () => {
+			// A mutated node's font/empty state describes the mutation, not the original — reporting
+			// one of those reasons would be describing the wrong text.
+			const all = flags({
+				alreadyMutated: true,
+				hasMissingFont: true,
+				empty: true,
+				isMixedFont: true,
+				inInstance: true,
+			});
+			for (const op of OPS) expect(mutationBlockReason(all, op)).toBe('already-mutated');
+		});
+
 		it('missing-font beats empty', () => {
 			expect(mutationBlockReason(flags({ hasMissingFont: true, empty: true }), 'pseudoloc')).toBe('missing-font');
 		});

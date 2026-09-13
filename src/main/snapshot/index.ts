@@ -65,6 +65,11 @@ function eligibilityFlagsOf(node: TextNode): EligibilityFlags {
 		isMixedFont: node.fontName === figma.mixed,
 		inInstance: isInsideInstance(node),
 		empty: node.characters.length === 0,
+		// Per-node pluginData, not the manifest: both are cleared together on restore and on
+		// rollback, and this is the authoritative record for the node in front of us. A snapshot
+		// surviving a failed restore-on-launch also reads as mutated here, which is correct — that
+		// node still holds transformed text and must not be captured again.
+		alreadyMutated: node.getPluginData(SNAPSHOT_KEY) !== '',
 	};
 }
 
@@ -321,12 +326,34 @@ export async function restoreNode(nodeId: string): Promise<RestoreResult> {
 	return { nodeId, restored: true };
 }
 
-/** Restores every node id in the manifest. Called on plugin launch (main.ts, before any handler
- *  registration) and on explicit Revert. ONE manifest read + ONE write for the whole batch. */
+/** Restores every node id in the manifest, whatever op put it there. This is the restore-on-launch
+ *  path (main.ts, before any handler registration), where being op-blind is the point: a manifest
+ *  left behind by a prior session must be healed in full.
+ *
+ *  **Not the path a feature's Revert should take** — see `restoreByOp`. */
 export async function restoreAll(): Promise<BatchResult> {
-	const result: BatchResult = { succeeded: [], blocked: [], failed: [] };
 	const manifest = await readManifest();
-	const nodeIds = Object.keys(manifest);
+	return restoreIds(manifest, Object.keys(manifest));
+}
+
+/**
+ * Restores only the nodes a given op mutated (LS-10 §1.2).
+ *
+ * A feature's Revert must not tear down another feature's work: `revert-pseudoloc` reverting an
+ * active preview or RTL mirror would be a silent cross-feature side effect. The manifest already
+ * records `{ op, capturedAt }` per node, so this filters data that is already there rather than
+ * adding bookkeeping. Entries belonging to other ops are left in the manifest untouched.
+ */
+export async function restoreByOp(op: MutationOp): Promise<BatchResult> {
+	const manifest = await readManifest();
+	const nodeIds = Object.keys(manifest).filter((nodeId) => manifest[nodeId]?.op === op);
+	return restoreIds(manifest, nodeIds);
+}
+
+/** The shared restore body. `manifest` is read once by the caller; only `nodeIds` are touched, and
+ *  the single closing write drops exactly those that no longer need an entry. */
+async function restoreIds(manifest: Manifest, nodeIds: readonly string[]): Promise<BatchResult> {
+	const result: BatchResult = { succeeded: [], blocked: [], failed: [] };
 	if (nodeIds.length === 0) return result;
 
 	const toRemove: string[] = [];

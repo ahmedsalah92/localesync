@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { ExtractPanel } from '../extract/ExtractPanel';
 import { FooterStub } from './FooterStub';
 import { OverflowPanel } from '../overflow/OverflowPanel';
+import { PseudoPanel } from '../pseudo/PseudoPanel';
 import { ResultsList } from './ResultsList';
 import { StateView } from './StateView';
 
@@ -44,6 +45,6 @@ export const PANELS: readonly PanelDef[] = [
 	{ id: 'extract', label: 'Extract', Panel: ExtractPanel },
 	{ id: 'preview', label: 'Preview', Panel: makeStubPanel('Preview', 'Translate') },
 	// No fifth paid pillar — the absence is principled, not an omission (LS-5 §2.2).
-	{ id: 'pseudo', label: 'Pseudo', Panel: makeStubPanel('Pseudo', null) },
+	{ id: 'pseudo', label: 'Pseudo', Panel: PseudoPanel },
 	{ id: 'rtl', label: 'RTL', Panel: makeStubPanel('RTL', 'Sync') },
 ];

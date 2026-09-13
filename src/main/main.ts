@@ -9,6 +9,8 @@ import { registerExtraction } from './extract';
 import { registerExtractionCheck } from './extract/check';
 import { registerOverflow } from './overflow';
 import { registerOverflowCheck } from './overflow/check';
+import { registerPseudoLoc } from './pseudoloc';
+import { runPseudoLocCheck } from './pseudoloc/check';
 import { registerRoundtrip } from './roundtrip';
 import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
@@ -50,6 +52,9 @@ export default async function () {
 	registerExtraction();
 	// LS-8: the real overflow-scan-request + select-node handlers (scan → clone-measure → verdicts).
 	registerOverflow();
+	// LS-10: apply/revert-pseudoloc. Registered AFTER restore-on-launch above, like every other
+	// mutating handler — it is the first production caller of withSnapshot.
+	registerPseudoLoc();
 	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
@@ -167,6 +172,23 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(
 							`[dev] generateExtractKeys failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:pseudoloc-check') {
+				void runPseudoLocCheck()
+					.then(({ notes }) => {
+						for (const line of notes) console.log(`[dev] ${line}`);
+						const failed = notes.filter((n) => n.includes(':FAIL')).length;
+						console.log(
+							`[dev] LS-10 check complete — ${notes.filter((n) => n.includes(':PASS')).length} passed, ${failed} failed`,
+						);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] runPseudoLocCheck failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
 				return;

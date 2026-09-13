@@ -44,7 +44,10 @@ const EXPECTED_BLOCK: Record<string, BlockReason> = {
 
 // Exactly the snapshot's own field set — a direct property-complete probe, stronger than a
 // TextNodeModel projection and free of the ownBounds-vs-local-x/y rotation subtlety.
-interface Probe {
+// Exported for LS-10's harness (src/main/pseudoloc/check.ts): byte-identical-restore assertions
+// are the same shape for every mutating op, and a third copy of this would be a third thing to
+// keep in step with TextNodeSnapshot.
+export interface Probe {
 	characters: string;
 	x: number;
 	y: number;
@@ -58,7 +61,7 @@ interface Probe {
 	textAlignVertical: TextNode['textAlignVertical'];
 }
 
-function probe(node: TextNode): Probe {
+export function probe(node: TextNode): Probe {
 	return {
 		characters: node.characters,
 		x: node.x,
@@ -75,7 +78,7 @@ function probe(node: TextNode): Probe {
 }
 
 // Field-by-field diff; floats tolerate the 0.01 floor, everything else is exact.
-function probeDiff(got: Probe, want: Probe): string[] {
+export function probeDiff(got: Probe, want: Probe): string[] {
 	const failures: string[] = [];
 	const near = (a: number, b: number) => Math.abs(a - b) <= 0.01;
 	if (got.characters !== want.characters) failures.push(`characters=${JSON.stringify(got.characters)}`);

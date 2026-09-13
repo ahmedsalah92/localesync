@@ -64,6 +64,14 @@ export function DevHarness() {
 				<button type="button" onClick={() => void runExtractCheck()}>
 					Run LS-9 extract check
 				</button>
+				{/* Mutates the canvas and restores it. Run against kitchen-sink.fig, which carries the
+				    missing-font, mixed-font, empty and in-instance rows the block table needs. */}
+				<button
+					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:pseudoloc-check' } }, '*')}
+				>
+					Run LS-10 pseudo-loc check
+				</button>
 				{/* Dev scaffold: raw postMessage of a `__dev:` sentinel intercepted by main.ts's
 				    onmessage wrapper. Intentionally bypasses the typed bridge — not feature code. */}
 				<button

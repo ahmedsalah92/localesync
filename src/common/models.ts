@@ -82,7 +82,15 @@ export interface OverflowVerdict {
 // Reason a node was NOT mutated. The LS-4 example declares this in src/main/snapshot; it is
 // RELOCATED here because the `error` message carries it across the bridge (see upstream note).
 // LS-4 imports BlockReason from common rather than declaring it.
-export type BlockReason = 'missing-font' | 'mixed-font-char-mutation' | 'instance-locked' | 'empty';
+// `already-mutated` added by LS-10 §1.2: withSnapshot used to overwrite an existing snapshot, so a
+// second apply captured the TRANSFORMED text as the original and lost the real one permanently.
+// Blocking is the fix, and it reports through the existing `blocked[]` channel.
+export type BlockReason =
+	| 'missing-font'
+	| 'mixed-font-char-mutation'
+	| 'instance-locked'
+	| 'empty'
+	| 'already-mutated';
 
 export interface BlockedNode {
 	nodeId: string;
@@ -90,10 +98,15 @@ export interface BlockedNode {
 }
 
 // ── owned by LS-10 (pseudo-loc) — expand here, do not fork ──
+// `accent` and `brackets` were booleans until LS-10 §1.3. DES-2 built the controls as selects
+// reading "Full accents" and "[[ ]]", which a boolean cannot express, so both became enums.
+export type AccentStyle = 'none' | 'partial' | 'full';
+export type BoundaryMarker = 'none' | 'single' | 'double';
+
 export interface PseudoLocOptions {
-	expansionPct: number; // e.g. 30–50
-	accent: boolean;
-	brackets: boolean;
+	expansionPct: number; // 30 | 40 | 50 in Phase 1; `transform` clamps negatives at 0
+	accent: AccentStyle;
+	markers: BoundaryMarker;
 }
 
 // ── owned by LS-12 (preview) — expand here, do not fork ──

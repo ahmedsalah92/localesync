@@ -27,6 +27,13 @@ like `extract-cases.json`. Keys are LS-9's `dot` scheme throughout and stay LS-9
 shape and escaping are Gleef-anchored. The golden outputs it is diffed against land in
 `fixtures/expected/`, which closes LS-18.
 
+`pseudoloc-cases.json` is the LS-10 §3.2 transform table, transcribed for
+`src/main/overflow/expand.test.ts`. The spec table is the authority; regenerate from it rather than
+editing the JSON on its own. Every expected value was **computed from the §2 rules rather than
+hand-written**, which is how §2.11a (trim the padding run before applying markers) was found — the
+phrase path prepends a space per word, so an exact-deficit slice can end on one and put a double
+space inside `[[ … ]]`.
+
 `expected/` holds the LS-18 golden outputs — `translations.json`, `Localizable.strings`,
 `strings.xml` — derived from `docs/specs/LS-6.md` §2, never hand-typed (agent-guidelines §6). They
 carry **no comments and no trailing newline**, because they are diffed byte-for-byte against

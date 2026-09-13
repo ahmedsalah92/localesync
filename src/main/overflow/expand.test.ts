@@ -7,7 +7,6 @@ import {
 	expansionRatio,
 	isUnsupportedLanguage,
 	normalizeLanguageTag,
-	transform,
 } from './expand';
 
 // LS-8 §3 pass-2 sources (43 / 20 chars); the 34-char compound has no spaces by construction.
@@ -134,23 +133,24 @@ describe('expandForLanguage', () => {
 
 	it('is deterministic: same input twice → identical output', () => {
 		expect(expandForLanguage(SENTENCE, 'fi')).toBe(expandForLanguage(SENTENCE, 'fi'));
-		expect(transform(LABEL, { expansionPct: 40, accent: true, brackets: true })).toBe(
-			transform(LABEL, { expansionPct: 40, accent: true, brackets: true }),
+	});
+
+	/**
+	 * The no-regression guard for LS-10 §1.3. `transform` was rewritten for placeholder protection
+	 * and enum options, and it shares `padToLength` with this function — the overflow measurement
+	 * path. If these values move, LS-8's verdicts move with them, and the hero feature's numbers
+	 * would shift for a reason unrelated to pseudo-loc. Captured from the implementation as it stood
+	 * before the LS-10 rewrite.
+	 */
+	it('is unchanged by the LS-10 transform rewrite', () => {
+		expect(expandForLanguage('Extract', 'de')).toBe('ExtractExtractExtrac');
+		expect(expandForLanguage('Save', 'de')).toBe('SaveSaveSav');
+		expect(expandForLanguage('Add to cart', 'fr')).toBe('Add to cartAddtocartA');
+		expect(expandForLanguage('Password must be at least 8 characters', 'de')).toBe(
+			'Password must be at least 8 characters Password must be at l',
 		);
-	});
-});
-
-describe('transform (LS-10 surface)', () => {
-	it('pads by expansionPct with accent and brackets off', () => {
-		// ceil(4 × 1.5) = 6.
-		expect(transform('Save', { expansionPct: 50, accent: false, brackets: false })).toBe('SaveSa');
-	});
-
-	it('accents without changing length', () => {
-		expect(transform('Save', { expansionPct: 0, accent: true, brackets: false })).toBe('Sávé');
-	});
-
-	it('brackets the result', () => {
-		expect(transform('Save', { expansionPct: 0, accent: false, brackets: true })).toBe('[Save]');
+		// A placeholder-bearing source is NOT protected on the measurement path: the candidate is
+		// about rendered width, and protecting it here would change LS-8's verdicts.
+		expect(expandForLanguage('You have {{count}} items', 'de')).toBe('You have {{count}} items You have {{count}} ');
 	});
 });

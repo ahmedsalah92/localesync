@@ -16,6 +16,11 @@ interface EligibilityRow {
 }
 
 const ELIGIBILITY_TABLE: readonly EligibilityRow[] = [
+	// FIRST, and blocked for every op: re-applying over a live snapshot would capture the already
+	// mutated text as the original and lose the real one for good (LS-10 §1.2). It outranks
+	// missing-font because a mutated node's current font state describes the mutation, not the
+	// original — so that reason would be reported about the wrong text.
+	{ flag: 'alreadyMutated', reason: 'already-mutated', blockedFor: ['pseudoloc', 'preview', 'rtl-mirror'] },
 	{ flag: 'hasMissingFont', reason: 'missing-font', blockedFor: ['pseudoloc', 'preview', 'rtl-mirror'] },
 	{ flag: 'empty', reason: 'empty', blockedFor: ['pseudoloc', 'preview', 'rtl-mirror'] },
 	// char-writing ops flatten per-range styling on a mixed-font node; rtl-mirror is layout-only, safe.

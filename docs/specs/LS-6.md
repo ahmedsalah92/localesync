@@ -382,7 +382,7 @@ download is DOM, not plugin API.
 
 ## Carried forward
 
-- **LS-9:** the §1.2 prefix-collision amendment. Until it lands, `ExportResult.omitted` is reachable
+- **LS-26** (split out of LS-9, which is Done): the §1.2 prefix-collision amendment. Until it lands, `ExportResult.omitted` is reachable
   and the UI must surface it.
 - **LS-14:** copy for the omitted-key and `keyMap` disclosures, and for the dedup toggle's help text.
   §2.1.2 and §2.2.13 both produce user-visible outcomes with no words yet.

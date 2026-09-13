@@ -189,8 +189,36 @@ export async function runPseudoLocCheck(): Promise<PseudoLocCheckReport> {
 			`second revert restored ${again.succeeded.length}`,
 		);
 
+		// ── [7] one undo step per mutation (§2.9) ────────────────────────────────────────────────
+		// Undo cannot be driven from the plugin API, so this was a manual reminder. But undo
+		// GRANULARITY is decided by how many times we call figma.commitUndo, and that is observable:
+		// count the calls across one apply and one revert.
+		//
+		// It proves our call count, not Figma's internal grouping — an implicit checkpoint Figma
+		// creates on its own would not show up here. That is still the half we control and the half
+		// the spec claims, and it turns a check nobody reruns into one that fails loudly.
+		const realCommitUndo = figma.commitUndo.bind(figma);
+		let commits = 0;
+		try {
+			figma.commitUndo = () => {
+				commits += 1;
+				realCommitUndo();
+			};
+			await applyPseudoLoc('page', OPTS_40);
+			const afterApply = commits;
+			await revertPseudoLoc();
+			note(
+				notes,
+				'one-undo-step',
+				afterApply === 1 && commits - afterApply === 1,
+				`apply=${afterApply} revert=${commits - afterApply} (want 1 and 1)`,
+			);
+		} finally {
+			figma.commitUndo = realCommitUndo;
+		}
+
 		notes.push(
-			'ls10:MANUAL — press Cmd-Z ONCE after a single Apply: the whole batch should revert as one undo step (§2.9).',
+			'ls10:MANUAL — the above counts commitUndo calls, not Figma undo entries. Confirm once by hand: apply, then Cmd-Z ONCE, and the whole batch should revert together (§2.9).',
 		);
 	} catch (err) {
 		note(notes, 'harness', false, err instanceof Error ? err.message : String(err));

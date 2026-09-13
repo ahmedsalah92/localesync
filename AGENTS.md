@@ -15,7 +15,10 @@ JSON/iOS/Android export. Built with Plugma (React + Vite + TypeScript).
 - `npx tsc -b` — typecheck (no npm alias)
 - `npx eslint .` — lint
 
-Keep `npx tsc -b`, `npx eslint .`, and `npm test` green on every change.
+Keep `npx tsc -b`, `npx eslint .`, and `npm test` green on every change. **CI enforces these on
+every PR** (`.github/workflows/ci.yml`), along with `npm run build` (which runs `check:dist`),
+`npm run check:docs`, and `npm run check:android` — the last needs aapt2, which the workflow
+fetches; locally it skips when absent, but never in CI.
 
 ## Hard rules
 

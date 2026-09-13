@@ -38,6 +38,14 @@ function findAapt2() {
 }
 
 const aapt2 = findAapt2();
+if ((aapt2 === null || aapt2 === '') && process.env.CI) {
+	// Skipping is right on a laptop and wrong in CI: a gate that quietly passes when its tool is
+	// missing is worse than no gate, because the green tick says the golden was verified.
+	console.error(
+		'check:android — FAILED: aapt2 not found, and CI is set. The workflow is expected to fetch it and pass AAPT2=<path>.',
+	);
+	process.exit(1);
+}
 if (aapt2 === null || aapt2 === '') {
 	console.log(`check:android — SKIPPED: aapt2 not found.
 

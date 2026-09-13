@@ -483,12 +483,26 @@ Same placeholder-content finding. Replaced with:
 
 **State × panel copy table.** Final copy, resolved. Overflow's own seven states are unchanged — see `Plugin Shell — States (Overflow)`.
 
+> **Amended 2026-09-13 — Pseudo-loc's *No selection* cell is N/A, not copy.** The pseudo-loc control
+> bar has no Scope select: three option selects plus Apply already fill the 40px band, so scope is
+> **selection-preferred and downgrades to the page automatically** when nothing is selected (LS-10
+> §2.5). The panel therefore cannot reach a no-selection state, and the original copy pointed at a
+> control that does not exist. This cell is in the table only because it was inherited from the
+> overflow panel's state set — the exact conflation Deliverable 5 exists to untangle. Left standing
+> for Preview and RTL Mirror, whose control bars are not settled here.
+>
+> **Also amended: "3 fonts could not be loaded" reads as layers.** `BlockedNode` carries a reason,
+> not a font name, so a font count is unavailable and would overstate whenever two layers share one
+> missing font — and layers are what the user acts on anyway. Pseudo-loc's cell now reads *"3 layers
+> use fonts that couldn't be loaded — they're skipped and flagged, not expanded."* The same
+> correction applies to the Extract, Preview and RTL cells when those panels are built.
+
 | State | Extract | Preview | Pseudo-loc | RTL Mirror |
 |---|---|---|---|---|
 | First run | Already built — see Empty Extract Shell ("No strings extracted") | **Nothing to preview yet** — Extract strings first, then choose a language to preview translations in place. | **Nothing to pseudo-localize yet** — Extract strings first, then set an expansion ratio to preview how your layout holds up. | **Nothing to mirror yet** — Extract strings first, then apply the mirror to stress-test your layout in RTL. |
-| No selection | **Nothing selected** — Select a frame or layer to extract from, or switch scope to Page. | **Nothing selected** — Select a frame or layer to preview, or switch scope to Page. | **Nothing selected** — Select a frame or layer to pseudo-localize, or switch scope to Page. | **Nothing selected** — Select a frame or layer to mirror, or switch scope to Page. |
+| No selection | **Nothing selected** — Select a frame or layer to extract from, or switch scope to Page. | **Nothing selected** — Select a frame or layer to preview, or switch scope to Page. | **N/A — unreachable**, see below | **Nothing selected** — Select a frame or layer to mirror, or switch scope to Page. |
 | No text on page | **No text layers here** — This page has nothing to extract. Try another page. | **No text layers here** — This page has nothing to preview. Try another page. | **No text layers here** — This page has nothing to pseudo-localize. Try another page. | **No text layers here** — This page has nothing to mirror. Try another page. |
-| Fonts unavailable | **Fonts unavailable** — 3 fonts could not be loaded. Text using them will be skipped and flagged. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged in the fallback list. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not expanded. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not mirrored. |
+| Fonts unavailable | **Fonts unavailable** — 3 fonts could not be loaded. Text using them will be skipped and flagged. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged in the fallback list. | **Fonts unavailable** — 3 layers use fonts that couldn't be loaded — they're skipped and flagged, not expanded. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not mirrored. |
 | Large file | **Large file — 3,410 nodes** — Extracting may take a moment. You can stop at any time. | N/A | N/A | N/A |
 | Scan stopped | **Stopped at 1,284 of 3,410** — 6 strings found so far. | N/A | N/A | N/A |
 | Operation failed | N/A | **Couldn't complete** — The preview failed and your canvas was restored. Nothing was left changed. [Try again] | **Couldn't complete** — The pseudo-loc transform failed and your canvas was restored. Nothing was left changed. [Try again] | **Couldn't complete** — The mirror failed and your canvas was restored. Nothing was left changed. [Try again] |

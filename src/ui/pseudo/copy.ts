@@ -39,11 +39,16 @@ export const LABELS = {
 /**
  * The applied banner names the ratio, matching the canvas: `Pseudo-loc: expansion 40%`.
  *
- * When some layers were skipped it also carries the count. **This part is a copy amendment, not
- * transcribed** — the panel has no summary bar, so with a partial skip the design leaves the count
- * nowhere to live: `fonts-unavailable` only covers the case where *everything* was skipped, and a
- * partial skip just shows fewer rows than the user selected, silently. The banner is the one
- * persistent surface, so it carries it. Flagged for LS-14 in LS-10 §Carried forward.
+ * When some layers were skipped it also carries the count — `Pseudo-loc: expansion 40% · 3 layers
+ * skipped`. Confirmed as an amendment rather than transcribed copy: the panel has no summary bar,
+ * so a partial skip otherwise has nowhere to live (`fonts-unavailable` only covers a *total* skip,
+ * and a partial one just shows fewer rows than the user selected, silently). The count belongs on
+ * a state affordance because it describes what is applied — this pseudo-loc covers 17 of 20 layers
+ * — not merely what happened during one run.
+ *
+ * **The shape is a precedent, not a one-off.** `AppliedBanner` is LS-5's and shared by three
+ * panels; LS-11 and LS-12 should follow `<what is applied> · <exception count>` rather than each
+ * inventing a format.
  */
 export function appliedMessage(expansionPct: number, skipped = 0): string {
 	const base = `Pseudo-loc: expansion ${expansionPct}%`;
@@ -76,10 +81,19 @@ export const STATES = {
 	},
 } as const;
 
+/**
+ * Counts **layers**, where the canvas said "N fonts could not be loaded".
+ *
+ * Two reasons, and the second is the better one. `BlockedNode` carries a reason, not a font name, so
+ * a font count is not available at this layer and would overstate whenever two layers share a
+ * missing font. More importantly, layers are what the user acts on — they go and fix the layers, and
+ * the number of distinct fonts is trivia. Carrying the font name on `BlockedNode` would have bought
+ * a less useful sentence at the cost of changing an LS-4 contract.
+ */
 export function fontsUnavailable(count: number): { headline: string; body: string } {
-	const fonts = count === 1 ? 'font' : 'fonts';
+	const layers = count === 1 ? 'layer uses' : 'layers use';
 	return {
 		headline: 'Fonts unavailable',
-		body: `${count} ${fonts} could not be loaded. Affected strings will be skipped and flagged, not expanded.`,
+		body: `${count} ${layers} fonts that couldn't be loaded — they're skipped and flagged, not expanded.`,
 	};
 }

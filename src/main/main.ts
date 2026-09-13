@@ -9,6 +9,7 @@ import { registerExtraction } from './extract';
 import { registerExtractionCheck } from './extract/check';
 import { registerOverflow } from './overflow';
 import { registerOverflowCheck } from './overflow/check';
+import { registerPseudoLoc } from './pseudoloc';
 import { registerRoundtrip } from './roundtrip';
 import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
@@ -50,6 +51,9 @@ export default async function () {
 	registerExtraction();
 	// LS-8: the real overflow-scan-request + select-node handlers (scan → clone-measure → verdicts).
 	registerOverflow();
+	// LS-10: apply/revert-pseudoloc. Registered AFTER restore-on-launch above, like every other
+	// mutating handler — it is the first production caller of withSnapshot.
+	registerPseudoLoc();
 	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and

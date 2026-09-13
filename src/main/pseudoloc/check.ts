@@ -35,6 +35,56 @@ export interface PseudoLocCheckReport {
 	notes: string[];
 }
 
+/** Printable codepoints, so a mismatch that differs only by an invisible character is legible. */
+function cp(value: string, limit = 44): string {
+	const chars = Array.from(value).slice(0, limit);
+	const body = chars
+		.map((ch) => {
+			const code = ch.codePointAt(0) ?? 0;
+			return code > 32 && code < 127 ? ch : `U+${code.toString(16).toUpperCase()}`;
+		})
+		.join(' ');
+	return Array.from(value).length > limit ? `${body} …` : body;
+}
+
+function inInstance(node: BaseNode): boolean {
+	let current: BaseNode | null = node.parent;
+	while (current !== null && current.type !== 'PAGE' && current.type !== 'DOCUMENT') {
+		if (current.type === 'INSTANCE') return true;
+		current = current.parent;
+	}
+	return false;
+}
+
+/**
+ * Which nodes do NOT hold exactly `transform(original)`, and how they differ.
+ *
+ * Reports the node name, whether it sits in an instance or is a component master, and the expected
+ * versus actual text as codepoints. The first run of this harness emitted only a count, which said
+ * a mismatch existed but nothing about its shape — the one thing needed to act on it.
+ */
+function describeMismatches(
+	nodes: readonly TextNode[],
+	succeeded: readonly string[],
+	originals: ReadonlyMap<string, string>,
+	options: PseudoLocOptions,
+): string[] {
+	const out: string[] = [];
+	for (const id of succeeded) {
+		const node = nodes.find((n) => n.id === id);
+		if (node === undefined) {
+			out.push(`${id}: node vanished`);
+			continue;
+		}
+		const want = transform(originals.get(id) ?? '', options);
+		if (node.characters === want) continue;
+
+		const where = inInstance(node) ? ' [in-instance]' : node.parent?.type === 'COMPONENT' ? ' [in-component]' : '';
+		out.push(`"${node.name}"${where} want=${cp(want)} got=${cp(node.characters)}`);
+	}
+	return out;
+}
+
 export async function runPseudoLocCheck(): Promise<PseudoLocCheckReport> {
 	const notes: string[] = [];
 	await figma.currentPage.loadAsync();
@@ -64,11 +114,8 @@ export async function runPseudoLocCheck(): Promise<PseudoLocCheckReport> {
 		note(notes, 'apply-multi-node', first.succeeded.length > 1, `${first.succeeded.length} nodes in one batch`);
 
 		// Every succeeded node holds exactly transform(original) — not something merely different.
-		const wrong = first.succeeded.filter((id) => {
-			const node = nodes.find((n) => n.id === id);
-			return node === undefined || node.characters !== transform(originals.get(id) ?? '', OPTS_40);
-		});
-		note(notes, 'apply-exact', wrong.length === 0, wrong.length === 0 ? '' : `${wrong.length} node(s) differ`);
+		const wrong = describeMismatches(nodes, first.succeeded, originals, OPTS_40);
+		note(notes, 'apply-exact', wrong.length === 0, wrong.length === 0 ? '' : wrong.join(' || '));
 
 		// ── [2] blocked nodes were never touched ─────────────────────────────────────────────────
 		const touched = first.blocked.filter((entry) => {
@@ -87,17 +134,14 @@ export async function runPseudoLocCheck(): Promise<PseudoLocCheckReport> {
 		// already-mutated guard (§1.2) were wrong: the result must be 50% of the ORIGINAL, never 50%
 		// of the already-padded 140%.
 		const second = await applyPseudoLoc('page', OPTS_50);
-		const compounded = second.succeeded.filter((id) => {
-			const node = nodes.find((n) => n.id === id);
-			return node === undefined || node.characters !== transform(originals.get(id) ?? '', OPTS_50);
-		});
+		const compounded = describeMismatches(nodes, second.succeeded, originals, OPTS_50);
 		note(
 			notes,
 			'no-compounding',
 			compounded.length === 0,
 			compounded.length === 0
 				? `${second.succeeded.length} node(s) re-applied from source`
-				: `${compounded.length} node(s) compounded — ORIGINAL TEXT AT RISK`,
+				: `ORIGINAL TEXT AT RISK — ${compounded.join(' || ')}`,
 		);
 
 		// ── [4] the already-mutated guard, exercised directly ────────────────────────────────────

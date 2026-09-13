@@ -47,9 +47,23 @@ export async function applyPseudoLoc(intent: ScanScope, options: PseudoLocOption
 	await restoreByOp(OP);
 
 	const nodes = collectTextNodes(resolveScope(intent));
-	// `node.characters` is still the original here: withSnapshot captures before it calls mutate.
+
+	// Read every source string BEFORE the batch, and transform from that map rather than from live
+	// `node.characters` inside mutate.
+	//
+	// withSnapshot captures all snapshots first and mutates in a SECOND loop, so within that loop an
+	// earlier mutation is visible to a later one. Text propagates: mutating a component master
+	// rewrites every instance that has not overridden its text, so an instance later in the batch
+	// would be transformed a second time, from the master's already-transformed value.
+	//
+	// It is also self-concealing, which is why this is a map and not a comment. The first apply
+	// writes an explicit override onto the instance; revert restores the original text but leaves it
+	// an override, so the instance stops inheriting and every subsequent run looks correct. The bug
+	// would only ever fire on a user's first apply, on a pristine file.
+	const sources = new Map(nodes.map((node) => [node.id, node.characters]));
+
 	return withSnapshot(nodes, OP, (node) => {
-		node.characters = transform(node.characters, options);
+		node.characters = transform(sources.get(node.id) ?? node.characters, options);
 		return Promise.resolve();
 	});
 }

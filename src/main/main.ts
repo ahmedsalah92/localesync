@@ -10,6 +10,7 @@ import { registerExtractionCheck } from './extract/check';
 import { registerOverflow } from './overflow';
 import { registerOverflowCheck } from './overflow/check';
 import { registerPseudoLoc } from './pseudoloc';
+import { runPseudoLocCheck } from './pseudoloc/check';
 import { registerRoundtrip } from './roundtrip';
 import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
@@ -171,6 +172,23 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(
 							`[dev] generateExtractKeys failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:pseudoloc-check') {
+				void runPseudoLocCheck()
+					.then(({ notes }) => {
+						for (const line of notes) console.log(`[dev] ${line}`);
+						const failed = notes.filter((n) => n.includes(':FAIL')).length;
+						console.log(
+							`[dev] LS-10 check complete — ${notes.filter((n) => n.includes(':PASS')).length} passed, ${failed} failed`,
+						);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] runPseudoLocCheck failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
 				return;

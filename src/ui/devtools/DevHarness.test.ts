@@ -59,6 +59,9 @@ describe('DevHarness reachability in DEV builds', () => {
 			// LS-18 / FIX-2: without this the 42 export cases never reach a canvas, so Gleef cannot
 			// be run over them and the goldens lose their anchor.
 			'Generate export-cases',
+			// LS-10 §3.3: the only proof that revert is byte-identical and that a second Apply does
+			// not compound — neither is reachable from Vitest.
+			'Run LS-10 pseudo-loc check',
 		]) {
 			expect(markup).toContain(label);
 		}

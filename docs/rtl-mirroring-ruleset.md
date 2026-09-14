@@ -1,7 +1,7 @@
 # RTL mirroring ruleset (RTL-1 / LS-20)
 
-**Status: draft for Ahmed's review.** LS-20 is marked human-authored; this is a drafted starting
-point, not a settled decision. §7 lists the judgement calls I deliberately did not make.
+**Status: settled.** Drafted against published guidance and the verified Figma API, then reviewed
+by Ahmed — the four judgement calls are recorded as resolved in §7. LS-11's spec derives from this.
 
 This ruleset is the input to `docs/specs/LS-11.md`. It says **what flips, what never flips, and what
 the plugin refuses to decide** — not how to implement it.
@@ -169,22 +169,28 @@ Two known hazards, both already recorded in `docs/agent-guidelines.md` §2:
 
 ---
 
-## 7. Judgement calls I did not make — for Ahmed
+## 7. Judgement calls — settled 2026-09-14
 
-1. **G1: flag-only, or offer to rotate?** I have drafted flag-only, on N1's reasoning. The opposite
-   choice — the plugin rotates chevrons and arrows it is confident about — would make the mirror look
-   more "finished" at the cost of generating artwork the designer never drew, and of a much weaker
-   restore story. **My recommendation: flag-only.**
-2. **G2's name heuristic.** Matching on layer names is fuzzy and locale-dependent. Options: ship the
-   heuristic as hints, make it an opt-in list, or drop name matching entirely and flag every moved
-   vector under G1. **My recommendation: G1 alone, with G2 as hints only** — the value is in showing
-   the designer where to look, and G1 already does that without guessing meaning.
-3. **Scope.** Selection when non-empty else page, matching LS-10? Or an explicit control? DES-2's
-   panel has a Mirror toggle and no scope select, which implies implicit scope.
-4. **Groups.** A `GROUP` has no layout properties; its children mirror about the group's bounding
-   box. Confirm that is wanted rather than treating groups as opaque.
+1. **G1 is flag-only. The plugin never rotates artwork.** Confirmed by Ahmed. The mirror moves a
+   directional icon and reports it; it does not generate a rotated version. This keeps N1 absolute,
+   keeps restore byte-identical, and treats the backwards-pointing chevron as the finding rather
+   than as a defect to hide.
+2. **Detection is G1 alone: flag every vector whose position moved.** Confirmed by Ahmed. No layer-
+   name matching. G2 stays in §3 as a description of the *categories* that must not end up mirrored
+   — useful for LS-11's acceptance cases and for the row copy — but it is **not** an implementation
+   rule, because a name heuristic is locale-dependent and guesses at meaning the plugin cannot know.
+   G1 already puts every icon worth checking in front of the designer.
+3. **Scope is implicit: selection when non-empty, else page.** Settled by precedent rather than
+   preference — DES-2's RTL panel carries a Mirror toggle and no scope select, and LS-10 resolved
+   the identical question the same way (`docs/specs/LS-10.md` §2.4). Revisit only if the panel gains
+   a scope control.
+4. **Groups mirror about their own bounding box.** A `GROUP` has no layout properties, so F1/F3–F5
+   do not apply and its children are mirrored by F7 relative to the group's bounds. This is the only
+   reading consistent with F7 being parent-relative (E1); treating groups as opaque would silently
+   skip a very common container.
 
----
+Items 3 and 4 were settled from existing precedent rather than asked, and are cheap to reverse if
+LS-11 finds a reason.
 
 ## Sources
 

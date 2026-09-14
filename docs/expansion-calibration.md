@@ -199,8 +199,10 @@ of the rank-1 approximation, not a tolerance chosen for convenience.
 
 ## Still open
 
-1. **Flag rate on the LocaleSync design file has not been re-measured** against the 34% baseline.
-   That needs a scan in Figma and is the remaining LS-23 success criterion.
+1. **Flag rate — measured 2026-09-14, and the result is not what this document's framing implies.**
+   Both tables against the same 569 nodes: 41.1% → 39.2%. Cutting band-1 reserve 38% removed 3 of
+   139 flags. The calibration below is right on its own evidence, but it is **not** the lever for
+   the flag rate on that file. Full table and reasoning in `docs/specs/LS-23.md` §5.1.
 2. `fixtures/overflow-spike.fig`'s `autoheight-maxlines` row was width-tuned to a 41-character
    candidate, now 36. The reasoning should still hold (a 24-character unbreakable token cannot fit
    140px), but only Figma can settle a layout prediction — re-check on the next LS-8 acceptance pass.

@@ -160,7 +160,12 @@ export function registerPseudoLoc(): void {
 					});
 					return;
 				}
-				send({ type: 'progress', id: msg.id, completed: batch.succeeded.length, total: batch.succeeded.length });
+				send({
+					type: 'progress',
+					id: msg.id,
+					completed: batch.succeeded.length,
+					total: batch.succeeded.length,
+				});
 			} catch (err) {
 				send({
 					type: 'error',

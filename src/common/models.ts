@@ -85,16 +85,24 @@ export interface OverflowVerdict {
 // `already-mutated` added by LS-10 §1.2: withSnapshot used to overwrite an existing snapshot, so a
 // second apply captured the TRANSFORMED text as the original and lost the real one permanently.
 // Blocking is the fix, and it reports through the existing `blocked[]` channel.
-export type BlockReason =
-	| 'missing-font'
-	| 'mixed-font-char-mutation'
-	| 'instance-locked'
-	| 'empty'
-	| 'already-mutated';
+export type BlockReason = 'missing-font' | 'mixed-font-char-mutation' | 'instance-locked' | 'empty' | 'already-mutated';
 
 export interface BlockedNode {
 	nodeId: string;
 	reason: BlockReason;
+}
+
+/**
+ * A node the RTL mirror MOVED but could not rotate (LS-11 G1 / §2.9).
+ *
+ * The plugin never mirrors artwork, so a directional icon lands on the other side still pointing the
+ * old way — that is the RTL breakage the designer needs to see, reported rather than fixed. Distinct
+ * from `BlockedNode`: these nodes were mirrored successfully.
+ */
+export interface FlaggedNode {
+	nodeId: string;
+	name: string;
+	reason: 'moved-vector';
 }
 
 // ── owned by LS-10 (pseudo-loc) — expand here, do not fork ──

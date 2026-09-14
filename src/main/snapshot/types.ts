@@ -27,6 +27,8 @@ export type WritableAutoResize = Exclude<TextNode['textAutoResize'], 'TRUNCATE'>
  *  (Resolved Defaults §9): a new op that writes an uncaptured property expands this in place. */
 export interface TextNodeSnapshot {
 	schemaVersion: typeof SNAPSHOT_SCHEMA_VERSION;
+	/** Absent on every snapshot written before LS-11. Read as `'text'` — see `snapshotKind`. */
+	kind?: 'text';
 	nodeId: string;
 	op: MutationOp;
 	characters: string;
@@ -40,6 +42,62 @@ export interface TextNodeSnapshot {
 	textAlignHorizontal: TextNode['textAlignHorizontal'];
 	textAlignVertical: TextNode['textAlignVertical'];
 	capturedAt: number; // Date.now()
+}
+
+/**
+ * The RTL mirror's arm (LS-11 §1.2). Every previous op wrote `characters` on a TextNode; a mirror
+ * writes *layout*, and none of it is captured above.
+ *
+ * One type covers both roles a node plays, because any node can be both at once: the
+ * `layout*`/`padding*`/`childOrder` fields describe it **as a parent**, and `x`/`constraint*`/
+ * `grid*` describe it **as a child** of its own parent. Fields are optional because the surface
+ * genuinely varies — a VECTOR has no `layoutMode`, and grid anchors exist only on the direct child
+ * of a `GRID` frame. Absent means "not applicable here", never "unknown".
+ *
+ * Child order is the awkward member: it is a permutation, not a property. It is captured as the
+ * ordered child ids and restored by re-inserting in that order.
+ */
+export interface LayoutSnapshot {
+	schemaVersion: typeof SNAPSHOT_SCHEMA_VERSION;
+	kind: 'layout';
+	nodeId: string;
+	op: MutationOp;
+
+	// ── as a parent ──
+	layoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID';
+	primaryAxisAlignItems?: 'MIN' | 'MAX' | 'CENTER' | 'SPACE_BETWEEN';
+	counterAxisAlignItems?: 'MIN' | 'MAX' | 'CENTER' | 'BASELINE';
+	paddingLeft?: number;
+	paddingRight?: number;
+	itemReverseZIndex?: boolean;
+	/** Ordered child ids. Restored by re-insertion, so it survives a reversal exactly. */
+	childOrder?: string[];
+
+	// ── as a child of its own parent ──
+	/**
+	 * The PARENT's layout mode, not this node's. It is what decides whether `x` is authored or
+	 * derived, and it cannot be inferred from this node's own `layoutMode` — that only says whether
+	 * this node is itself a frame.
+	 */
+	parentLayoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID';
+	x: number;
+	y: number;
+	constraintHorizontal?: ConstraintType;
+	layoutPositioning?: 'AUTO' | 'ABSOLUTE';
+	gridRowAnchorIndex?: number;
+	gridColumnAnchorIndex?: number;
+	gridChildHorizontalAlign?: 'MIN' | 'CENTER' | 'MAX' | 'AUTO';
+
+	capturedAt: number;
+}
+
+/** Either arm. `withSnapshot` dispatches on node type; restore dispatches on `snapshotKind`. */
+export type NodeSnapshot = TextNodeSnapshot | LayoutSnapshot;
+
+/** The discriminant, defaulting an absent `kind` to `'text'` so pre-LS-11 snapshots still restore
+ *  without a schema bump or a migration. */
+export function snapshotKind(snapshot: NodeSnapshot): 'text' | 'layout' {
+	return snapshot.kind ?? 'text';
 }
 
 /** The clientStorage record of what is (or was) in flight, keyed by nodeId. Presence of an entry
@@ -100,4 +158,17 @@ export type RestoreStep =
 			readonly kind: 'set-align';
 			readonly horizontal: TextNode['textAlignHorizontal'];
 			readonly vertical: TextNode['textAlignVertical'];
-	  };
+	  }
+	// ── LS-11's layout arm ──
+	| {
+			readonly kind: 'set-layout-align';
+			readonly primary?: LayoutSnapshot['primaryAxisAlignItems'];
+			readonly counter?: LayoutSnapshot['counterAxisAlignItems'];
+	  }
+	| { readonly kind: 'set-padding'; readonly left: number; readonly right: number }
+	| { readonly kind: 'set-item-reverse-z'; readonly value: boolean }
+	| { readonly kind: 'set-child-order'; readonly childIds: readonly string[] }
+	| { readonly kind: 'set-x'; readonly x: number }
+	| { readonly kind: 'set-constraint-horizontal'; readonly value: ConstraintType }
+	| { readonly kind: 'set-grid-position'; readonly row: number; readonly column: number }
+	| { readonly kind: 'set-grid-align'; readonly value: LayoutSnapshot['gridChildHorizontalAlign'] };

@@ -233,6 +233,31 @@ consult the live docs — never invent API shape from memory.**
   of the node's position.
   <https://developers.figma.com/docs/plugins/api/properties/nodes-rotation/>
 
+### Auto-layout, constraints & grid (LS-11)
+
+Verified against `node_modules/@figma/plugin-typings/plugin-api.d.ts` in this repo.
+
+- **`layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID'`** — **`GRID` is newer than most
+  published guidance** and is *not* a horizontal flow: its children are placed by row/column index,
+  not by array order, so a rule written for `HORIZONTAL` does not apply to it.
+- **`primaryAxisAlignItems: 'MIN' | 'MAX' | 'CENTER' | 'SPACE_BETWEEN'`** and
+  **`counterAxisAlignItems: 'MIN' | 'MAX' | 'CENTER' | 'BASELINE'`**. The *horizontal* axis is the
+  **primary** axis in a horizontal frame and the **counter** axis in a vertical one — a horizontal
+  transform must flip whichever is horizontal for that frame and leave the other alone.
+- **`layoutWrap: 'NO_WRAP' | 'WRAP'`**; **`layoutPositioning: 'AUTO' | 'ABSOLUTE'`** — an `ABSOLUTE`
+  child is removed from its parent's auto-layout flow, so its `x` is authored rather than derived.
+- **`ConstraintType = 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'SCALE'`** (`node.constraints`).
+- **`itemReverseZIndex: boolean`** — an auto-layout frame's `children` array drives **both** layout
+  order and paint order (`children[0]` lays out first and paints behind). **Gotcha:** reversing the
+  array to mirror a layout therefore silently re-stacks overlapping children; `itemReverseZIndex`
+  exists to decouple the two.
+- **`gridRowAnchorIndex` / `gridColumnAnchorIndex` are read-only.** Position is written with
+  **`setGridChildPosition(row, column)`**, which **throws if the write transiently overlaps another
+  child** — so a column permutation cannot be applied one child at a time; stage the moves.
+- **Children of instances cannot be reparented** (the typings say so of `figma.group`'s node list).
+  `insertChild` reordering inside an `INSTANCE` is therefore impossible, and `x`/geometry writes on
+  an instance child throw "cannot be overridden in an instance".
+
 ### Restore mechanics
 
 - **`resizeWithoutConstraints(w, h)` for exact restore** — plain `resize()` re-applies child

@@ -57,6 +57,42 @@ export function collectTextNodes(scope: ScanScope): TextNode[] {
 	return [...byId.values()];
 }
 
+/** The node types an RTL mirror treats as containers (LS-11 §2.2). */
+const CONTAINER_TYPES = ['FRAME', 'COMPONENT', 'COMPONENT_SET', 'INSTANCE', 'GROUP', 'SECTION'] as const;
+
+/**
+ * Every **container** in `scope`, in document order — the frames an RTL mirror walks (LS-11 §1.2).
+ *
+ * `collectTextNodes` cannot serve this: a mirror mutates layout on frames, not characters on text.
+ * Same scope semantics, same `NoSelectionError`, so the two are interchangeable at the call site.
+ *
+ * `GROUP` and `SECTION` are included alongside the frame-likes: a group has no layout properties but
+ * still positions its children, and a section behaves as a frame with `layoutMode: 'NONE'`
+ * (`docs/rtl-mirroring-ruleset.md` §7.4, `docs/specs/LS-11.md` §2.2). Hidden nodes are kept, matching
+ * `collectTextNodes` — characterized, never silently dropped.
+ */
+export function collectContainers(scope: ScanScope): SceneNode[] {
+	// `findAllWithCriteria` takes a mutable array, so this is not `as const`; CONTAINER_TYPES holds
+	// the readonly copy used for the membership test.
+	const types: NodeType[] = [...CONTAINER_TYPES];
+
+	if (scope === 'page') return figma.currentPage.findAllWithCriteria({ types });
+
+	const selection = figma.currentPage.selection;
+	if (selection.length === 0) throw new NoSelectionError();
+
+	// A selected container counts itself AND contributes its subtree; de-dup by id, since a selected
+	// frame may also sit inside another selected frame.
+	const byId = new Map<string, SceneNode>();
+	for (const node of selection) {
+		if ((CONTAINER_TYPES as readonly string[]).includes(node.type)) byId.set(node.id, node);
+		if ('findAllWithCriteria' in node) {
+			for (const found of node.findAllWithCriteria({ types })) byId.set(found.id, found);
+		}
+	}
+	return [...byId.values()];
+}
+
 function buildModel(node: TextNode): TextNodeModel {
 	// One upward walk collects everything ancestor-derived: effective-flag inputs, instance
 	// detection, and the nearest named frame ancestors (nearest-first) for the display label.

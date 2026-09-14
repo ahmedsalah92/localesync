@@ -7,11 +7,13 @@ import {
 	isRecognizedSchema,
 	mergeManifest,
 	mutationBlockReason,
+	planLayoutRestore,
 	planRestore,
 	removeFromManifest,
 	serializeSnapshot,
 } from './plan';
-import type { EligibilityFlags, Manifest, MutationOp, RestoreStep, TextNodeSnapshot } from './types';
+import { snapshotKind } from './types';
+import type { EligibilityFlags, LayoutSnapshot, Manifest, MutationOp, RestoreStep, TextNodeSnapshot } from './types';
 
 const OPS: MutationOp[] = ['pseudoloc', 'preview', 'rtl-mirror'];
 
@@ -154,9 +156,16 @@ describe('manifest merge/remove helpers', () => {
 });
 
 describe('planRestore — per-mode step sequence (Resolved Defaults §3)', () => {
-	it("NONE → resize BEFORE mode (resizeWithoutConstraints resets textAutoResize, so re-assert it)", () => {
+	it('NONE → resize BEFORE mode (resizeWithoutConstraints resets textAutoResize, so re-assert it)', () => {
 		const steps = planRestore(makeSnapshot({ textAutoResize: 'NONE' }));
-		expect(kinds(steps)).toEqual(['set-characters', 'resize', 'set-auto-resize', 'set-truncation', 'set-position', 'set-align']);
+		expect(kinds(steps)).toEqual([
+			'set-characters',
+			'resize',
+			'set-auto-resize',
+			'set-truncation',
+			'set-position',
+			'set-align',
+		]);
 		const resizeAt = kinds(steps).indexOf('resize');
 		const modeAt = kinds(steps).indexOf('set-auto-resize');
 		expect(resizeAt).toBeLessThan(modeAt);
@@ -165,7 +174,14 @@ describe('planRestore — per-mode step sequence (Resolved Defaults §3)', () =>
 
 	it('HEIGHT → resize BEFORE mode, mode re-asserted as HEIGHT', () => {
 		const steps = planRestore(makeSnapshot({ textAutoResize: 'HEIGHT' }));
-		expect(kinds(steps)).toEqual(['set-characters', 'resize', 'set-auto-resize', 'set-truncation', 'set-position', 'set-align']);
+		expect(kinds(steps)).toEqual([
+			'set-characters',
+			'resize',
+			'set-auto-resize',
+			'set-truncation',
+			'set-position',
+			'set-align',
+		]);
 		expect(steps.find((s) => s.kind === 'set-auto-resize')).toMatchObject({ mode: 'HEIGHT' });
 	});
 
@@ -198,7 +214,9 @@ describe('planRestore — per-mode step sequence (Resolved Defaults §3)', () =>
 	});
 
 	it('always ends by restoring position then alignment', () => {
-		const steps = planRestore(makeSnapshot({ x: 7, y: 9, textAlignHorizontal: 'RIGHT', textAlignVertical: 'CENTER' }));
+		const steps = planRestore(
+			makeSnapshot({ x: 7, y: 9, textAlignHorizontal: 'RIGHT', textAlignVertical: 'CENTER' }),
+		);
 		expect(steps[steps.length - 2]).toEqual({ kind: 'set-position', x: 7, y: 9 });
 		expect(steps[steps.length - 1]).toEqual({ kind: 'set-align', horizontal: 'RIGHT', vertical: 'CENTER' });
 	});
@@ -214,7 +232,122 @@ describe('planRestore — per-mode step sequence (Resolved Defaults §3)', () =>
 	});
 
 	it('inInstance:false is the default and restores the full property set', () => {
-		expect(kinds(planRestore(makeSnapshot({ textAutoResize: 'NONE' }), { inInstance: false }))).toContain('set-position');
+		expect(kinds(planRestore(makeSnapshot({ textAutoResize: 'NONE' }), { inInstance: false }))).toContain(
+			'set-position',
+		);
 		expect(kinds(planRestore(makeSnapshot({ textAutoResize: 'NONE' })))).toContain('set-position');
+	});
+});
+
+// ── LS-11's layout arm ─────────────────────────────────────────────────────────
+function layoutSnapshot(overrides: Partial<LayoutSnapshot> = {}): LayoutSnapshot {
+	return {
+		schemaVersion: 1,
+		kind: 'layout',
+		nodeId: 'n:1',
+		op: 'rtl-mirror',
+		x: 10,
+		y: 20,
+		capturedAt: 0,
+		...overrides,
+	};
+}
+
+describe('planLayoutRestore — only plans what was actually captured (LS-11 §1.2)', () => {
+	// The guard that matters: a VECTOR has no `layoutMode` and a non-grid child has no anchors.
+	// Planning a step for an absent field would make restore throw on a perfectly ordinary node.
+	it('emits nothing layout-ish for a bare node', () => {
+		expect(
+			kinds(planLayoutRestore(layoutSnapshot({ layoutPositioning: 'AUTO', parentLayoutMode: 'HORIZONTAL' }))),
+		).toEqual([]);
+	});
+
+	it('emits a step per captured field, and only those', () => {
+		const steps = planLayoutRestore(
+			layoutSnapshot({
+				layoutMode: 'HORIZONTAL',
+				primaryAxisAlignItems: 'MIN',
+				counterAxisAlignItems: 'CENTER',
+				paddingLeft: 16,
+				paddingRight: 8,
+				itemReverseZIndex: false,
+				childOrder: ['a', 'b', 'c'],
+			}),
+		);
+		// No parentLayoutMode captured means no auto-layout parent, so `x` is authored and restored.
+		expect(kinds(steps)).toEqual([
+			'set-layout-align',
+			'set-padding',
+			'set-item-reverse-z',
+			'set-x',
+			'set-child-order',
+		]);
+	});
+
+	// Re-inserting children re-derives every child's x in an auto-layout frame, so a position write
+	// before it would be overwritten and one after it would fight the layout.
+	it('restores child order LAST', () => {
+		const steps = planLayoutRestore(
+			layoutSnapshot({
+				layoutPositioning: 'ABSOLUTE',
+				parentLayoutMode: 'HORIZONTAL',
+				childOrder: ['a', 'b'],
+				paddingLeft: 1,
+				paddingRight: 2,
+			}),
+		);
+		const order = kinds(steps);
+		expect(order[order.length - 1]).toBe('set-child-order');
+		expect(kinds(steps)).toContain('set-x');
+	});
+
+	it('writes x only for a node its parent does not lay out', () => {
+		// Absolutely positioned: x is authored, so it must be restored.
+		expect(
+			kinds(planLayoutRestore(layoutSnapshot({ layoutPositioning: 'ABSOLUTE', layoutMode: 'NONE' }))),
+		).toContain('set-x');
+		// An auto-layout child's x is derived by the parent — writing it back would fight the layout.
+		expect(
+			kinds(planLayoutRestore(layoutSnapshot({ layoutPositioning: 'AUTO', parentLayoutMode: 'HORIZONTAL' }))),
+		).not.toContain('set-x');
+	});
+
+	it('plans grid position and alignment only when both anchors were captured', () => {
+		const withGrid = planLayoutRestore(
+			layoutSnapshot({ gridRowAnchorIndex: 1, gridColumnAnchorIndex: 2, gridChildHorizontalAlign: 'MIN' }),
+		);
+		expect(kinds(withGrid)).toContain('set-grid-position');
+		expect(kinds(withGrid)).toContain('set-grid-align');
+		// A half-captured grid position is not a position; planning it would throw on restore.
+		expect(kinds(planLayoutRestore(layoutSnapshot({ gridRowAnchorIndex: 1 })))).not.toContain('set-grid-position');
+	});
+});
+
+describe('planRestore dispatch and backward compatibility', () => {
+	it('routes a layout snapshot to the layout arm', () => {
+		expect(
+			kinds(planRestore(layoutSnapshot({ paddingLeft: 4, paddingRight: 0, parentLayoutMode: 'VERTICAL' }))),
+		).toEqual(['set-padding']);
+	});
+
+	it('routes a text snapshot to the text arm', () => {
+		expect(kinds(planRestore(makeSnapshot()))).toContain('set-characters');
+	});
+
+	/**
+	 * Pre-LS-11 snapshots were written with no `kind` and are sitting in real users' pluginData right
+	 * now. They must still restore as text — this is why `kind` was added as optional rather than
+	 * bumping SNAPSHOT_SCHEMA_VERSION and forcing a migration.
+	 */
+	it('treats a snapshot with no `kind` as text', () => {
+		const legacy = makeSnapshot();
+		delete (legacy as { kind?: unknown }).kind;
+		expect(snapshotKind(legacy)).toBe('text');
+		expect(kinds(planRestore(legacy))).toContain('set-characters');
+	});
+
+	it('round-trips a layout snapshot through serialize/deserialize', () => {
+		const snapshot = layoutSnapshot({ childOrder: ['a', 'b'], paddingLeft: 3, paddingRight: 9 });
+		expect(deserializeSnapshot(serializeSnapshot(snapshot))).toEqual(snapshot);
 	});
 });

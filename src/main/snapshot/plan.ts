@@ -4,7 +4,16 @@
 // and the restore-order plan. The impure applier that touches live nodes lives in ./index.
 import type { BlockReason } from '../../common/models';
 import { SNAPSHOT_SCHEMA_VERSION } from './types';
-import type { EligibilityFlags, Manifest, MutationOp, RestoreStep, TextNodeSnapshot } from './types';
+import { snapshotKind } from './types';
+import type {
+	EligibilityFlags,
+	LayoutSnapshot,
+	Manifest,
+	MutationOp,
+	NodeSnapshot,
+	RestoreStep,
+	TextNodeSnapshot,
+} from './types';
 
 // Deterministic eligibility table (Resolved Defaults §1), rows checked top-to-bottom; the first
 // match wins. Mirrors the spec table 1:1 so the precedence (missing-font before empty before
@@ -37,15 +46,15 @@ export function mutationBlockReason(flags: EligibilityFlags, op: MutationOp): Bl
 	return null;
 }
 
-export function serializeSnapshot(snapshot: TextNodeSnapshot): string {
+export function serializeSnapshot(snapshot: NodeSnapshot): string {
 	return JSON.stringify(snapshot);
 }
 
 /** Parse a stored snapshot. Never throws on an unrecognized schemaVersion — the caller does a
  *  best-effort restore of the fields present (Resolved Defaults §7); malformed JSON is the caller's
  *  to guard (getPluginData returns '' for an absent key). */
-export function deserializeSnapshot(json: string): TextNodeSnapshot {
-	return JSON.parse(json) as TextNodeSnapshot;
+export function deserializeSnapshot(json: string): NodeSnapshot {
+	return JSON.parse(json) as NodeSnapshot;
 }
 
 export function isRecognizedSchema(snapshot: { schemaVersion?: unknown }): boolean {
@@ -77,7 +86,7 @@ export function removeFromManifest(base: Manifest, nodeIds: readonly string[]): 
  *  resize, textAutoResize) throw "cannot be overridden in an instance", and every non-character
  *  captured value is provably unchanged — so we neither can nor need to restore them. If a future op
  *  gains an overridable instance property, expand this per the §9 uncaptured-property note. */
-export function planRestore(snapshot: TextNodeSnapshot, opts: { inInstance?: boolean } = {}): RestoreStep[] {
+export function planTextRestore(snapshot: TextNodeSnapshot, opts: { inInstance?: boolean } = {}): RestoreStep[] {
 	const steps: RestoreStep[] = [{ kind: 'set-characters', characters: snapshot.characters }];
 	if (opts.inInstance) return steps;
 
@@ -106,4 +115,64 @@ export function planRestore(snapshot: TextNodeSnapshot, opts: { inInstance?: boo
 		vertical: snapshot.textAlignVertical,
 	});
 	return steps;
+}
+
+/**
+ * The layout arm's restore plan (LS-11).
+ *
+ * Order matters in one place: **child order is restored last**. Re-inserting children is the only
+ * step that moves other nodes, and in an auto-layout frame it re-derives every child's `x` — so a
+ * position write before it would be overwritten, and one after it would fight the layout.
+ *
+ * Every step is emitted only when the capture actually holds that field. Absent means the property
+ * does not exist on this node (a VECTOR has no `layoutMode`), and writing it would throw.
+ */
+export function planLayoutRestore(snapshot: LayoutSnapshot): RestoreStep[] {
+	const steps: RestoreStep[] = [];
+
+	if (snapshot.primaryAxisAlignItems !== undefined || snapshot.counterAxisAlignItems !== undefined) {
+		steps.push({
+			kind: 'set-layout-align',
+			primary: snapshot.primaryAxisAlignItems,
+			counter: snapshot.counterAxisAlignItems,
+		});
+	}
+	if (snapshot.paddingLeft !== undefined && snapshot.paddingRight !== undefined) {
+		steps.push({ kind: 'set-padding', left: snapshot.paddingLeft, right: snapshot.paddingRight });
+	}
+	if (snapshot.itemReverseZIndex !== undefined) {
+		steps.push({ kind: 'set-item-reverse-z', value: snapshot.itemReverseZIndex });
+	}
+	if (snapshot.constraintHorizontal !== undefined) {
+		steps.push({ kind: 'set-constraint-horizontal', value: snapshot.constraintHorizontal });
+	}
+	if (snapshot.gridRowAnchorIndex !== undefined && snapshot.gridColumnAnchorIndex !== undefined) {
+		steps.push({
+			kind: 'set-grid-position',
+			row: snapshot.gridRowAnchorIndex,
+			column: snapshot.gridColumnAnchorIndex,
+		});
+	}
+	if (snapshot.gridChildHorizontalAlign !== undefined) {
+		steps.push({ kind: 'set-grid-align', value: snapshot.gridChildHorizontalAlign });
+	}
+	// `x` is authored only when the PARENT does not lay this node out — either the node opted out
+	// with ABSOLUTE positioning, or the parent has no auto-layout at all. For an auto-layout child
+	// `x` is derived, and writing it back would fight the layout on the next reflow.
+	const laidOutByParent =
+		snapshot.layoutPositioning !== 'ABSOLUTE' &&
+		snapshot.parentLayoutMode !== undefined &&
+		snapshot.parentLayoutMode !== 'NONE';
+	if (!laidOutByParent) steps.push({ kind: 'set-x', x: snapshot.x });
+	if (snapshot.childOrder !== undefined) {
+		steps.push({ kind: 'set-child-order', childIds: snapshot.childOrder });
+	}
+	return steps;
+}
+
+/** Dispatches on the discriminant. Pre-LS-11 snapshots have no `kind` and read as text. */
+export function planRestore(snapshot: NodeSnapshot, opts: { inInstance?: boolean } = {}): RestoreStep[] {
+	return snapshotKind(snapshot) === 'layout'
+		? planLayoutRestore(snapshot as LayoutSnapshot)
+		: planTextRestore(snapshot as TextNodeSnapshot, opts);
 }

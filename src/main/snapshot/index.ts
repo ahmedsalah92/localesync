@@ -23,18 +23,14 @@ import {
 	removeFromManifest,
 	serializeSnapshot,
 } from './plan';
-import {
-	MANIFEST_KEY,
-	SNAPSHOT_KEY,
-	SNAPSHOT_MAX_BYTES,
-	SNAPSHOT_SCHEMA_VERSION,
-	SnapshotError,
-} from './types';
+import { MANIFEST_KEY, SNAPSHOT_KEY, SNAPSHOT_MAX_BYTES, SNAPSHOT_SCHEMA_VERSION, SnapshotError } from './types';
 import type {
 	BatchResult,
 	EligibilityFlags,
+	LayoutSnapshot,
 	Manifest,
 	MutationOp,
+	NodeSnapshot,
 	RestoreResult,
 	RestoreStep,
 	TextNodeSnapshot,
@@ -42,12 +38,21 @@ import type {
 
 // Re-export the public contract so consumers import from '../snapshot'.
 export { SNAPSHOT_KEY, MANIFEST_KEY, SnapshotError, mutationBlockReason, planRestore };
-export type { MutationOp, TextNodeSnapshot, Manifest, EligibilityFlags, RestoreResult, BatchResult };
+export type {
+	MutationOp,
+	TextNodeSnapshot,
+	LayoutSnapshot,
+	NodeSnapshot,
+	Manifest,
+	EligibilityFlags,
+	RestoreResult,
+	BatchResult,
+};
 
 // ── session state ────────────────────────────────────────────────────────────
 // In-memory refs of nodes mutated THIS session — the ONLY input the best-effort close handler has
 // (Design model §3). Durable recovery never reads this; restore-on-launch reads the manifest.
-const liveMutations = new Map<string, { node: TextNode; snapshot: TextNodeSnapshot }>();
+const liveMutations = new Map<string, { node: SceneNode; snapshot: NodeSnapshot }>();
 
 // ── eligibility (live-node derivation of EligibilityFlags) ─────────────────────
 function isInsideInstance(node: BaseNode): boolean {
@@ -59,12 +64,16 @@ function isInsideInstance(node: BaseNode): boolean {
 	return false;
 }
 
-function eligibilityFlagsOf(node: TextNode): EligibilityFlags {
+function eligibilityFlagsOf(node: SceneNode): EligibilityFlags {
+	// The first three are text properties. A frame has no font and no characters, so they are false
+	// rather than unknown — a container is never blocked for a reason that cannot apply to it
+	// (LS-11 §1.2). `inInstance` and `alreadyMutated` are meaningful for every node type.
+	const text = node.type === 'TEXT' ? node : null;
 	return {
-		hasMissingFont: node.hasMissingFont,
-		isMixedFont: node.fontName === figma.mixed,
+		hasMissingFont: text?.hasMissingFont ?? false,
+		isMixedFont: text !== null && text.fontName === figma.mixed,
 		inInstance: isInsideInstance(node),
-		empty: node.characters.length === 0,
+		empty: text !== null && text.characters.length === 0,
 		// Per-node pluginData, not the manifest: both are cleared together on restore and on
 		// rollback, and this is the authoritative record for the node in front of us. A snapshot
 		// surviving a failed restore-on-launch also reads as mutated here, which is correct — that
@@ -91,9 +100,51 @@ export async function ensureFontsLoaded(node: TextNode): Promise<void> {
 }
 
 // ── capture ──────────────────────────────────────────────────────────────────
-function captureSnapshot(node: TextNode, op: MutationOp, capturedAt: number): TextNodeSnapshot {
+/**
+ * LS-11's layout arm. Each field is captured **only when the node actually has it** — a VECTOR has
+ * no `layoutMode`, grid anchors exist only on the direct child of a GRID frame — so an absent field
+ * means "not applicable", and restore never writes a property that would throw.
+ *
+ * `childOrder` is deliberately skipped for an INSTANCE: its children cannot be reparented, so the
+ * order can neither change nor be restored.
+ */
+function captureLayoutSnapshot(node: SceneNode, op: MutationOp, capturedAt: number): LayoutSnapshot {
+	const snapshot: LayoutSnapshot = {
+		schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+		kind: 'layout',
+		nodeId: node.id,
+		op,
+		x: node.x,
+		y: node.y,
+		capturedAt,
+	};
+	if ('layoutMode' in node) {
+		snapshot.layoutMode = node.layoutMode;
+		snapshot.primaryAxisAlignItems = node.primaryAxisAlignItems;
+		snapshot.counterAxisAlignItems = node.counterAxisAlignItems;
+		snapshot.paddingLeft = node.paddingLeft;
+		snapshot.paddingRight = node.paddingRight;
+		snapshot.itemReverseZIndex = node.itemReverseZIndex;
+	}
+	if ('children' in node && node.type !== 'INSTANCE') {
+		snapshot.childOrder = node.children.map((child) => child.id);
+	}
+	const parent = node.parent;
+	if (parent !== null && 'layoutMode' in parent) snapshot.parentLayoutMode = parent.layoutMode;
+	if ('constraints' in node) snapshot.constraintHorizontal = node.constraints.horizontal;
+	if ('layoutPositioning' in node) snapshot.layoutPositioning = node.layoutPositioning;
+	if ('gridRowAnchorIndex' in node && 'gridColumnAnchorIndex' in node) {
+		snapshot.gridRowAnchorIndex = node.gridRowAnchorIndex;
+		snapshot.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
+	}
+	if ('gridChildHorizontalAlign' in node) snapshot.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	return snapshot;
+}
+
+function captureTextSnapshot(node: TextNode, op: MutationOp, capturedAt: number): TextNodeSnapshot {
 	return {
 		schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+		kind: 'text',
 		nodeId: node.id,
 		op,
 		characters: node.characters,
@@ -110,10 +161,18 @@ function captureSnapshot(node: TextNode, op: MutationOp, capturedAt: number): Te
 	};
 }
 
-function readSnapshot(node: TextNode): TextNodeSnapshot | null {
+/** Dispatch on node type: a TEXT node keeps the proven text arm, everything else takes the layout
+ *  arm. The mirror calls this with both in one batch (LS-11 §1.2). */
+function captureSnapshot(node: SceneNode, op: MutationOp, capturedAt: number): NodeSnapshot {
+	return node.type === 'TEXT'
+		? captureTextSnapshot(node, op, capturedAt)
+		: captureLayoutSnapshot(node, op, capturedAt);
+}
+
+function readSnapshot(node: SceneNode): NodeSnapshot | null {
 	const json = node.getPluginData(SNAPSHOT_KEY);
 	if (json === '') return null; // absent key returns '' — treat as no durable snapshot
-	let snapshot: TextNodeSnapshot;
+	let snapshot: NodeSnapshot;
 	try {
 		snapshot = deserializeSnapshot(json);
 	} catch {
@@ -132,11 +191,14 @@ function readSnapshot(node: TextNode): TextNodeSnapshot | null {
 // Synchronous property writes only, so the close handler can reuse it without awaiting (fonts are
 // already loaded there). Ordering — resize before mode, maxLines gated on ENDING — lives in
 // planRestore, not here.
-function applyRestorePlan(node: TextNode, steps: readonly RestoreStep[]): void {
+function applyRestorePlan(node: SceneNode, steps: readonly RestoreStep[]): void {
 	for (const step of steps) {
+		// Every text step below is planned only for a TEXT snapshot, so this narrowing can never
+		// discard a step that was meant to run — it satisfies the compiler without changing behaviour.
+		const text = node.type === 'TEXT' ? node : null;
 		switch (step.kind) {
 			case 'set-characters':
-				node.characters = step.characters;
+				if (text) text.characters = step.characters;
 				break;
 			case 'resize':
 				// Zero-size restore (Resolved Defaults §8): captured dims come from a live node Figma
@@ -146,25 +208,73 @@ function applyRestorePlan(node: TextNode, steps: readonly RestoreStep[]): void {
 				if (import.meta.env.DEV && !(step.width > 0 && step.height > 0)) {
 					console.warn(`[snapshot] illegal restore dims ${step.width}×${step.height}`);
 				}
-				node.resizeWithoutConstraints(step.width, step.height);
+				if (text) text.resizeWithoutConstraints(step.width, step.height);
 				break;
 			case 'set-auto-resize':
-				node.textAutoResize = step.mode;
+				if (text) text.textAutoResize = step.mode;
 				break;
 			case 'set-truncation':
-				node.textTruncation = step.textTruncation;
+				if (text) text.textTruncation = step.textTruncation;
 				break;
 			case 'set-max-lines':
-				node.maxLines = step.maxLines;
+				if (text) text.maxLines = step.maxLines;
 				break;
 			case 'set-position':
 				node.x = step.x;
 				node.y = step.y;
 				break;
 			case 'set-align':
-				node.textAlignHorizontal = step.horizontal;
-				node.textAlignVertical = step.vertical;
+				if (text) {
+					text.textAlignHorizontal = step.horizontal;
+					text.textAlignVertical = step.vertical;
+				}
 				break;
+
+			// ── LS-11's layout arm ──
+			// Each guard mirrors the capture guard: a field is only ever planned when the node had it,
+			// so these `in` checks are belt-and-braces against a snapshot restored onto a retyped node.
+			case 'set-layout-align':
+				if ('primaryAxisAlignItems' in node) {
+					if (step.primary !== undefined) node.primaryAxisAlignItems = step.primary;
+					if (step.counter !== undefined) node.counterAxisAlignItems = step.counter;
+				}
+				break;
+			case 'set-padding':
+				if ('paddingLeft' in node) {
+					node.paddingLeft = step.left;
+					node.paddingRight = step.right;
+				}
+				break;
+			case 'set-item-reverse-z':
+				if ('itemReverseZIndex' in node) node.itemReverseZIndex = step.value;
+				break;
+			case 'set-x':
+				node.x = step.x;
+				break;
+			case 'set-constraint-horizontal':
+				if ('constraints' in node) node.constraints = { ...node.constraints, horizontal: step.value };
+				break;
+			case 'set-grid-position':
+				if ('setGridChildPosition' in node) node.setGridChildPosition(step.row, step.column);
+				break;
+			case 'set-grid-align':
+				if ('gridChildHorizontalAlign' in node && step.value !== undefined) {
+					node.gridChildHorizontalAlign = step.value;
+				}
+				break;
+			case 'set-child-order': {
+				// Re-insertion is the only way to restore a permutation. Insert in the recorded order:
+				// each call moves that child to `index`, so after the last one the array matches exactly.
+				if (!('children' in node)) break;
+				const byId = new Map(node.children.map((child) => [child.id, child]));
+				step.childIds.forEach((id, index) => {
+					const child = byId.get(id);
+					// A child deleted since capture is skipped rather than throwing — the remaining
+					// children still land in their recorded relative order.
+					if (child !== undefined) node.insertChild(index, child);
+				});
+				break;
+			}
 		}
 	}
 }
@@ -172,11 +282,14 @@ function applyRestorePlan(node: TextNode, steps: readonly RestoreStep[]): void {
 /** Load fonts → apply the restore plan → clear the node's snapshot pluginData. Does NOT touch the
  *  clientStorage manifest — the caller batches that. Throws RESTORE_FAILED if the font is
  *  unavailable on this machine (Resolved Defaults §5). */
-async function restoreNodeProperties(node: TextNode, snapshot: TextNodeSnapshot): Promise<void> {
-	try {
-		await ensureFontsLoaded(node);
-	} catch {
-		throw new SnapshotError('RESTORE_FAILED', node.id, 'Font unavailable at restore time');
+async function restoreNodeProperties(node: SceneNode, snapshot: NodeSnapshot): Promise<void> {
+	// Fonts are a text concern: a layout restore writes no glyphs and must not fail on a missing one.
+	if (node.type === 'TEXT') {
+		try {
+			await ensureFontsLoaded(node);
+		} catch {
+			throw new SnapshotError('RESTORE_FAILED', node.id, 'Font unavailable at restore time');
+		}
 	}
 	applyRestorePlan(node, planRestore(snapshot, { inInstance: isInsideInstance(node) }));
 	node.setPluginData(SNAPSHOT_KEY, '');
@@ -202,15 +315,15 @@ async function removeManifestEntries(nodeIds: readonly string[]): Promise<void> 
  *  read-modify-write per batch, written BEFORE the first mutation. On ANY failure the batch is
  *  all-or-nothing: every node already captured/mutated is restored and its durable record cleared
  *  before returning (Design model §5). */
-export async function withSnapshot(
-	nodes: readonly TextNode[],
+export async function withSnapshot<T extends SceneNode>(
+	nodes: readonly T[],
 	op: MutationOp,
-	mutate: (node: TextNode) => Promise<void>,
+	mutate: (node: T) => Promise<void>,
 ): Promise<BatchResult> {
 	const result: BatchResult = { succeeded: [], blocked: [], failed: [] };
 
 	// 1. Eligibility gate — ineligible nodes are blocked up front and never touched (Design model §4).
-	const eligible: TextNode[] = [];
+	const eligible: T[] = [];
 	for (const node of nodes) {
 		const reason = mutationBlockReason(eligibilityFlagsOf(node), op);
 		if (reason !== null) result.blocked.push({ nodeId: node.id, reason });
@@ -219,7 +332,7 @@ export async function withSnapshot(
 	if (eligible.length === 0) return result;
 
 	const capturedAt = Date.now();
-	const captured: { node: TextNode; snapshot: TextNodeSnapshot }[] = [];
+	const captured: { node: T; snapshot: NodeSnapshot }[] = [];
 	const delta: Manifest = {};
 	let failingNodeId: string | undefined;
 
@@ -227,7 +340,7 @@ export async function withSnapshot(
 		// 2. Durable capture per node: fonts → serialize → guard size → setPluginData → manifest delta.
 		for (const node of eligible) {
 			failingNodeId = node.id;
-			await ensureFontsLoaded(node);
+			if (node.type === 'TEXT') await ensureFontsLoaded(node);
 			const snapshot = captureSnapshot(node, op, capturedAt);
 			const json = serializeSnapshot(snapshot);
 			if (json.length > SNAPSHOT_MAX_BYTES) {
@@ -270,7 +383,7 @@ export async function withSnapshot(
  *  manifest write to drop them all. Fonts were already loaded during capture, so the restore is a
  *  synchronous best-effort; a failure here leaves the durable snapshot for restore-on-launch. */
 async function rollbackBatch(
-	captured: readonly { node: TextNode; snapshot: TextNodeSnapshot }[],
+	captured: readonly { node: SceneNode; snapshot: NodeSnapshot }[],
 	culpritId: string | undefined,
 	message: string,
 	result: BatchResult,
@@ -299,7 +412,9 @@ async function rollbackBatch(
  *  clears its pluginData entry and manifest entry. Idempotent: no snapshot → no-op. */
 export async function restoreNode(nodeId: string): Promise<RestoreResult> {
 	const node = await figma.getNodeByIdAsync(nodeId);
-	if (node === null || node.type !== 'TEXT') {
+	// Any scene node may now hold a snapshot (LS-11's layout arm), so the gate is "is it still a
+	// scene node", not "is it still text". Anything else is NODE_GONE, as before.
+	if (node === null || node.type === 'PAGE' || node.type === 'DOCUMENT' || !('parent' in node)) {
 		// Deleted or retyped (Resolved Defaults §6) — drop the manifest entry, never throw.
 		await removeManifestEntries([nodeId]);
 		liveMutations.delete(nodeId);
@@ -407,4 +522,3 @@ export function registerCloseHandler(): void {
 		liveMutations.clear();
 	});
 }
-

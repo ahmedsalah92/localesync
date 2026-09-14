@@ -72,6 +72,15 @@ export function DevHarness() {
 				>
 					Run LS-10 pseudo-loc check
 				</button>
+				{/* Read-only: clones to measure, never mutates. Run on the design file that produced the
+				    34% baseline — it measures the shipped and the superseded band tables against the SAME
+				    nodes in one pass, so the result cannot be confounded by the file having changed. */}
+				<button
+					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:calibration-compare' } }, '*')}
+				>
+					Run LS-23 calibration A/B
+				</button>
 				{/* Dev scaffold: raw postMessage of a `__dev:` sentinel intercepted by main.ts's
 				    onmessage wrapper. Intentionally bypasses the typed bridge — not feature code. */}
 				<button

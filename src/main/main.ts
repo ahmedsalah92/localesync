@@ -8,6 +8,7 @@ import { generateSnapshotRestore } from './devtools/generateSnapshotRestore';
 import { registerExtraction } from './extract';
 import { registerExtractionCheck } from './extract/check';
 import { registerOverflow } from './overflow';
+import { runCalibrationCompare } from './overflow/calibration';
 import { registerOverflowCheck } from './overflow/check';
 import { registerPseudoLoc } from './pseudoloc';
 import { runPseudoLocCheck } from './pseudoloc/check';
@@ -172,6 +173,19 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(
 							`[dev] generateExtractKeys failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:calibration-compare') {
+				void runCalibrationCompare()
+					.then(({ notes }) => {
+						for (const line of notes) console.log(`[dev] ${line}`);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] runCalibrationCompare failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
 				return;

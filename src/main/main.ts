@@ -11,6 +11,8 @@ import { registerOverflow } from './overflow';
 import { runCalibrationCompare } from './overflow/calibration';
 import { registerOverflowCheck } from './overflow/check';
 import { registerPseudoLoc } from './pseudoloc';
+import { registerRtlMirror } from './rtl';
+import { runRtlCheck } from './rtl/check';
 import { runPseudoLocCheck } from './pseudoloc/check';
 import { registerRoundtrip } from './roundtrip';
 import { registerCloseHandler, restoreAll } from './snapshot';
@@ -56,6 +58,7 @@ export default async function () {
 	// LS-10: apply/revert-pseudoloc. Registered AFTER restore-on-launch above, like every other
 	// mutating handler — it is the first production caller of withSnapshot.
 	registerPseudoLoc();
+	registerRtlMirror();
 	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
@@ -187,6 +190,21 @@ export default async function () {
 						console.error(
 							`[dev] runCalibrationCompare failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:rtl-check') {
+				void runRtlCheck()
+					.then(({ notes }) => {
+						for (const line of notes) console.log(`[dev] ${line}`);
+						const failed = notes.filter((n) => n.includes(':FAIL')).length;
+						console.log(
+							`[dev] LS-11 check complete — ${notes.filter((n) => n.includes(':PASS')).length} passed, ${failed} failed`,
+						);
+					})
+					.catch((err: unknown) => {
+						console.error(`[dev] runRtlCheck failed: ${err instanceof Error ? err.message : String(err)}`);
 					});
 				return;
 			}

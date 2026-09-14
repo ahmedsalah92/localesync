@@ -4,6 +4,7 @@ import type {
 	ExtractedString,
 	OverflowVerdict,
 	BlockedNode,
+	FlaggedNode,
 	PseudoLocOptions,
 	PreviewMap,
 } from './models';
@@ -111,13 +112,28 @@ export interface ErrorMessage extends Envelope<'error'> {
 	blocked?: BlockedNode[]; // present for `nodes-blocked` (flag 4: apply/revert skip channel)
 }
 
+/**
+ * The RTL mirror's review list (LS-11 §2.9). Sent BEFORE the terminal `progress`, so a panel that
+ * treats progress as "finished" already holds the list when it renders — the same ordering
+ * discipline `nodes-blocked` follows.
+ *
+ * A separate message rather than a `RequestResponse` entry: apply stays a command, so its failure
+ * path is unchanged, and an empty review list is simply no message. (LS-11 §1 originally claimed no
+ * transport change was needed; that was wrong — `nodes-blocked` carries nodes that were SKIPPED, and
+ * these were mirrored successfully.)
+ */
+export interface RtlFlagged extends Envelope<'rtl-flagged'> {
+	flagged: FlaggedNode[];
+}
+
 export type MainToUi =
 	| ScanResult
 	| ExtractionResult
 	| OverflowScanPartial
 	| OverflowScanResult
 	| ProgressMessage
-	| ErrorMessage;
+	| ErrorMessage
+	| RtlFlagged;
 
 export type AnyMessage = UiToMain | MainToUi;
 

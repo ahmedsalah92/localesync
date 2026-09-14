@@ -1,0 +1,181 @@
+// src/main/rtl/mirror.ts — the pure mirroring rules. No `figma` access, no bridge import, so the
+// whole ruleset is unit-testable without a plugin runtime (agent-guidelines §6).
+//
+// The authority for WHAT flips is `docs/rtl-mirroring-ruleset.md` (RTL-1 / LS-20); rules are cited
+// as F1–F10 and never restated here. This module is the translation of those rules into a list of
+// property writes, and nothing else — it decides, the caller applies.
+//
+// **Every rule is an involution.** Applying the plan twice must return the original: `MIN`↔`MAX` is
+// its own inverse, reversing a reversed array restores it, and the position rule is a reflection.
+// `mirror.test.ts` asserts that over every case, because it is the property that makes the mirror
+// safe to re-apply and cheap to reason about (LS-11 §2.3).
+
+/** Everything a rule needs, read off a live node by the caller. Optional fields mean the property
+ *  does not exist on this node — never "unknown". */
+export interface MirrorInput {
+	nodeId: string;
+
+	// ── as a parent ──
+	layoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID';
+	primaryAxisAlignItems?: 'MIN' | 'MAX' | 'CENTER' | 'SPACE_BETWEEN';
+	counterAxisAlignItems?: 'MIN' | 'MAX' | 'CENTER' | 'BASELINE';
+	paddingLeft?: number;
+	paddingRight?: number;
+	itemReverseZIndex?: boolean;
+	childCount?: number;
+	/** Children of an instance cannot be reparented, so F1 is impossible inside one (LS-11 §2.5). */
+	isInstance?: boolean;
+
+	// ── as a child of its own parent ──
+	parentLayoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID';
+	parentWidth?: number;
+	layoutPositioning?: 'AUTO' | 'ABSOLUTE';
+	x?: number;
+	width?: number;
+	constraintHorizontal?: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'SCALE';
+	gridColumnAnchorIndex?: number;
+	gridColumnSpan?: number;
+	/** The PARENT grid's column count — the reflection axis for F9. */
+	parentGridColumnCount?: number;
+	gridChildHorizontalAlign?: 'MIN' | 'CENTER' | 'MAX' | 'AUTO';
+
+	// ── text ──
+	textAlignHorizontal?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
+}
+
+export type MirrorWrite =
+	| { readonly kind: 'reverse-children' }
+	| { readonly kind: 'item-reverse-z'; readonly value: boolean }
+	| { readonly kind: 'primary-align'; readonly value: 'MIN' | 'MAX' }
+	| { readonly kind: 'counter-align'; readonly value: 'MIN' | 'MAX' }
+	| { readonly kind: 'padding'; readonly left: number; readonly right: number }
+	| { readonly kind: 'x'; readonly x: number }
+	| { readonly kind: 'constraint-horizontal'; readonly value: 'MIN' | 'MAX' }
+	| { readonly kind: 'grid-column'; readonly column: number }
+	| { readonly kind: 'grid-align'; readonly value: 'MIN' | 'MAX' }
+	| { readonly kind: 'text-align'; readonly value: 'LEFT' | 'RIGHT' };
+
+/** `MIN`↔`MAX`; every other value is horizontally neutral and passes through untouched. */
+function flipEnd<T extends string>(value: T): T | 'MIN' | 'MAX' {
+	if (value === 'MIN') return 'MAX';
+	if (value === 'MAX') return 'MIN';
+	return value;
+}
+
+const isEnd = (value: string | undefined): value is 'MIN' | 'MAX' => value === 'MIN' || value === 'MAX';
+
+/**
+ * F7's reflection: `x' = parentWidth − x − width`.
+ *
+ * Deliberately unclamped. A child wider than its parent produces a negative `x`, which is legal in
+ * Figma and is exactly the overflow a stress test exists to surface — clamping would hide it.
+ */
+export function mirrorX(x: number, width: number, parentWidth: number): number {
+	return parentWidth - x - width;
+}
+
+/** F9's reflection over columns, accounting for a child that spans more than one. */
+export function mirrorColumn(column: number, span: number, columnCount: number): number {
+	return columnCount - column - span;
+}
+
+/**
+ * `x` is authored only when the parent does not lay this node out — it opted out with `ABSOLUTE`
+ * positioning, or the parent has no auto-layout. For an auto-layout child `x` is derived, and
+ * writing it would fight the next reflow (LS-11 §2.3, and why F1 and F7 act on disjoint sets).
+ */
+export function isPositionedByParent(input: MirrorInput): boolean {
+	if (input.layoutPositioning === 'ABSOLUTE') return false;
+	return input.parentLayoutMode !== undefined && input.parentLayoutMode !== 'NONE';
+}
+
+/** The ruleset applied to one node. Order within the list does not matter — the writes are
+ *  independent — except that the caller applies `reverse-children` last (see `applyMirror`). */
+export function planMirror(input: MirrorInput): MirrorWrite[] {
+	const writes: MirrorWrite[] = [];
+
+	// F1 + F2 — reversing the children array mirrors the flow AND the paint order, so the z-index
+	// flag is toggled to keep the original stacking. One rule, two writes.
+	const horizontal = input.layoutMode === 'HORIZONTAL';
+	if (horizontal && input.isInstance !== true && (input.childCount ?? 0) > 1) {
+		writes.push({ kind: 'reverse-children' });
+		if (input.itemReverseZIndex !== undefined) {
+			writes.push({ kind: 'item-reverse-z', value: !input.itemReverseZIndex });
+		}
+	}
+
+	// F3 / F4 — flip whichever axis is the horizontal one for THIS frame, never both.
+	if (horizontal && isEnd(input.primaryAxisAlignItems)) {
+		writes.push({ kind: 'primary-align', value: flipEnd(input.primaryAxisAlignItems) });
+	}
+	if (input.layoutMode === 'VERTICAL' && isEnd(input.counterAxisAlignItems)) {
+		writes.push({ kind: 'counter-align', value: flipEnd(input.counterAxisAlignItems) });
+	}
+
+	// F5 — a symmetric inset is its own mirror; emitting it would be a no-op write.
+	if (
+		input.paddingLeft !== undefined &&
+		input.paddingRight !== undefined &&
+		input.paddingLeft !== input.paddingRight
+	) {
+		writes.push({ kind: 'padding', left: input.paddingRight, right: input.paddingLeft });
+	}
+
+	// F7
+	if (
+		!isPositionedByParent(input) &&
+		input.x !== undefined &&
+		input.width !== undefined &&
+		input.parentWidth !== undefined
+	) {
+		writes.push({ kind: 'x', x: mirrorX(input.x, input.width, input.parentWidth) });
+	}
+
+	// F8
+	if (isEnd(input.constraintHorizontal)) {
+		writes.push({ kind: 'constraint-horizontal', value: flipEnd(input.constraintHorizontal) });
+	}
+
+	// F9 / F10
+	if (
+		input.gridColumnAnchorIndex !== undefined &&
+		input.parentGridColumnCount !== undefined &&
+		input.parentGridColumnCount > 0
+	) {
+		writes.push({
+			kind: 'grid-column',
+			column: mirrorColumn(input.gridColumnAnchorIndex, input.gridColumnSpan ?? 1, input.parentGridColumnCount),
+		});
+	}
+	if (isEnd(input.gridChildHorizontalAlign)) {
+		writes.push({ kind: 'grid-align', value: flipEnd(input.gridChildHorizontalAlign) });
+	}
+
+	// F6 — CENTER and JUSTIFIED are horizontally neutral.
+	if (input.textAlignHorizontal === 'LEFT' || input.textAlignHorizontal === 'RIGHT') {
+		writes.push({ kind: 'text-align', value: input.textAlignHorizontal === 'LEFT' ? 'RIGHT' : 'LEFT' });
+	}
+
+	return writes;
+}
+
+/**
+ * G1 — does mirroring move this node without being able to rotate what it depicts?
+ *
+ * The plugin never mirrors artwork (N1), so a directional icon ends up on the other side still
+ * pointing the old way. That is the RTL breakage the designer needs to see, and it is reported
+ * rather than fixed (LS-11 §2.9). Vector-ish leaf types only: a frame that moves is layout, not art.
+ */
+export const FLAGGABLE_TYPES: readonly string[] = [
+	'VECTOR',
+	'STAR',
+	'LINE',
+	'ELLIPSE',
+	'POLYGON',
+	'RECTANGLE',
+	'BOOLEAN_OPERATION',
+];
+
+export function shouldFlagMoved(nodeType: string, moved: boolean): boolean {
+	return moved && FLAGGABLE_TYPES.includes(nodeType);
+}

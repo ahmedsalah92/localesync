@@ -4,6 +4,7 @@ import { generateExportCases } from './devtools/generateExportCases';
 import { generateExtractKeys } from './devtools/generateExtractKeys';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
+import { generateRtlMirror } from './devtools/generateRtlMirror';
 import { generateSnapshotRestore } from './devtools/generateSnapshotRestore';
 import { registerExtraction } from './extract';
 import { registerExtractionCheck } from './extract/check';
@@ -189,6 +190,23 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(
 							`[dev] runCalibrationCompare failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:generate-rtl-mirror') {
+				void generateRtlMirror()
+					.then((report) => {
+						console.log(
+							`[dev] generateRtlMirror: created ${report.created.length} node(s)`,
+							report.created,
+						);
+						console.log('[dev] manual steps remaining:', report.manualSteps);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] generateRtlMirror failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
 				return;

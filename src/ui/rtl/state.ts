@@ -94,9 +94,12 @@ export function missingFontCount(blocked: readonly BlockedNode[]): number {
  * "Nothing to mirror yet" while the banner said the mirror was applied), and presentation logic
  * inside a component is logic no test was watching.
  */
-export type RtlShell = 'operation-failed' | 'fonts-unavailable' | 'no-issues' | 'first-run' | null;
+export type RtlShell = 'operation-failed' | 'no-text-on-page' | 'fonts-unavailable' | 'no-issues' | 'first-run' | null;
 
 export function selectShell(state: RtlState, missingFonts: number): RtlShell {
+	// "Nothing in scope to mirror" is not a failure, and saying "The mirror failed and your canvas
+	// was restored" for it is alarming and untrue — nothing was attempted, so nothing was restored.
+	if (state.phase === 'failed' && state.errorCode === 'no-text-nodes') return 'no-text-on-page';
 	if (state.phase === 'failed') return 'operation-failed';
 	// Anything to review wins: the rows ARE the panel's content.
 	if (state.flagged.length > 0) return null;

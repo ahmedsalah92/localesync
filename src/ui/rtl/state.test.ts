@@ -190,3 +190,19 @@ describe('progressAction — what a terminal progress means (regression)', () =>
 		expect(isMirrorOn(afterRevert.phase)).toBe(false);
 	});
 });
+
+describe('selectShell distinguishes "nothing to mirror" from "the mirror failed"', () => {
+	// The panel showed "Couldn't complete — The mirror failed and your canvas was restored" when
+	// the real outcome was that nothing in scope was mirrorable. Alarming and untrue: nothing was
+	// attempted, so nothing was restored.
+	it('shows the empty state for no-text-nodes, not the failure state', () => {
+		const state = run([{ kind: 'apply-started' }, { kind: 'failed', code: 'no-text-nodes' }]);
+		expect(selectShell(state, 0)).toBe('no-text-on-page');
+	});
+
+	it('still shows the failure state for a genuine failure', () => {
+		const state = run([{ kind: 'apply-started' }, { kind: 'failed', code: 'mutation-failed' }]);
+		expect(selectShell(state, 0)).toBe('operation-failed');
+		expect(selectShell(run([{ kind: 'failed', code: 'internal' }]), 0)).toBe('operation-failed');
+	});
+});

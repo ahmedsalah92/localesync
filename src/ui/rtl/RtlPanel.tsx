@@ -106,6 +106,10 @@ export function RtlPanel() {
 				return;
 			}
 			pending.current = null;
+			// The panel renders one of a few fixed states, so the code and the main thread's own
+			// message are lost at this point. In dev that is the difference between "it failed" and
+			// knowing why — which is exactly what was missing when the toggle first misbehaved.
+			if (import.meta.env.DEV) console.error(`[dev] rtl ${msg.code}: ${msg.message}`);
 			dispatch({ kind: 'failed', code: msg.code });
 			setAppliedRef.current(null);
 		});
@@ -127,11 +131,13 @@ export function RtlPanel() {
 			? null
 			: which === 'operation-failed'
 				? { state: which, ...STATES.operationFailed }
-				: which === 'fonts-unavailable'
-					? { state: which, ...fontsUnavailable(missingFonts) }
-					: which === 'no-issues'
-						? { state: which, ...STATES.nothingToReview }
-						: { state: which, ...STATES.firstRun };
+				: which === 'no-text-on-page'
+					? { state: which, ...STATES.noText }
+					: which === 'fonts-unavailable'
+						? { state: which, ...fontsUnavailable(missingFonts) }
+						: which === 'no-issues'
+							? { state: which, ...STATES.nothingToReview }
+							: { state: which, ...STATES.firstRun };
 
 	return (
 		<>

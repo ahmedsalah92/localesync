@@ -86,3 +86,20 @@ export function isMirrorOn(phase: RtlPhase): boolean {
 export function missingFontCount(blocked: readonly BlockedNode[]): number {
 	return blocked.filter((entry) => entry.reason === 'missing-font').length;
 }
+
+/** Which empty/summary state the panel body should show, or `null` to render the review list.
+ *
+ * Extracted from the panel because it is decision logic, not markup — it shipped wrong once
+ * (a successful mirror with nothing to review fell through to the first-run copy and told the user
+ * "Nothing to mirror yet" while the banner said the mirror was applied), and presentation logic
+ * inside a component is logic no test was watching.
+ */
+export type RtlShell = 'operation-failed' | 'fonts-unavailable' | 'no-issues' | 'first-run' | null;
+
+export function selectShell(state: RtlState, missingFonts: number): RtlShell {
+	if (state.phase === 'failed') return 'operation-failed';
+	// Anything to review wins: the rows ARE the panel's content.
+	if (state.flagged.length > 0) return null;
+	if (state.phase === 'applied') return missingFonts > 0 ? 'fonts-unavailable' : 'no-issues';
+	return 'first-run';
+}

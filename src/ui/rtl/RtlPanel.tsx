@@ -4,11 +4,11 @@ import { on, send } from '../bridge';
 import { ControlBar } from '../shell/bands';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
-import { StateView, type ShellState } from '../shell/StateView';
+import { StateView } from '../shell/StateView';
 import { useApplied } from '../shell/applied';
 import { Switch } from '../shell/primitives/Switch';
 import { FLAG_REASON, LABELS, STATES, appliedMessage, fontsUnavailable } from './copy';
-import { initialRtlState, isBusy, isMirrorOn, missingFontCount, rtlReducer } from './state';
+import { initialRtlState, isBusy, isMirrorOn, missingFontCount, rtlReducer, selectShell } from './state';
 
 /**
  * The RTL tab: mirror the layout horizontally to surface right-to-left breakage, and revert it
@@ -91,24 +91,42 @@ export function RtlPanel() {
 	}, []);
 
 	const missingFonts = missingFontCount(state.blocked);
-	let shell: { state: ShellState; headline: string; body: string } | null = null;
-	if (state.phase === 'failed') {
-		shell = { state: 'operation-failed', ...STATES.operationFailed };
-	} else if (state.phase === 'applied' && state.flagged.length === 0 && missingFonts > 0) {
-		shell = { state: 'fonts-unavailable', ...fontsUnavailable(missingFonts) };
-	} else if (state.flagged.length === 0) {
-		shell = { state: 'first-run', ...STATES.firstRun };
-	}
+	const which = selectShell(state, missingFonts);
+	const shell =
+		which === null
+			? null
+			: which === 'operation-failed'
+				? { state: which, ...STATES.operationFailed }
+				: which === 'fonts-unavailable'
+					? { state: which, ...fontsUnavailable(missingFonts) }
+					: which === 'no-issues'
+						? { state: which, ...STATES.nothingToReview }
+						: { state: which, ...STATES.firstRun };
 
 	return (
 		<>
 			<ControlBar>
-				<Switch
-					checked={isMirrorOn(state.phase)}
-					onChange={onToggle}
-					label={LABELS.mirror}
-					disabled={isBusy(state.phase)}
-				/>
+				{/* `Switch` carries `label` as its aria-label only — it is composed into a labelled row
+				    wherever it appears, and DES-2 specifies a LABELLED switch here. Same markup and the
+				    same 8px gap as the Export modal's dedup toggle. */}
+				<span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacer-2)' }}>
+					<Switch
+						checked={isMirrorOn(state.phase)}
+						onChange={onToggle}
+						label={LABELS.mirror}
+						disabled={isBusy(state.phase)}
+					/>
+					<span
+						style={{
+							fontSize: 'var(--ls-text-size)',
+							lineHeight: 'var(--ls-text-line)',
+							letterSpacing: 'var(--ls-text-tracking)',
+							color: 'var(--ls-text-default)',
+						}}
+					>
+						{LABELS.mirror}
+					</span>
+				</span>
 			</ControlBar>
 
 			{shell !== null ? (

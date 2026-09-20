@@ -1,7 +1,7 @@
 // src/ui/rtl/state.test.ts — the reducer, pure (no React, no `./bridge`).
 import { describe, expect, it } from 'vitest';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
-import { initialRtlState, isBusy, isMirrorOn, missingFontCount, rtlReducer } from './state';
+import { initialRtlState, isBusy, isMirrorOn, missingFontCount, rtlReducer, selectShell } from './state';
 import type { RtlAction, RtlState } from './state';
 
 const run = (actions: RtlAction[], from: RtlState = initialRtlState()): RtlState => actions.reduce(rtlReducer, from);
@@ -99,5 +99,46 @@ describe('missingFontCount', () => {
 		expect(missingFontCount([blocked('missing-font'), blocked('instance-locked'), blocked('missing-font')])).toBe(
 			2,
 		);
+	});
+});
+
+describe('selectShell — what the panel body shows', () => {
+	const applied = (flagged = 0, blocked: BlockedNode[] = []): RtlState =>
+		run([
+			{ kind: 'apply-started' },
+			...(flagged > 0
+				? [{ kind: 'flagged' as const, flagged: Array.from({ length: flagged }, (_, i) => flag(String(i))) }]
+				: []),
+			{ kind: 'applied', blocked },
+		]);
+
+	/**
+	 * The regression this function exists for. A mirror that succeeded and flagged nothing used to
+	 * fall through to the first-run copy — telling the user "Nothing to mirror yet" directly under a
+	 * banner reading "RTL mirror applied". Two contradictory claims about the same canvas.
+	 */
+	it('does NOT show first-run after a successful mirror', () => {
+		expect(selectShell(applied(), 0)).toBe('no-issues');
+		expect(selectShell(applied(), 0)).not.toBe('first-run');
+	});
+
+	it('shows first-run only before anything is applied', () => {
+		expect(selectShell(initialRtlState(), 0)).toBe('first-run');
+		expect(selectShell(run([{ kind: 'revert-started' }, { kind: 'reverted' }], applied()), 0)).toBe('first-run');
+	});
+
+	// The rows ARE the content when there is something to review.
+	it('renders the review list rather than any empty state', () => {
+		expect(selectShell(applied(2), 0)).toBeNull();
+		expect(selectShell(applied(2), 3)).toBeNull();
+	});
+
+	it('reports skipped layers when a mirror applied but some were blocked', () => {
+		expect(selectShell(applied(0, [blocked('missing-font')]), 1)).toBe('fonts-unavailable');
+	});
+
+	// A failure outranks everything: the canvas was restored, so there is nothing to review.
+	it('shows the failure state even with a stale review list', () => {
+		expect(selectShell(run([{ kind: 'failed', code: 'mutation-failed' }], applied(2)), 0)).toBe('operation-failed');
 	});
 });

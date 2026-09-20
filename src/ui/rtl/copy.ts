@@ -45,6 +45,19 @@ export const STATES = {
 		headline: "Couldn't complete",
 		body: 'The mirror failed and your canvas was restored. Nothing was left changed.',
 	},
+	/**
+	 * **Amendment, not transcribed.** DES-2's state table has no RTL cell for "applied, nothing to
+	 * review", but the panel reaches it whenever a mirror succeeds and flags nothing — which is the
+	 * good case and should be the common one.
+	 *
+	 * Without it the panel falls back to `firstRun` and tells the user there is "Nothing to mirror
+	 * yet" while the banner directly above says the mirror IS applied. Two contradictory claims about
+	 * the same canvas is worse than an untranscribed string.
+	 */
+	nothingToReview: {
+		headline: 'Mirror applied',
+		body: 'Nothing needs a direction check. Look at the canvas to see how your layout holds up in RTL.',
+	},
 } as const;
 
 /**

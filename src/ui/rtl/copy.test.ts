@@ -45,7 +45,7 @@ describe('STATES — transcribed, with one deliberate omission', () => {
 	 * the same resolution as LS-10 §2.4.
 	 */
 	it('has no no-selection state, and names no scope control anywhere', () => {
-		expect(Object.keys(STATES)).toEqual(['firstRun', 'noText', 'operationFailed']);
+		expect(Object.keys(STATES)).toEqual(['firstRun', 'noText', 'operationFailed', 'nothingToReview']);
 		for (const state of Object.values(STATES)) {
 			expect(state.body).not.toMatch(/scope/i);
 		}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { ApplyRtlMirror, RevertRtlMirror, SelectNode } from '../../common/messages';
+import type { BlockedNode, FlaggedNode } from '../../common/models';
 import { on, send } from '../bridge';
 import { ControlBar } from '../shell/bands';
 import { ResultsList } from '../shell/ResultsList';
@@ -8,7 +9,16 @@ import { StateView } from '../shell/StateView';
 import { useApplied } from '../shell/applied';
 import { Switch } from '../shell/primitives/Switch';
 import { FLAG_REASON, LABELS, STATES, appliedMessage, fontsUnavailable } from './copy';
-import { initialRtlState, isBusy, isMirrorOn, missingFontCount, rtlReducer, selectShell } from './state';
+import {
+	initialRtlState,
+	isBusy,
+	isMirrorOn,
+	missingFontCount,
+	progressAction,
+	rtlReducer,
+	selectShell,
+	type PendingOp,
+} from './state';
 
 /**
  * The RTL tab: mirror the layout horizontally to surface right-to-left breakage, and revert it
@@ -29,39 +39,57 @@ export function RtlPanel() {
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for a mirror failure.
 	const jumpId = useRef<string | null>(null);
 
+	// What we are waiting on, in a REF. The listener below is registered once and must not read
+	// React state: a closure created before the toggle was clicked still holds the old phase.
+	const pending = useRef<PendingOp>(null);
+	// Accumulated by messages that arrive BEFORE the terminal progress, so the final dispatch has
+	// them without the listener needing to re-subscribe when they change.
+	const flagged = useRef<FlaggedNode[]>([]);
+	const blocked = useRef<BlockedNode[]>([]);
+
 	const onToggle = useCallback((checked: boolean) => {
 		if (checked) {
+			pending.current = 'apply';
+			flagged.current = [];
+			blocked.current = [];
 			runId.current = send<ApplyRtlMirror>({ type: 'apply-rtl-mirror', scope: 'selection' });
 			dispatch({ kind: 'apply-started' });
 		} else {
+			pending.current = 'revert';
 			runId.current = send<RevertRtlMirror>({ type: 'revert-rtl-mirror' });
 			dispatch({ kind: 'revert-started' });
 		}
 	}, []);
 
-	const applying = state.phase === 'applying';
-	// The banner's Revert is registered once per run; a ref keeps the effect off `onToggle`'s
-	// identity, so re-registering the listeners cannot drop an in-flight correlation id.
+	// The banner's Revert is the same action as turning the Switch off.
 	const onToggleRef = useRef(onToggle);
 	onToggleRef.current = onToggle;
+	const setAppliedRef = useRef(setApplied);
+	setAppliedRef.current = setApplied;
 
+	// Registered ONCE. Everything it reads is a ref, so there is nothing here that can go stale and
+	// no dependency that can cause a re-subscribe mid-run.
 	useEffect(() => {
 		// Both messages are commands, so the outcome arrives as progress/error rather than a typed
 		// response (LS-2). A terminal `progress` means done; `nodes-blocked` is a warning that
 		// precedes it and must not be treated as a failure.
 		const offFlagged = on('rtl-flagged', (msg) => {
 			if (msg.id !== runId.current) return;
+			flagged.current = msg.flagged;
 			dispatch({ kind: 'flagged', flagged: msg.flagged });
 		});
 		const offProgress = on('progress', (msg) => {
 			if (msg.id !== runId.current) return;
-			dispatch(applying ? { kind: 'applied', blocked: [] } : { kind: 'reverted' });
-			// The banner owns Revert, so turning the Switch off and pressing Revert are one action.
-			setApplied(
-				applying
+			const action = progressAction(pending.current, blocked.current);
+			const wasApply = pending.current === 'apply';
+			pending.current = null;
+			if (action === null) return; // a progress we were not waiting on
+			dispatch(action);
+			setAppliedRef.current(
+				wasApply
 					? {
 							kind: 'applied',
-							message: appliedMessage(state.flagged.length),
+							message: appliedMessage(flagged.current.length),
 							onRevert: () => {
 								onToggleRef.current(false);
 							},
@@ -72,19 +100,21 @@ export function RtlPanel() {
 		const offError = on('error', (msg) => {
 			if (msg.id === jumpId.current) return; // a failed jump is not a mirror failure
 			if (msg.id !== runId.current) return;
+			// `nodes-blocked` precedes the terminal progress; hold it rather than finishing early.
 			if (msg.severity === 'warning') {
-				dispatch({ kind: 'applied', blocked: msg.blocked ?? [] });
+				blocked.current = msg.blocked ?? [];
 				return;
 			}
+			pending.current = null;
 			dispatch({ kind: 'failed', code: msg.code });
-			setApplied(null);
+			setAppliedRef.current(null);
 		});
 		return () => {
 			offFlagged();
 			offProgress();
 			offError();
 		};
-	}, [applying, setApplied, state.flagged.length]);
+	}, []);
 
 	const onJump = useCallback((nodeId: string) => {
 		jumpId.current = send<SelectNode>({ type: 'select-node', nodeId });

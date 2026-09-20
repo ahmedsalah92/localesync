@@ -1,7 +1,15 @@
 // src/ui/rtl/state.test.ts — the reducer, pure (no React, no `./bridge`).
 import { describe, expect, it } from 'vitest';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
-import { initialRtlState, isBusy, isMirrorOn, missingFontCount, rtlReducer, selectShell } from './state';
+import {
+	initialRtlState,
+	isBusy,
+	isMirrorOn,
+	missingFontCount,
+	progressAction,
+	rtlReducer,
+	selectShell,
+} from './state';
 import type { RtlAction, RtlState } from './state';
 
 const run = (actions: RtlAction[], from: RtlState = initialRtlState()): RtlState => actions.reduce(rtlReducer, from);
@@ -140,5 +148,45 @@ describe('selectShell — what the panel body shows', () => {
 	// A failure outranks everything: the canvas was restored, so there is nothing to review.
 	it('shows the failure state even with a stale review list', () => {
 		expect(selectShell(run([{ kind: 'failed', code: 'mutation-failed' }], applied(2)), 0)).toBe('operation-failed');
+	});
+});
+
+/**
+ * The bug that made the switch snap back off while the canvas mirrored.
+ *
+ * The panel decided what an arriving `progress` meant by reading `phase === 'applying'` INSIDE its
+ * message listener. That listener is a closure built on the render before the toggle was clicked,
+ * so it still saw `idle` — and an apply's completion was handled as a revert.
+ *
+ * The harness never caught it because it calls the main-thread functions directly; the panel was
+ * the only thing broken, and nothing exercised the round-trip through it.
+ */
+describe('progressAction — what a terminal progress means (regression)', () => {
+	it('completes an apply, never a revert', () => {
+		expect(progressAction('apply', [])).toEqual({ kind: 'applied', blocked: [] });
+	});
+
+	it('completes a revert', () => {
+		expect(progressAction('revert', [])).toEqual({ kind: 'reverted' });
+	});
+
+	// A progress correlated to nothing we started must not move the panel at all.
+	it('ignores a progress we were not waiting on', () => {
+		expect(progressAction(null, [])).toBeNull();
+	});
+
+	// `nodes-blocked` arrives BEFORE the terminal progress, so the blocked list is carried in.
+	it('carries the blocked list collected before the terminal progress', () => {
+		const list = [blocked('missing-font')];
+		expect(progressAction('apply', list)).toEqual({ kind: 'applied', blocked: list });
+	});
+
+	// The reducer's own guarantee, which the stale closure violated end to end: an apply that
+	// completes must leave the switch ON.
+	it('an applied run leaves the mirror on, a reverted one leaves it off', () => {
+		const afterApply = run([{ kind: 'apply-started' }, progressAction('apply', []) as RtlAction]);
+		expect(isMirrorOn(afterApply.phase)).toBe(true);
+		const afterRevert = run([{ kind: 'revert-started' }, progressAction('revert', []) as RtlAction], afterApply);
+		expect(isMirrorOn(afterRevert.phase)).toBe(false);
 	});
 });

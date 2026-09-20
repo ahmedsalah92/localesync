@@ -103,3 +103,23 @@ export function selectShell(state: RtlState, missingFonts: number): RtlShell {
 	if (state.phase === 'applied') return missingFonts > 0 ? 'fonts-unavailable' : 'no-issues';
 	return 'first-run';
 }
+
+/**
+ * Which operation a panel is waiting on. Held in a ref by the panel, never in React state.
+ *
+ * The panel used to read `phase === 'applying'` inside its message listener to decide whether an
+ * arriving `progress` meant "applied" or "reverted". That listener is a CLOSURE, created on the
+ * render before the toggle was clicked — so it still saw the old phase, and an apply's completion
+ * was handled as a revert: the canvas mirrored while the switch snapped back off.
+ *
+ * A ref cannot go stale, and putting the decision here rather than in the component means a test
+ * watches it. Same lesson as `selectShell`.
+ */
+export type PendingOp = 'apply' | 'revert' | null;
+
+/** The action a terminal `progress` should produce, or `null` to ignore an unexpected one. */
+export function progressAction(pending: PendingOp, blocked: readonly BlockedNode[]): RtlAction | null {
+	if (pending === 'apply') return { kind: 'applied', blocked: [...blocked] };
+	if (pending === 'revert') return { kind: 'reverted' };
+	return null;
+}

@@ -51,9 +51,13 @@ export function readMirrorInput(node: SceneNode): MirrorInput {
 	input.x = node.x;
 	input.width = node.width;
 	if ('constraints' in node) input.constraintHorizontal = node.constraints.horizontal;
-	if ('gridColumnAnchorIndex' in node) input.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
-	if ('gridColumnSpan' in node) input.gridColumnSpan = node.gridColumnSpan;
-	if ('gridChildHorizontalAlign' in node) input.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	// Grid fields are read ONLY when the parent really is a grid. They exist on every auto-layout
+	// node and report junk off a grid — see the F9 note in ./mirror.
+	if (input.parentLayoutMode === 'GRID') {
+		if ('gridColumnAnchorIndex' in node) input.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
+		if ('gridColumnSpan' in node) input.gridColumnSpan = node.gridColumnSpan;
+		if ('gridChildHorizontalAlign' in node) input.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	}
 	if (node.type === 'TEXT') input.textAlignHorizontal = node.textAlignHorizontal;
 
 	return input;

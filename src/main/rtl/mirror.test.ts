@@ -139,9 +139,13 @@ describe('F8 / F9 / F10 — constraints and grid', () => {
 		expect(kinds(planMirror(node({ constraintHorizontal: value })))).not.toContain('constraint-horizontal');
 	});
 
+	// The grid rules need a GRID parent — see the regression block at the bottom of this file.
 	it('reflects a single-column child', () => {
 		expect(
-			find(planMirror(node({ gridColumnAnchorIndex: 0, parentGridColumnCount: 3 })), 'grid-column').column,
+			find(
+				planMirror(node({ parentLayoutMode: 'GRID', gridColumnAnchorIndex: 0, parentGridColumnCount: 3 })),
+				'grid-column',
+			).column,
 		).toBe(2);
 	});
 
@@ -152,8 +156,12 @@ describe('F8 / F9 / F10 — constraints and grid', () => {
 	});
 
 	it('flips grid child alignment but not AUTO or CENTER', () => {
-		expect(find(planMirror(node({ gridChildHorizontalAlign: 'MIN' })), 'grid-align').value).toBe('MAX');
-		expect(kinds(planMirror(node({ gridChildHorizontalAlign: 'AUTO' })))).not.toContain('grid-align');
+		expect(
+			find(planMirror(node({ parentLayoutMode: 'GRID', gridChildHorizontalAlign: 'MIN' })), 'grid-align').value,
+		).toBe('MAX');
+		expect(kinds(planMirror(node({ parentLayoutMode: 'GRID', gridChildHorizontalAlign: 'AUTO' })))).not.toContain(
+			'grid-align',
+		);
 	});
 });
 
@@ -183,8 +191,8 @@ describe('every rule is an involution — mirroring twice is the identity', () =
 		node({ parentLayoutMode: 'NONE', x: 10, width: 30, parentWidth: 100 }),
 		node({ layoutPositioning: 'ABSOLUTE', parentLayoutMode: 'GRID', x: 4, width: 8, parentWidth: 64 }),
 		node({ constraintHorizontal: 'MIN' }),
-		node({ gridColumnAnchorIndex: 0, gridColumnSpan: 2, parentGridColumnCount: 4 }),
-		node({ gridChildHorizontalAlign: 'MAX' }),
+		node({ parentLayoutMode: 'GRID', gridColumnAnchorIndex: 0, gridColumnSpan: 2, parentGridColumnCount: 4 }),
+		node({ parentLayoutMode: 'GRID', gridChildHorizontalAlign: 'MAX' }),
 		node({ textAlignHorizontal: 'LEFT' }),
 	];
 
@@ -248,5 +256,60 @@ describe('shouldFlagMoved — G1', () => {
 	it('does not flag a moved frame or text node', () => {
 		expect(shouldFlagMoved('FRAME', true)).toBe(false);
 		expect(shouldFlagMoved('TEXT', true)).toBe(false);
+	});
+});
+
+/**
+ * The defect the LS-11 harness caught on its first real run against a fixture.
+ *
+ * `gridColumnAnchorIndex` and `gridColumnCount` exist on EVERY auto-layout node, not only grid ones,
+ * and off a grid their values are junk: a HORIZONTAL frame reports a column count of 1 while its
+ * children report their ordinary child index. Reflecting that produces a negative column, and
+ * `setGridChildPosition` rejects it — which failed the apply AND then failed the rollback, leaving
+ * the canvas half-mirrored.
+ *
+ * Gating on the PARENT's layout mode is the only correct test. Property existence is not one.
+ */
+describe('F9 applies only inside a real grid (regression)', () => {
+	it('emits no grid write for a child of a HORIZONTAL frame', () => {
+		const writes = planMirror(
+			node({ parentLayoutMode: 'HORIZONTAL', parentGridColumnCount: 1, gridColumnAnchorIndex: 2 }),
+		);
+		expect(kinds(writes)).not.toContain('grid-column');
+	});
+
+	it.each(['NONE', 'VERTICAL', undefined] as const)('emits no grid write when the parent is %s', (mode) => {
+		expect(
+			kinds(planMirror(node({ parentLayoutMode: mode, parentGridColumnCount: 1, gridColumnAnchorIndex: 2 }))),
+		).not.toContain('grid-column');
+	});
+
+	it('still mirrors columns when the parent really is a GRID', () => {
+		const writes = planMirror(
+			node({ parentLayoutMode: 'GRID', parentGridColumnCount: 3, gridColumnAnchorIndex: 0, gridColumnSpan: 2 }),
+		);
+		expect(find(writes, 'grid-column').column).toBe(1);
+	});
+
+	// The exact arithmetic that threw: child index 2 of a frame claiming 1 column.
+	it('never emits a negative column', () => {
+		for (const count of [1, 2, 3, 4]) {
+			for (let anchor = 0; anchor < 6; anchor += 1) {
+				const writes = planMirror(
+					node({ parentLayoutMode: 'GRID', parentGridColumnCount: count, gridColumnAnchorIndex: anchor }),
+				);
+				const write = writes.find((w) => w.kind === 'grid-column');
+				if (write !== undefined && write.kind === 'grid-column') expect(write.column).toBeGreaterThanOrEqual(0);
+			}
+		}
+	});
+
+	it('gates grid alignment on the same test', () => {
+		expect(
+			kinds(planMirror(node({ parentLayoutMode: 'HORIZONTAL', gridChildHorizontalAlign: 'MIN' }))),
+		).not.toContain('grid-align');
+		expect(kinds(planMirror(node({ parentLayoutMode: 'GRID', gridChildHorizontalAlign: 'MIN' })))).toContain(
+			'grid-align',
+		);
 	});
 });

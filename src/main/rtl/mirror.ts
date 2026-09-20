@@ -136,18 +136,30 @@ export function planMirror(input: MirrorInput): MirrorWrite[] {
 		writes.push({ kind: 'constraint-horizontal', value: flipEnd(input.constraintHorizontal) });
 	}
 
-	// F9 / F10
+	// F9 / F10 — ONLY inside a real grid.
+	//
+	// `gridColumnAnchorIndex` and `gridColumnCount` exist on every auto-layout node, not just grid
+	// ones, and their values are meaningless off a grid: a HORIZONTAL frame reports a column count of
+	// 1 while its children report their ordinary child index. Reflecting those produces a NEGATIVE
+	// column (child 2 of 3 → 1 − 2 − 1 = −2) and `setGridChildPosition` rejects it. Gating on the
+	// PARENT's layout mode is the only correct test; property existence is not one.
+	const inGrid = input.parentLayoutMode === 'GRID';
 	if (
+		inGrid &&
 		input.gridColumnAnchorIndex !== undefined &&
 		input.parentGridColumnCount !== undefined &&
 		input.parentGridColumnCount > 0
 	) {
-		writes.push({
-			kind: 'grid-column',
-			column: mirrorColumn(input.gridColumnAnchorIndex, input.gridColumnSpan ?? 1, input.parentGridColumnCount),
-		});
+		const column = mirrorColumn(
+			input.gridColumnAnchorIndex,
+			input.gridColumnSpan ?? 1,
+			input.parentGridColumnCount,
+		);
+		// A well-formed grid cannot produce a negative column. If one appears the inputs are not
+		// describing a grid, and writing it would throw on the user's file — so drop the write.
+		if (column >= 0) writes.push({ kind: 'grid-column', column });
 	}
-	if (isEnd(input.gridChildHorizontalAlign)) {
+	if (inGrid && isEnd(input.gridChildHorizontalAlign)) {
 		writes.push({ kind: 'grid-align', value: flipEnd(input.gridChildHorizontalAlign) });
 	}
 

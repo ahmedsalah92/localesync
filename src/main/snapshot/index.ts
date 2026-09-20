@@ -133,11 +133,17 @@ function captureLayoutSnapshot(node: SceneNode, op: MutationOp, capturedAt: numb
 	if (parent !== null && 'layoutMode' in parent) snapshot.parentLayoutMode = parent.layoutMode;
 	if ('constraints' in node) snapshot.constraintHorizontal = node.constraints.horizontal;
 	if ('layoutPositioning' in node) snapshot.layoutPositioning = node.layoutPositioning;
-	if ('gridRowAnchorIndex' in node && 'gridColumnAnchorIndex' in node) {
-		snapshot.gridRowAnchorIndex = node.gridRowAnchorIndex;
-		snapshot.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
+	// Grid position is captured ONLY for a direct child of a GRID frame. These properties exist on
+	// every auto-layout node and report meaningless values off a grid, and restoring one of those
+	// makes `setGridChildPosition` throw — which is how a failed batch's ROLLBACK can itself fail,
+	// leaving the canvas half-mutated. Found by the LS-11 harness on its first real run.
+	if (snapshot.parentLayoutMode === 'GRID') {
+		if ('gridRowAnchorIndex' in node && 'gridColumnAnchorIndex' in node) {
+			snapshot.gridRowAnchorIndex = node.gridRowAnchorIndex;
+			snapshot.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
+		}
+		if ('gridChildHorizontalAlign' in node) snapshot.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
 	}
-	if ('gridChildHorizontalAlign' in node) snapshot.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
 	return snapshot;
 }
 

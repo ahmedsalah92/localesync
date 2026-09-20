@@ -221,24 +221,36 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 		);
 
 		// ── [9] one undo step per mutation ───────────────────────────────────────────────────────
+		// Counting calls means replacing `figma.commitUndo`, and in this runtime that property is
+		// READ-ONLY — the assignment throws. It is not worth failing the whole harness over, and
+		// silently swallowing it would report a pass that never ran, so it degrades to a SKIP and the
+		// MANUAL check below carries the guarantee.
 		const realCommitUndo = figma.commitUndo.bind(figma);
+		let patched = false;
 		let commits = 0;
 		try {
 			figma.commitUndo = () => {
 				commits += 1;
 				realCommitUndo();
 			};
-			await applyRtlMirror('page');
-			const afterApply = commits;
-			await revertRtlMirror();
-			note(
-				notes,
-				'one-undo-step',
-				afterApply === 1 && commits - afterApply === 1,
-				`apply=${afterApply} revert=${commits - afterApply} (want 1 and 1)`,
-			);
-		} finally {
-			figma.commitUndo = realCommitUndo;
+			patched = true;
+		} catch {
+			skip(notes, 'one-undo-step', 'figma.commitUndo is read-only in this runtime — use the manual check');
+		}
+		if (patched) {
+			try {
+				await applyRtlMirror('page');
+				const afterApply = commits;
+				await revertRtlMirror();
+				note(
+					notes,
+					'one-undo-step',
+					afterApply === 1 && commits - afterApply === 1,
+					`apply=${afterApply} revert=${commits - afterApply} (want 1 and 1)`,
+				);
+			} finally {
+				figma.commitUndo = realCommitUndo;
+			}
 		}
 
 		notes.push(

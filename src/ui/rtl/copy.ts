@@ -4,9 +4,18 @@
 //
 // Mostly transcribed from DES-2's state block rather than drafted (LS-11 §2.10). Two entries are
 // amendments, and both follow a precedent LS-10 already set — see below.
+import type { ScanScope } from '../../common/messages';
+
+/** Same two values, same labels, same order as Extract's — it is the shared Scope Select pattern
+ *  (design.md LS-24 Deliverable 4), not a second one. */
+export const SCOPES: readonly { value: ScanScope; label: string }[] = [
+	{ value: 'page', label: 'Page' },
+	{ value: 'selection', label: 'Selection' },
+];
 
 export const LABELS = {
 	mirror: 'Mirror',
+	scope: 'Scope',
 	tryAgain: 'Try Again',
 	jump: 'Jump to node',
 } as const;

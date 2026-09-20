@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-import type { ApplyRtlMirror, RevertRtlMirror, SelectNode } from '../../common/messages';
+import type { ApplyRtlMirror, RevertRtlMirror, ScanScope, SelectNode } from '../../common/messages';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
 import { on, send } from '../bridge';
 import { ControlBar } from '../shell/bands';
@@ -7,8 +7,9 @@ import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
 import { StateView } from '../shell/StateView';
 import { useApplied } from '../shell/applied';
+import { Dropdown } from '../shell/primitives/Dropdown';
 import { Switch } from '../shell/primitives/Switch';
-import { FLAG_REASON, LABELS, STATES, appliedMessage, fontsUnavailable } from './copy';
+import { FLAG_REASON, LABELS, SCOPES, STATES, appliedMessage, fontsUnavailable } from './copy';
 import {
 	initialRtlState,
 	isBusy,
@@ -47,12 +48,16 @@ export function RtlPanel() {
 	const flagged = useRef<FlaggedNode[]>([]);
 	const blocked = useRef<BlockedNode[]>([]);
 
+	// Read at send time rather than closed over, for the same reason the listener uses refs.
+	const scopeRef = useRef<ScanScope>(state.scope);
+	scopeRef.current = state.scope;
+
 	const onToggle = useCallback((checked: boolean) => {
 		if (checked) {
 			pending.current = 'apply';
 			flagged.current = [];
 			blocked.current = [];
-			runId.current = send<ApplyRtlMirror>({ type: 'apply-rtl-mirror', scope: 'selection' });
+			runId.current = send<ApplyRtlMirror>({ type: 'apply-rtl-mirror', scope: scopeRef.current });
 			dispatch({ kind: 'apply-started' });
 		} else {
 			pending.current = 'revert';
@@ -163,6 +168,23 @@ export function RtlPanel() {
 						{LABELS.mirror}
 					</span>
 				</span>
+				<div style={{ flex: 1 }} />
+				{/* The scope select the built design carries (186:296 → Dropdown 538:1437), and the same
+				    shared pattern Extract uses. Disabled mid-run: changing scope under an in-flight
+				    mutation would describe a different operation from the one being performed. */}
+				<div style={{ width: 88, flexShrink: 0, display: 'flex' }}>
+					<Dropdown
+						label={LABELS.scope}
+						value={state.scope}
+						options={SCOPES}
+						onChange={(scope) => {
+							dispatch({ kind: 'set-scope', scope: scope as ScanScope });
+						}}
+						prefixLabel={false}
+						fill
+						disabled={isBusy(state.phase) || isMirrorOn(state.phase)}
+					/>
+				</div>
 			</ControlBar>
 
 			{shell !== null ? (

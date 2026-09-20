@@ -5,7 +5,7 @@
 // Pure and DOM-free, like pseudo/state.ts: it imports types from `common` and nothing else, and must
 // never reach `./bridge` — that module assigns a `window` listener at module scope and this file's
 // tests run under Vitest's plain Node environment.
-import type { ErrorCode } from '../../common/messages';
+import type { ErrorCode, ScanScope } from '../../common/messages';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
 
 /**
@@ -19,6 +19,14 @@ export type RtlPhase = 'idle' | 'applying' | 'applied' | 'reverting' | 'failed';
 
 export interface RtlState {
 	phase: RtlPhase;
+	/**
+	 * Explicit, and defaulting to Page to match the built design (ruleset §7.3).
+	 *
+	 * A mirror restructures layout, so a user who cannot see what is about to be restructured has
+	 * no way to scope the blast radius. The main thread still downgrades a `selection` intent with
+	 * an empty selection to `page`, so the control states intent rather than guaranteeing it.
+	 */
+	scope: ScanScope;
 	/** Nodes the mirror moved but could not rotate — the review list (G1). */
 	flagged: FlaggedNode[];
 	/** Skipped nodes from the last run — the `nodes-blocked` warning's payload. */
@@ -28,6 +36,7 @@ export interface RtlState {
 }
 
 export type RtlAction =
+	| { kind: 'set-scope'; scope: ScanScope }
 	| { kind: 'apply-started' }
 	| { kind: 'flagged'; flagged: FlaggedNode[] }
 	| { kind: 'applied'; blocked: BlockedNode[] }
@@ -38,11 +47,15 @@ export type RtlAction =
 
 /** A factory rather than a frozen const, so each mount gets its own arrays. */
 export function initialRtlState(): RtlState {
-	return { phase: 'idle', flagged: [], blocked: [], selectedNodeId: null, errorCode: null };
+	return { phase: 'idle', scope: 'page', flagged: [], blocked: [], selectedNodeId: null, errorCode: null };
 }
 
 export function rtlReducer(state: RtlState, action: RtlAction): RtlState {
 	switch (action.kind) {
+		// Changing scope never re-applies: this mutates the user's file, so the switch is the commit.
+		case 'set-scope':
+			return { ...state, scope: action.scope };
+
 		case 'apply-started':
 			return { ...state, phase: 'applying', flagged: [], blocked: [], errorCode: null };
 

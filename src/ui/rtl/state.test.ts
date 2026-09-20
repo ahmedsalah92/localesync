@@ -206,3 +206,38 @@ describe('selectShell distinguishes "nothing to mirror" from "the mirror failed"
 		expect(selectShell(run([{ kind: 'failed', code: 'internal' }]), 0)).toBe('operation-failed');
 	});
 });
+
+/**
+ * Scope is explicit, and the ruleset's earlier "implicit scope" rule rested on a false claim about
+ * the built design — which has a scope select at `538:1437`. Corrected 2026-09-20.
+ *
+ * It matters on the merits, not just for fidelity: a mirror restructures layout, so a user who
+ * cannot see what is about to be restructured has no way to scope the blast radius.
+ */
+describe('scope', () => {
+	it('defaults to Page, matching the built design', () => {
+		expect(initialRtlState().scope).toBe('page');
+	});
+
+	it('is remembered across a run', () => {
+		const chosen = run([{ kind: 'set-scope', scope: 'selection' }]);
+		expect(run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [] }], chosen).scope).toBe('selection');
+	});
+
+	// Changing scope must not re-apply: this mutates the user's file, so the switch is the commit.
+	it('does not move the phase', () => {
+		const applied = run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [] }]);
+		expect(run([{ kind: 'set-scope', scope: 'selection' }], applied).phase).toBe('applied');
+	});
+
+	it('survives a revert, so the next run reuses the choice', () => {
+		const state = run([
+			{ kind: 'set-scope', scope: 'selection' },
+			{ kind: 'apply-started' },
+			{ kind: 'applied', blocked: [] },
+			{ kind: 'revert-started' },
+			{ kind: 'reverted' },
+		]);
+		expect(state).toMatchObject({ phase: 'idle', scope: 'selection' });
+	});
+});

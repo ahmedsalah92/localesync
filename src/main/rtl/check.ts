@@ -16,7 +16,7 @@
 import { restoreByOp, withSnapshot } from '../snapshot';
 import { collectContainers } from '../traversal';
 import { applyRtlMirror, readMirrorInput, revertRtlMirror } from './index';
-import { planMirror } from './mirror';
+import { isPositionedByParent, planMirror } from './mirror';
 
 const note = (notes: string[], label: string, ok: boolean, detail = ''): void => {
 	notes.push(`ls11:${label}:${ok ? 'PASS' : 'FAIL'}${detail ? ` ${detail}` : ''}`);
@@ -156,9 +156,20 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 				else if (write.kind === 'item-reverse-z') predicted.itemReverseZIndex = write.value;
 				else if (write.kind === 'text-align') predicted.textAlign = write.value;
 			}
-			// childOrder is excluded: reversing twice is trivially the identity and the prediction
-			// would just restate the baseline.
-			const diff = probeDiff(predicted, before).filter((line) => !line.startsWith('childOrder'));
+			// Two fields are excluded, and neither is a free pass.
+			//
+			// `childOrder` — reversing twice is trivially the identity; predicting it would just
+			// restate the baseline.
+			//
+			// `x` for a node its PARENT lays out — that position is DERIVED from the parent's child
+			// order, and the rules deliberately never write it (LS-11 §2.3, which is exactly why F1
+			// and F7 act on disjoint sets). Predicting "no write" against a baseline that moved when
+			// the parent reversed compares a rule against something it does not control, so the
+			// first version of this assertion reported a failure that was the harness's own.
+			const derivedX = isPositionedByParent(readMirrorInput(node));
+			const diff = probeDiff(predicted, before).filter(
+				(line) => !line.startsWith('childOrder') && !(derivedX && line.startsWith('x:')),
+			);
 			if (diff.length > 0) involutionBreaks.push(`${node.name}: ${diff.join('; ')}`);
 		}
 		note(
@@ -231,11 +242,23 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 			const diff = probeDiff(probe(node), want);
 			if (diff.length > 0) dirty.push(`${node.name}: ${diff.join('; ')}`);
 		}
+		// WHICH dirty nodes the restore never even attempted. A node missing from `succeeded` was
+		// dropped before any property was written — a different defect from one that was restored
+		// badly, and the count alone cannot tell them apart. (`restoreIds` silently treated every
+		// non-TEXT node as NODE_GONE; this is the line that would have said so.)
+		const restored = new Set(reverted.succeeded);
+		const neverTried = [...targets.keys()].filter(
+			(id) =>
+				!restored.has(id) &&
+				probeDiff(probe(targets.get(id) as SceneNode), baseline.get(id) as Probe).length > 0,
+		);
 		note(
 			notes,
 			'revert-byte-identical',
 			dirty.length === 0,
-			dirty.length === 0 ? `${reverted.succeeded.length} restored` : dirty.slice(0, 3).join(' | '),
+			dirty.length === 0
+				? `${reverted.succeeded.length} restored`
+				: `${reverted.succeeded.length} restored, ${neverTried.length} dirty node(s) never attempted :: ${dirty.slice(0, 3).join(' | ')}`,
 		);
 
 		// ── [8] revert is op-scoped and idempotent ───────────────────────────────────────────────

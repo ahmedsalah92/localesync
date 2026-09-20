@@ -55,6 +55,19 @@ export type {
 // (Design model §3). Durable recovery never reads this; restore-on-launch reads the manifest.
 const liveMutations = new Map<string, { node: SceneNode; snapshot: NodeSnapshot }>();
 
+/**
+ * Can this id still be restored onto a live scene node?
+ *
+ * **Shared by `restoreNode` and `restoreIds` on purpose.** They had separate copies, and when
+ * LS-11's layout arm widened one from `type !== 'TEXT'` to "is it still a scene node", the other
+ * kept the text-only test — so every frame in a manifest read as NODE_GONE: its entry was dropped,
+ * its durable snapshot orphaned, and its layout never restored. Restore-on-launch would have left
+ * a mirrored file mirrored forever, which is the worst outcome this module exists to prevent.
+ */
+function isRestorable(node: BaseNode | null): node is SceneNode {
+	return node !== null && node.type !== 'PAGE' && node.type !== 'DOCUMENT' && 'parent' in node;
+}
+
 // ── eligibility (live-node derivation of EligibilityFlags) ─────────────────────
 function isInsideInstance(node: BaseNode): boolean {
 	let current: BaseNode | null = node.parent;
@@ -430,9 +443,7 @@ async function rollbackBatch(
  *  clears its pluginData entry and manifest entry. Idempotent: no snapshot → no-op. */
 export async function restoreNode(nodeId: string): Promise<RestoreResult> {
 	const node = await figma.getNodeByIdAsync(nodeId);
-	// Any scene node may now hold a snapshot (LS-11's layout arm), so the gate is "is it still a
-	// scene node", not "is it still text". Anything else is NODE_GONE, as before.
-	if (node === null || node.type === 'PAGE' || node.type === 'DOCUMENT' || !('parent' in node)) {
+	if (!isRestorable(node)) {
 		// Deleted or retyped (Resolved Defaults §6) — drop the manifest entry, never throw.
 		await removeManifestEntries([nodeId]);
 		liveMutations.delete(nodeId);
@@ -494,7 +505,7 @@ async function restoreIds(manifest: Manifest, nodeIds: readonly string[]): Promi
 
 	for (const nodeId of nodeIds) {
 		const node = await figma.getNodeByIdAsync(nodeId);
-		if (node === null || node.type !== 'TEXT') {
+		if (!isRestorable(node)) {
 			toRemove.push(nodeId); // NODE_GONE (§6) — drop silently; not a failure
 			liveMutations.delete(nodeId);
 			continue;

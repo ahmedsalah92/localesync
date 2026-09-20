@@ -98,6 +98,33 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 			`succeeded=${first.succeeded.length} blocked=${first.blocked.length} failed=${first.failed.length} flagged=${first.flagged.length}`,
 		);
 
+		// WHY it failed, not just that it did. The first version of this harness printed only counts
+		// — the same mistake LS-10's first harness made, and the same one it fixed: a count says a
+		// failure exists and nothing about its shape, which is the one thing needed to act on it.
+		//
+		// A rolled-back batch marks the culprit with the real message and everyone else with
+		// "rolled back: …", so the distinct set is short even when the count is large. The plan for
+		// the culprit is printed too: knowing WHICH write threw is most of the diagnosis.
+		if (first.failed.length > 0) {
+			const culprits = first.failed.filter((entry) => !entry.error.startsWith('rolled back:'));
+			for (const entry of culprits.slice(0, 3)) {
+				const node = targets.get(entry.nodeId);
+				const plan = node === undefined ? [] : planMirror(readMirrorInput(node)).map((write) => write.kind);
+				notes.push(
+					`ls11:apply-error "${node?.name ?? entry.nodeId}" [${node?.type ?? '?'}] ` +
+						`parent=${node?.parent?.type ?? '?'} writes=[${plan.join(',')}] :: ${entry.error}`,
+				);
+			}
+			const rolled = first.failed.length - culprits.length;
+			if (rolled > 0) notes.push(`ls11:apply-error ${rolled} further node(s) rolled back as a consequence`);
+		}
+
+		if (first.blocked.length > 0) {
+			const byReason = new Map<string, number>();
+			for (const entry of first.blocked) byReason.set(entry.reason, (byReason.get(entry.reason) ?? 0) + 1);
+			notes.push(`ls11:blocked-why ${[...byReason].map(([reason, n]) => `${reason}=${n}`).join(' ')}`);
+		}
+
 		// ── [2] something actually changed ───────────────────────────────────────────────────────
 		const changed = [...targets].filter(([id, node]) => {
 			const before = baseline.get(id);

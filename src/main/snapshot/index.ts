@@ -134,11 +134,18 @@ function captureLayoutSnapshot(node: SceneNode, op: MutationOp, capturedAt: numb
 	};
 	if ('layoutMode' in node) {
 		snapshot.layoutMode = node.layoutMode;
-		snapshot.primaryAxisAlignItems = node.primaryAxisAlignItems;
-		snapshot.counterAxisAlignItems = node.counterAxisAlignItems;
-		snapshot.paddingLeft = node.paddingLeft;
-		snapshot.paddingRight = node.paddingRight;
-		snapshot.itemReverseZIndex = node.itemReverseZIndex;
+		// Only when the node actually HAS auto-layout. These are readable on any frame but not all
+		// are writable: `itemReverseZIndex` throws with "Can only set itemReverseZIndex on nodes with
+		// layoutMode !== NONE", so capturing it off a plain frame makes the RESTORE throw — and a
+		// restore that throws inside a rollback is the least recoverable failure there is.
+		// Readable is not the same as writable, and property existence tests neither.
+		if (node.layoutMode !== 'NONE') {
+			snapshot.primaryAxisAlignItems = node.primaryAxisAlignItems;
+			snapshot.counterAxisAlignItems = node.counterAxisAlignItems;
+			snapshot.paddingLeft = node.paddingLeft;
+			snapshot.paddingRight = node.paddingRight;
+			snapshot.itemReverseZIndex = node.itemReverseZIndex;
+		}
 	}
 	if ('children' in node && node.type !== 'INSTANCE') {
 		snapshot.childOrder = node.children.map((child) => child.id);

@@ -51,13 +51,17 @@ export async function generateRtlMirror(): Promise<RtlMirrorReport> {
 		return frame;
 	}
 
-	function label(text: string, parent: FrameNode | GroupNode, width = 90): TextNode {
+	// Takes anything that can hold children. The `parent.type === 'FRAME'` guard this replaced
+	// silently dropped every label added to the COMPONENT master — so the master was empty, every
+	// instance of it was empty, and `instance-locked` reported SKIP for five consecutive runs
+	// while looking like a rule that had not fired.
+	function label(text: string, parent: FrameNode | ComponentNode, width = 90): TextNode {
 		const node = figma.createText();
 		node.fontName = REGULAR;
 		node.characters = text;
 		node.textAutoResize = 'NONE';
 		node.resize(width, 24);
-		if (parent.type === 'FRAME') parent.appendChild(node);
+		parent.appendChild(node);
 		return node;
 	}
 
@@ -112,8 +116,8 @@ export async function generateRtlMirror(): Promise<RtlMirrorReport> {
 		inner.primaryAxisAlignItems = 'MAX';
 		inner.itemSpacing = 4;
 		outer.appendChild(inner);
-		label('in-A', inner as unknown as FrameNode, 50);
-		label('in-B', inner as unknown as FrameNode, 50);
+		label('in-A', inner, 50);
+		label('in-B', inner, 50);
 		label('outer', outer, 60);
 		created.push('nested-inner');
 	}
@@ -214,8 +218,8 @@ export async function generateRtlMirror(): Promise<RtlMirrorReport> {
 		master.paddingLeft = 20;
 		master.paddingRight = 4;
 		master.itemSpacing = 6;
-		label('m-one', master as unknown as FrameNode, 60);
-		label('m-two', master as unknown as FrameNode, 60);
+		label('m-one', master, 60);
+		label('m-two', master, 60);
 		// Park the master off to the side; the instance is what the mirror walks.
 		master.x = 0;
 		master.y = (Math.floor(slot / 3) + 2) * (ROW_H + GAP);

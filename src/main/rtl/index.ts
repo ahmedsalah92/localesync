@@ -34,11 +34,15 @@ export function readMirrorInput(node: SceneNode): MirrorInput {
 
 	if ('layoutMode' in node) {
 		input.layoutMode = node.layoutMode;
-		input.primaryAxisAlignItems = node.primaryAxisAlignItems;
-		input.counterAxisAlignItems = node.counterAxisAlignItems;
-		input.paddingLeft = node.paddingLeft;
-		input.paddingRight = node.paddingRight;
-		input.itemReverseZIndex = node.itemReverseZIndex;
+		// Auto-layout properties are readable on any frame but only writable on one that has
+		// auto-layout — see the capture gate in ../snapshot.
+		if (node.layoutMode !== 'NONE') {
+			input.primaryAxisAlignItems = node.primaryAxisAlignItems;
+			input.counterAxisAlignItems = node.counterAxisAlignItems;
+			input.paddingLeft = node.paddingLeft;
+			input.paddingRight = node.paddingRight;
+			input.itemReverseZIndex = node.itemReverseZIndex;
+		}
 	}
 	if ('children' in node) input.childCount = node.children.length;
 	if (node.type === 'INSTANCE') input.isInstance = true;

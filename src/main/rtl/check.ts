@@ -221,9 +221,20 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 		//
 		// What the rule actually promises is that WE did not mutate it — and a node we mutated
 		// carries a durable snapshot, so that is the thing to check.
+		// Presence of a snapshot is NOT proof we wrote one: `setPluginData` propagates from a master
+		// to its instances just as layout does, so an instance child inherits its master's snapshot
+		// verbatim. The snapshot records the id of the node it was captured FROM, so a stored
+		// snapshot whose `nodeId` is not this node's is inherited, not ours.
 		const touchedByUs = first.blocked.filter((entry) => {
 			const node = targets.get(entry.nodeId);
-			return node !== undefined && node.getPluginData(SNAPSHOT_KEY) !== '';
+			if (node === undefined) return false;
+			const raw = node.getPluginData(SNAPSHOT_KEY);
+			if (raw === '') return false;
+			try {
+				return (JSON.parse(raw) as { nodeId?: string }).nodeId === node.id;
+			} catch {
+				return true; // unparseable but present — treat as ours rather than excusing it
+			}
 		});
 		const changedByInheritance = first.blocked.filter((entry) => {
 			const node = targets.get(entry.nodeId);

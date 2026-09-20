@@ -359,3 +359,30 @@ describe('F9 belongs to the grid, not to its children (regression)', () => {
 		}
 	});
 });
+
+/**
+ * A GROUP is not a layout box. Its position and size are DERIVED from its children, so mirroring
+ * the children already moves the group — and writing the group's own `x` on top moves the same
+ * content twice. It is also non-involutive: the second pass reads a box the first pass moved,
+ * which is how the harness caught it (`mirror-twice-identity:FAIL plain-group: x: 16 → 128`).
+ */
+describe('a GROUP is mirrored through its children, never repositioned itself (regression)', () => {
+	it('emits no x write for a group', () => {
+		expect(
+			kinds(planMirror(node({ isGroup: true, parentLayoutMode: 'NONE', x: 16, width: 208, parentWidth: 320 }))),
+		).not.toContain('x');
+	});
+
+	it('still writes x for an ordinary frame in the same position', () => {
+		expect(find(planMirror(node({ parentLayoutMode: 'NONE', x: 16, width: 208, parentWidth: 320 })), 'x').x).toBe(
+			96,
+		);
+	});
+
+	// The children do the mirroring — reflected about the group's own bounds.
+	it('still mirrors a child OF a group', () => {
+		expect(find(planMirror(node({ parentLayoutMode: 'NONE', x: 0, width: 24, parentWidth: 208 })), 'x').x).toBe(
+			184,
+		);
+	});
+});

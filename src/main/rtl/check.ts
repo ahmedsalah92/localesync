@@ -84,6 +84,23 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 		if ('children' in container) for (const child of container.children) targets.set(child.id, child);
 	}
 
+	// A census, because a SKIP is not a PASS: a count of zero has two very different causes — the
+	// structure is absent from the fixture, or it is present and the rule never reached it.
+	const insideInstance = (node: SceneNode): boolean => {
+		let current: BaseNode | null = node.parent;
+		while (current !== null && current.type !== 'PAGE' && current.type !== 'DOCUMENT') {
+			if (current.type === 'INSTANCE') return true;
+			current = current.parent;
+		}
+		return false;
+	};
+	const all = [...targets.values()];
+	const planned = all.filter((node) => planMirror(readMirrorInput(node)).length > 0);
+	notes.push(
+		`ls11:census ${containers.length} container(s), ${targets.size} target(s), ${planned.length} with writes, ` +
+			`${all.filter(insideInstance).length} inside an instance, ${all.filter((n) => n.type === 'GROUP').length} group(s)`,
+	);
+
 	// Baseline BEFORE anything is touched. Every restore assertion compares against this.
 	const baseline = new Map<string, Probe>();
 	for (const [id, node] of targets) baseline.set(id, probe(node));
@@ -260,6 +277,14 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 				? `${reverted.succeeded.length} restored`
 				: `${reverted.succeeded.length} restored, ${neverTried.length} dirty node(s) never attempted :: ${dirty.slice(0, 3).join(' | ')}`,
 		);
+		// The same reasoning as apply-error: a restore that THREW carries the real message, and
+		// "never attempted" cannot tell a node that was skipped from one that failed loudly.
+		for (const entry of reverted.failed.slice(0, 3)) {
+			const failedNode = targets.get(entry.nodeId);
+			notes.push(
+				`ls11:revert-error "${failedNode?.name ?? entry.nodeId}" [${failedNode?.type ?? '?'}] :: ${entry.error}`,
+			);
+		}
 
 		// ── [8] revert is op-scoped and idempotent ───────────────────────────────────────────────
 		const again = await restoreByOp('rtl-mirror');

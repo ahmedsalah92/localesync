@@ -25,6 +25,8 @@ export interface MirrorInput {
 	childCount?: number;
 	/** Children of an instance cannot be reparented, so F1 is impossible inside one (LS-11 §2.5). */
 	isInstance?: boolean;
+	/** A GROUP has no layout of its own and its box is derived from its children (ruleset §7.4). */
+	isGroup?: boolean;
 
 	// ── as a child of its own parent ──
 	parentLayoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'GRID';
@@ -130,8 +132,14 @@ export function planMirror(input: MirrorInput): MirrorWrite[] {
 		writes.push({ kind: 'padding', left: input.paddingRight, right: input.paddingLeft });
 	}
 
-	// F7
+	// F7 — but never on a GROUP.
+	//
+	// A group is not a layout box: its position and size are DERIVED from wherever its children
+	// happen to be. Its children are mirrored about its own bounds, which reverses them in place —
+	// and then writing the group's `x` on top would move that same content a second time. It also
+	// makes the rule non-involutive, because the second pass reads a box the first pass moved.
 	if (
+		input.isGroup !== true &&
 		!isPositionedByParent(input) &&
 		input.x !== undefined &&
 		input.width !== undefined &&

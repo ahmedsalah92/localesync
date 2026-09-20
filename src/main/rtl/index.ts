@@ -42,6 +42,7 @@ export function readMirrorInput(node: SceneNode): MirrorInput {
 	}
 	if ('children' in node) input.childCount = node.children.length;
 	if (node.type === 'INSTANCE') input.isInstance = true;
+	if (node.type === 'GROUP') input.isGroup = true;
 
 	const parent = node.parent;
 	if (parent !== null && 'layoutMode' in parent) input.parentLayoutMode = parent.layoutMode;

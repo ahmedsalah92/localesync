@@ -33,11 +33,17 @@ export interface MirrorInput {
 	x?: number;
 	width?: number;
 	constraintHorizontal?: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'SCALE';
-	gridColumnAnchorIndex?: number;
-	gridColumnSpan?: number;
-	/** The PARENT grid's column count — the reflection axis for F9. */
-	parentGridColumnCount?: number;
 	gridChildHorizontalAlign?: 'MIN' | 'CENTER' | 'MAX' | 'AUTO';
+
+	/**
+	 * This node's own grid children, when it IS a grid (F9).
+	 *
+	 * Columns are reflected for the whole grid at once, not per child: `setGridChildPosition` throws
+	 * on a transient overlap, so a reversal written one child at a time collides on its first write.
+	 * The rule therefore belongs to the parent, exactly like child order.
+	 */
+	gridColumnCount?: number;
+	gridChildren?: { childId: string; row: number; column: number; span: number }[];
 
 	// ── text ──
 	textAlignHorizontal?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
@@ -51,7 +57,10 @@ export type MirrorWrite =
 	| { readonly kind: 'padding'; readonly left: number; readonly right: number }
 	| { readonly kind: 'x'; readonly x: number }
 	| { readonly kind: 'constraint-horizontal'; readonly value: 'MIN' | 'MAX' }
-	| { readonly kind: 'grid-column'; readonly column: number }
+	| {
+			readonly kind: 'grid-reposition';
+			readonly moves: readonly { childId: string; row: number; column: number }[];
+	  }
 	| { readonly kind: 'grid-align'; readonly value: 'MIN' | 'MAX' }
 	| { readonly kind: 'text-align'; readonly value: 'LEFT' | 'RIGHT' };
 
@@ -136,30 +145,33 @@ export function planMirror(input: MirrorInput): MirrorWrite[] {
 		writes.push({ kind: 'constraint-horizontal', value: flipEnd(input.constraintHorizontal) });
 	}
 
-	// F9 / F10 — ONLY inside a real grid.
+	// F9 — the whole grid at once, emitted on the GRID itself rather than on its children.
 	//
-	// `gridColumnAnchorIndex` and `gridColumnCount` exist on every auto-layout node, not just grid
-	// ones, and their values are meaningless off a grid: a HORIZONTAL frame reports a column count of
-	// 1 while its children report their ordinary child index. Reflecting those produces a NEGATIVE
-	// column (child 2 of 3 → 1 − 2 − 1 = −2) and `setGridChildPosition` rejects it. Gating on the
-	// PARENT's layout mode is the only correct test; property existence is not one.
-	const inGrid = input.parentLayoutMode === 'GRID';
+	// The columns are reflected together because they must be WRITTEN together: a reversal swaps
+	// occupied cells and `setGridChildPosition` rejects a transient overlap, even when the final
+	// arrangement is valid. `./snapshot/grid` stages the writes; this rule only says where each
+	// child ends up.
 	if (
-		inGrid &&
-		input.gridColumnAnchorIndex !== undefined &&
-		input.parentGridColumnCount !== undefined &&
-		input.parentGridColumnCount > 0
+		input.layoutMode === 'GRID' &&
+		input.gridColumnCount !== undefined &&
+		input.gridColumnCount > 0 &&
+		input.gridChildren !== undefined
 	) {
-		const column = mirrorColumn(
-			input.gridColumnAnchorIndex,
-			input.gridColumnSpan ?? 1,
-			input.parentGridColumnCount,
-		);
-		// A well-formed grid cannot produce a negative column. If one appears the inputs are not
-		// describing a grid, and writing it would throw on the user's file — so drop the write.
-		if (column >= 0) writes.push({ kind: 'grid-column', column });
+		const count = input.gridColumnCount;
+		const moves = input.gridChildren
+			.map((child) => ({
+				childId: child.childId,
+				row: child.row,
+				column: mirrorColumn(child.column, Math.max(1, child.span), count),
+			}))
+			// A well-formed grid cannot produce a negative column; if one appears the inputs are not
+			// describing a grid, and writing it would throw on the user's file.
+			.filter((move) => move.column >= 0);
+		if (moves.length > 0) writes.push({ kind: 'grid-reposition', moves });
 	}
-	if (inGrid && isEnd(input.gridChildHorizontalAlign)) {
+
+	// F10 — per child, and safe to write individually: an alignment cannot collide with anything.
+	if (input.parentLayoutMode === 'GRID' && isEnd(input.gridChildHorizontalAlign)) {
 		writes.push({ kind: 'grid-align', value: flipEnd(input.gridChildHorizontalAlign) });
 	}
 

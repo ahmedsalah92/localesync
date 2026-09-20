@@ -23,6 +23,7 @@ import {
 	removeFromManifest,
 	serializeSnapshot,
 } from './plan';
+import { isGridChild, isGridParent, placeGridChildren } from './grid';
 import { MANIFEST_KEY, SNAPSHOT_KEY, SNAPSHOT_MAX_BYTES, SNAPSHOT_SCHEMA_VERSION, SnapshotError } from './types';
 import type {
 	BatchResult,
@@ -133,16 +134,19 @@ function captureLayoutSnapshot(node: SceneNode, op: MutationOp, capturedAt: numb
 	if (parent !== null && 'layoutMode' in parent) snapshot.parentLayoutMode = parent.layoutMode;
 	if ('constraints' in node) snapshot.constraintHorizontal = node.constraints.horizontal;
 	if ('layoutPositioning' in node) snapshot.layoutPositioning = node.layoutPositioning;
-	// Grid position is captured ONLY for a direct child of a GRID frame. These properties exist on
-	// every auto-layout node and report meaningless values off a grid, and restoring one of those
-	// makes `setGridChildPosition` throw — which is how a failed batch's ROLLBACK can itself fail,
-	// leaving the canvas half-mutated. Found by the LS-11 harness on its first real run.
-	if (snapshot.parentLayoutMode === 'GRID') {
-		if ('gridRowAnchorIndex' in node && 'gridColumnAnchorIndex' in node) {
-			snapshot.gridRowAnchorIndex = node.gridRowAnchorIndex;
-			snapshot.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
-		}
-		if ('gridChildHorizontalAlign' in node) snapshot.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	// Per-child ALIGNMENT is safe to capture on the child; POSITION is not, and is captured on the
+	// parent below. Both properties exist on every auto-layout node and report junk off a grid.
+	if (snapshot.parentLayoutMode === 'GRID' && 'gridChildHorizontalAlign' in node) {
+		snapshot.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	}
+	// The whole grid's child positions, recorded on the grid itself: a permutation cannot be
+	// restored one member at a time without a transient collision — see ./grid.
+	if (isGridParent(node) && 'children' in node) {
+		snapshot.gridChildPositions = node.children.filter(isGridChild).map((child) => ({
+			childId: child.id,
+			row: child.gridRowAnchorIndex,
+			column: child.gridColumnAnchorIndex,
+		}));
 	}
 	return snapshot;
 }
@@ -260,9 +264,17 @@ function applyRestorePlan(node: SceneNode, steps: readonly RestoreStep[]): void 
 			case 'set-constraint-horizontal':
 				if ('constraints' in node) node.constraints = { ...node.constraints, horizontal: step.value };
 				break;
-			case 'set-grid-position':
-				if ('setGridChildPosition' in node) node.setGridChildPosition(step.row, step.column);
+			case 'set-grid-positions': {
+				if (!isGridParent(node) || !('children' in node)) break;
+				const byId = new Map(node.children.filter(isGridChild).map((child) => [child.id, child]));
+				const moves = step.positions.flatMap((position) => {
+					const child = byId.get(position.childId);
+					// A child deleted since capture is skipped; the rest still land correctly.
+					return child === undefined ? [] : [{ child, row: position.row, column: position.column }];
+				});
+				placeGridChildren(node, moves);
 				break;
+			}
 			case 'set-grid-align':
 				if ('gridChildHorizontalAlign' in node && step.value !== undefined) {
 					node.gridChildHorizontalAlign = step.value;

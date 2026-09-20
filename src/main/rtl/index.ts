@@ -11,6 +11,7 @@
 import type { ScanScope } from '../../common/messages';
 import type { FlaggedNode } from '../../common/models';
 import { on, send } from '../bridge';
+import { isGridChild, isGridParent, placeGridChildren } from '../snapshot/grid';
 import { restoreByOp, withSnapshot } from '../snapshot';
 import type { BatchResult } from '../snapshot';
 import { collectContainers } from '../traversal';
@@ -45,18 +46,26 @@ export function readMirrorInput(node: SceneNode): MirrorInput {
 	const parent = node.parent;
 	if (parent !== null && 'layoutMode' in parent) input.parentLayoutMode = parent.layoutMode;
 	if (parent !== null && 'width' in parent) input.parentWidth = parent.width;
-	if (parent !== null && 'gridColumnCount' in parent) input.parentGridColumnCount = parent.gridColumnCount;
 
 	if ('layoutPositioning' in node) input.layoutPositioning = node.layoutPositioning;
 	input.x = node.x;
 	input.width = node.width;
 	if ('constraints' in node) input.constraintHorizontal = node.constraints.horizontal;
-	// Grid fields are read ONLY when the parent really is a grid. They exist on every auto-layout
-	// node and report junk off a grid — see the F9 note in ./mirror.
-	if (input.parentLayoutMode === 'GRID') {
-		if ('gridColumnAnchorIndex' in node) input.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
-		if ('gridColumnSpan' in node) input.gridColumnSpan = node.gridColumnSpan;
-		if ('gridChildHorizontalAlign' in node) input.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	// Grid fields are read ONLY when the parent really is a grid: they exist on every auto-layout
+	// node and report junk off one — see the F9 note in ./mirror.
+	if (input.parentLayoutMode === 'GRID' && 'gridChildHorizontalAlign' in node) {
+		input.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	}
+	// When this node IS a grid, read its children's positions: the columns are reflected for the
+	// whole grid at once, because they have to be written that way.
+	if (isGridParent(node) && 'children' in node) {
+		input.gridColumnCount = node.gridColumnCount;
+		input.gridChildren = node.children.filter(isGridChild).map((child) => ({
+			childId: child.id,
+			row: child.gridRowAnchorIndex,
+			column: child.gridColumnAnchorIndex,
+			span: child.gridColumnSpan,
+		}));
 	}
 	if (node.type === 'TEXT') input.textAlignHorizontal = node.textAlignHorizontal;
 
@@ -92,11 +101,20 @@ function applyWrites(node: SceneNode, writes: readonly MirrorWrite[]): void {
 			case 'constraint-horizontal':
 				if ('constraints' in node) node.constraints = { ...node.constraints, horizontal: write.value };
 				break;
-			case 'grid-column':
-				if ('setGridChildPosition' in node && 'gridRowAnchorIndex' in node) {
-					node.setGridChildPosition(node.gridRowAnchorIndex, write.column);
-				}
+			case 'grid-reposition': {
+				// Staged by ./snapshot/grid: a reversal swaps occupied cells, and setGridChildPosition
+				// rejects a transient overlap even when the final arrangement is valid.
+				if (!isGridParent(node) || !('children' in node)) break;
+				const byId = new Map(node.children.filter(isGridChild).map((child) => [child.id, child]));
+				placeGridChildren(
+					node,
+					write.moves.flatMap((move) => {
+						const child = byId.get(move.childId);
+						return child === undefined ? [] : [{ child, row: move.row, column: move.column }];
+					}),
+				);
 				break;
+			}
 			case 'grid-align':
 				if ('gridChildHorizontalAlign' in node) node.gridChildHorizontalAlign = write.value;
 				break;

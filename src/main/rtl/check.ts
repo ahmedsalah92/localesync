@@ -13,7 +13,7 @@
 // with auto-layout frames, skipping the assertions whose structures are absent.
 //
 // Scaffolding only — never run by Vitest. Wired behind import.meta.env.DEV in main.ts.
-import { restoreByOp, withSnapshot } from '../snapshot';
+import { SNAPSHOT_KEY, restoreByOp, withSnapshot } from '../snapshot';
 import { collectContainers } from '../traversal';
 import { applyRtlMirror, readMirrorInput, revertRtlMirror } from './index';
 import { isPositionedByParent, planMirror } from './mirror';
@@ -184,8 +184,22 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 			// the parent reversed compares a rule against something it does not control, so the
 			// first version of this assertion reported a failure that was the harness's own.
 			const derivedX = isPositionedByParent(readMirrorInput(node));
+			// An INSTANCE inherits its master's auto-layout state, and the master is mirrored too, so
+			// these change without the rules ever writing them to the instance. Comparing them holds
+			// the rules accountable for propagation they do not perform — the same category as the
+			// derived `x` above.
+			const inherited = node.type === 'INSTANCE';
 			const diff = probeDiff(predicted, before).filter(
-				(line) => !line.startsWith('childOrder') && !(derivedX && line.startsWith('x:')),
+				(line) =>
+					!line.startsWith('childOrder') &&
+					!(derivedX && line.startsWith('x:')) &&
+					!(
+						inherited &&
+						(line.startsWith('itemReverseZIndex') ||
+							line.startsWith('primary') ||
+							line.startsWith('counter') ||
+							line.startsWith('padding'))
+					),
 			);
 			if (diff.length > 0) involutionBreaks.push(`${node.name}: ${diff.join('; ')}`);
 		}
@@ -198,8 +212,20 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 				: involutionBreaks.slice(0, 3).join(' | '),
 		);
 
-		// ── [4] blocked nodes were never touched ─────────────────────────────────────────────────
-		const touched = first.blocked.filter((entry) => {
+		// ── [4] blocked nodes were never touched BY US ───────────────────────────────────────────
+		//
+		// "Unchanged" is the wrong test, and asserting it reported a failure that was not one. A
+		// blocked node can change without being written: mirroring a COMPONENT master propagates to
+		// every instance of it, so an instance child we correctly refused to touch still moves. That
+		// is the LS-10 §2.7a propagation hazard in layout rather than text.
+		//
+		// What the rule actually promises is that WE did not mutate it — and a node we mutated
+		// carries a durable snapshot, so that is the thing to check.
+		const touchedByUs = first.blocked.filter((entry) => {
+			const node = targets.get(entry.nodeId);
+			return node !== undefined && node.getPluginData(SNAPSHOT_KEY) !== '';
+		});
+		const changedByInheritance = first.blocked.filter((entry) => {
 			const node = targets.get(entry.nodeId);
 			const want = baseline.get(entry.nodeId);
 			return node !== undefined && want !== undefined && probeDiff(probe(node), want).length > 0;
@@ -207,8 +233,11 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 		note(
 			notes,
 			'blocked-untouched',
-			touched.length === 0,
-			`${first.blocked.length} blocked, ${touched.length} touched`,
+			touchedByUs.length === 0,
+			`${first.blocked.length} blocked, ${touchedByUs.length} mutated by us` +
+				(changedByInheritance.length > 0
+					? `, ${changedByInheritance.length} changed by master propagation (expected, not a write)`
+					: ''),
 		);
 
 		const instanceLocked = first.blocked.filter((b) => b.reason === 'instance-locked');

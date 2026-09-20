@@ -142,20 +142,18 @@ export async function generateRtlMirror(): Promise<RtlMirrorReport> {
 		frame.gridRowCount = 2;
 		frame.itemSpacing = 4;
 		frame.counterAxisSpacing = 4;
-		const cells = ['span-2', 'c', 'd', 'e', 'f'].map((name) => {
-			const cell = swatch(name, 24);
-			frame.appendChild(cell);
-			return cell;
-		});
-		const spanning = cells[0];
-		if (spanning !== undefined) {
-			spanning.setGridChildPosition(0, 0);
-			spanning.gridColumnSpan = 2;
-		}
-		cells[1]?.setGridChildPosition(0, 2);
-		cells[2]?.setGridChildPosition(1, 0);
-		cells[3]?.setGridChildPosition(1, 1);
-		cells[4]?.setGridChildPosition(1, 2);
+		// Order is load-bearing, and it is the same hazard the mirror itself hit: widening a child
+		// into a column its neighbour already occupies throws. Appending all five first lets Figma
+		// auto-place them into every cell, so there is no room left to span into.
+		//
+		// So the spanning child goes in ALONE and claims its two columns while the grid is empty;
+		// the rest are appended afterwards and auto-flow into what remains — (0,2), (1,0), (1,1),
+		// (1,2) — which is exactly the target layout, with no explicit positioning at all.
+		const spanning = swatch('span-2', 24);
+		frame.appendChild(spanning);
+		spanning.setGridChildPosition(0, 0);
+		spanning.gridColumnSpan = 2;
+		for (const name of ['c', 'd', 'e', 'f']) frame.appendChild(swatch(name, 24));
 	}
 
 	// ── 6. absolutely-positioned badge: E2 / F7 ───────────────────────────────

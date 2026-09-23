@@ -4,7 +4,17 @@
 // test; these do, because each reads like a mistake unless you know the reason, and all three would
 // be easy to "correct" back toward the canvas text.
 import { describe, expect, it } from 'vitest';
-import { FLAG_REASON, STATES, appliedMessage, fontsUnavailable } from './copy';
+import type { BlockedNode, FlaggedNode } from '../../common/models';
+import {
+	FLAG_REASON,
+	SKIPPED_REASON,
+	STATES,
+	UNNAMED_LAYER,
+	appliedMessage,
+	fontsUnavailable,
+	groupCopy,
+} from './copy';
+import { SKIPPED_ORDER, type SummaryGroup } from './state';
 
 describe('appliedMessage — the banner carries the review count (LS-11 §2.9)', () => {
 	it('stays clean when there is nothing to review, which is the good case', () => {
@@ -59,5 +69,66 @@ describe('STATES — transcribed, with one deliberate omission', () => {
 describe('FLAG_REASON — says what the user must do, not what the plugin did', () => {
 	it('asks for a direction check rather than reporting a move', () => {
 		expect(FLAG_REASON['moved-vector']).toBe('moved — check direction');
+	});
+});
+
+describe('groupCopy — the change summary’s rows (LS-28 §2.2)', () => {
+	const flagged = (n: number): FlaggedNode[] =>
+		Array.from({ length: n }, (_, i) => ({ nodeId: String(i), name: 'icon', reason: 'moved-vector' }));
+	const skipped = (reason: BlockedNode['reason'], n: number): BlockedNode[] =>
+		Array.from({ length: n }, (_, i) => ({ nodeId: String(i), reason }));
+
+	it.each([
+		[{ kind: 'mirrored', count: 12 }, '12 layers mirrored', 'layout flipped right-to-left'],
+		[{ kind: 'mirrored', count: 1 }, '1 layer mirrored', 'layout flipped right-to-left'],
+		// Review Focus 5: plural at zero.
+		[{ kind: 'mirrored', count: 0 }, '0 layers mirrored', 'layout flipped right-to-left'],
+		[{ kind: 'moved', key: 'moved', nodes: flagged(3) }, '3 icons moved', 'check direction'],
+		[{ kind: 'moved', key: 'moved', nodes: flagged(1) }, '1 icon moved', 'check direction'],
+		[
+			{
+				kind: 'skipped',
+				key: 'skipped:instance-locked',
+				reason: 'instance-locked',
+				nodes: skipped('instance-locked', 2),
+			},
+			'2 layers skipped',
+			'inside a component instance',
+		],
+		[
+			{ kind: 'skipped', key: 'skipped:missing-font', reason: 'missing-font', nodes: skipped('missing-font', 1) },
+			'1 layer skipped',
+			'font unavailable',
+		],
+		[
+			{
+				kind: 'skipped',
+				key: 'skipped:already-mutated',
+				reason: 'already-mutated',
+				nodes: skipped('already-mutated', 2),
+			},
+			'2 layers skipped',
+			'Preview or Pseudo-loc is active',
+		],
+		[
+			{ kind: 'skipped', key: 'skipped:empty', reason: 'empty', nodes: skipped('empty', 1) },
+			'1 layer skipped',
+			'empty layer',
+		],
+	] as [SummaryGroup, string, string][])('%o → %s', (group, primary, meta) => {
+		expect(groupCopy(group)).toEqual({ primary, meta });
+	});
+
+	// Says "layers", never "frames": `succeeded` counts every layer written, not only containers.
+	it('never calls the mirrored count frames', () => {
+		expect(groupCopy({ kind: 'mirrored', count: 12 }).primary).not.toMatch(/frame/i);
+	});
+
+	it('has a reason line for every skip reason the panel can show', () => {
+		for (const reason of SKIPPED_ORDER) expect(SKIPPED_REASON[reason]).toMatch(/\S/);
+	});
+
+	it('names the fallback for a layer with no name', () => {
+		expect(UNNAMED_LAYER).toBe('Unnamed layer');
 	});
 });

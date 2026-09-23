@@ -5,6 +5,7 @@
 // Mostly transcribed from DES-2's state block rather than drafted (LS-11 §2.10). Two entries are
 // amendments, and both follow a precedent LS-10 already set — see below.
 import type { ScanScope } from '../../common/messages';
+import type { SkippedReason, SummaryGroup } from './state';
 
 /** Same two values, same labels, same order as Extract's — it is the shared Scope Select pattern
  *  (design.md LS-24 Deliverable 4), not a second one. */
@@ -89,3 +90,43 @@ export function fontsUnavailable(count: number): { headline: string; body: strin
 export const FLAG_REASON: Record<'moved-vector', string> = {
 	'moved-vector': 'moved — check direction',
 };
+
+/** A child row's name when the node reported none, or an empty one (LS-28 §2.2). */
+export const UNNAMED_LAYER = 'Unnamed layer';
+
+/**
+ * Why a layer was skipped, in the user's terms (LS-28 §2.2). A `Record` over every reason, so
+ * adding a `BlockReason` the mirror can hit fails `tsc` until it has copy.
+ */
+export const SKIPPED_REASON: Record<SkippedReason, string> = {
+	'instance-locked': 'inside a component instance',
+	'missing-font': 'font unavailable',
+	'already-mutated': 'Preview or Pseudo-loc is active',
+	empty: 'empty layer',
+};
+
+const count = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * A summary group's two lines.
+ *
+ * "Layers", not the issue sketch's "frames": `succeeded` counts every layer the mirror wrote —
+ * containers, their direct children and text (F6) — so "frames" would overstate it. "Icons" is the
+ * user's word for `FLAGGABLE_TYPES`, the leaf vector types.
+ */
+export function groupCopy(group: SummaryGroup): { primary: string; meta: string } {
+	switch (group.kind) {
+		case 'mirrored':
+			return {
+				primary: count(group.count, 'layer mirrored', 'layers mirrored'),
+				meta: 'layout flipped right-to-left',
+			};
+		case 'moved':
+			return { primary: count(group.nodes.length, 'icon moved', 'icons moved'), meta: 'check direction' };
+		case 'skipped':
+			return {
+				primary: count(group.nodes.length, 'layer skipped', 'layers skipped'),
+				meta: SKIPPED_REASON[group.reason],
+			};
+	}
+}

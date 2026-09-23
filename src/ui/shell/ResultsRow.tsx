@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import type { OverflowVerdictValue } from '../../common/models';
 import { ArrowIcon } from './icons/ArrowIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
@@ -51,6 +51,11 @@ export type RowTrailing =
 	| { expanded: boolean; onJump?: never; jumpLabel?: never }
 	| { onJump?: never; jumpLabel?: never; expanded?: never };
 
+/** Enter and Space activate a `role="button"` element, matching a native button. */
+export function isActivationKey(key: string): boolean {
+	return key === 'Enter' || key === ' ';
+}
+
 export function ResultsRow(
 	props: {
 		tone: RowTone;
@@ -64,10 +69,27 @@ export function ResultsRow(
 	} & RowTrailing,
 ) {
 	const tokens = toneToken(props.tone);
+	// A group row hides its children until opened, so it must be reachable without a mouse: a
+	// focusable disclosure button with its state announced. Jump and plain rows are unchanged — their
+	// jump button is already the keyboard path.
+	const disclosure =
+		props.expanded === undefined
+			? {}
+			: {
+					role: 'button',
+					tabIndex: 0,
+					'aria-expanded': props.expanded,
+					onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+						if (!isActivationKey(e.key)) return;
+						e.preventDefault(); // Space would otherwise scroll the list
+						props.onSelect();
+					},
+				};
 
 	return (
 		<div
 			onClick={props.onSelect}
+			{...disclosure}
 			style={{
 				display: 'flex',
 				height: 56,

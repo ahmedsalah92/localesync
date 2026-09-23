@@ -1,6 +1,6 @@
 import { createElement, type FunctionComponent } from 'react';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { toneToken, type RowTone } from './ResultsRow';
+import { isActivationKey, toneToken, type RowTone } from './ResultsRow';
 
 describe('toneToken', () => {
 	const cases: [RowTone, { strip: string; meta: string }][] = [
@@ -56,6 +56,27 @@ describe('ResultsRow trailing slot and depth (LS-28 §1.3)', () => {
 		const html = render({ ...base, expanded: true });
 		expect(html).toContain('data-disclosure="open"');
 		expect(html).not.toContain('<button');
+	});
+
+	// A group row hides its children until opened, so a click-only div would leave keyboard and
+	// screen-reader users unable to reach skipped layers at all (LS-28 final review).
+	it('makes an expandable row a focusable disclosure button', () => {
+		const html = render({ ...base, expanded: false });
+		expect(html).toContain('role="button"');
+		expect(html).toContain('tabindex="0"');
+		expect(html).toContain('aria-expanded="false"');
+		expect(render({ ...base, expanded: true })).toContain('aria-expanded="true"');
+	});
+
+	it('leaves jump and plain rows as they were — no role, no tab stop', () => {
+		for (const html of [render(base), render({ ...base, onJump: () => {}, jumpLabel: 'Jump to node' })]) {
+			expect(html).not.toContain('role="button"');
+			expect(html).not.toContain('aria-expanded');
+		}
+	});
+
+	it('activates a disclosure on Enter and Space only', () => {
+		expect(['Enter', ' ', 'Tab', 'ArrowDown', 'a'].map(isActivationKey)).toEqual([true, true, false, false, false]);
 	});
 
 	it('renders the closed chevron when collapsed', () => {

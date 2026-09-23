@@ -52,6 +52,7 @@ prints `ls11:blocked-untouched:PASS`, and the row's alignment is unchanged.
 - `ls11:no-compounding:PASS` — a second apply mirrors from source, not from the mirrored state.
 - `ls11:one-undo-step:PASS apply=1 revert=1` — plus the `MANUAL` line: confirm once by hand that a
   single Cmd-Z reverts the whole mirror.
+  Confirmed 2026-09-23 (LS-11 §2.8).
 
 A `SKIP` is not a pass. `ls11:instance-locked:SKIP` on this fixture means the instance row did not
 build, not that the rule is satisfied.

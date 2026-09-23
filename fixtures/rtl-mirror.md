@@ -38,7 +38,8 @@ the font), name it `missing-font`, and put it inside a horizontal auto-layout fr
 would otherwise want to change its `textAlignHorizontal`.
 
 **Expected:** the mirror skips it and reports it as `blocked` with reason `missing-font`. The check
-prints `ls11:blocked-untouched:PASS`, and the row's alignment is unchanged.
+prints `ls11:blocked-untouched:PASS` and `ls11:missing-font-align:PASS`. The row's `x` may move — its
+parent is mirrored and re-lays it out — but its alignment must not change.
 
 ## What a good run looks like
 

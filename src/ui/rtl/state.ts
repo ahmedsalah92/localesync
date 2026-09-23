@@ -168,29 +168,21 @@ export function summarize(state: RtlState): SummaryGroup[] {
 	return groups;
 }
 
-/** Nodes blocked for a missing font — the `fonts-unavailable` count (LS-11 §2.6: only TEXT nodes
- *  can be blocked this way, because only the text-alignment rule writes to one). */
-export function missingFontCount(blocked: readonly BlockedNode[]): number {
-	return blocked.filter((entry) => entry.reason === 'missing-font').length;
-}
-
-/** Which empty/summary state the panel body should show, or `null` to render the review list.
+/** Which empty state the panel body should show, or `null` to render the change summary.
  *
  * Extracted from the panel because it is decision logic, not markup — it shipped wrong once
- * (a successful mirror with nothing to review fell through to the first-run copy and told the user
- * "Nothing to mirror yet" while the banner said the mirror was applied), and presentation logic
- * inside a component is logic no test was watching.
+ * (a successful mirror with nothing to review fell through to the first-run copy). Since LS-28 the
+ * phase alone decides: an applied mirror always has a summary to show, so the `no-issues` and
+ * `fonts-unavailable` shells are gone.
  */
-export type RtlShell = 'operation-failed' | 'no-text-on-page' | 'fonts-unavailable' | 'no-issues' | 'first-run' | null;
+export type RtlShell = 'operation-failed' | 'no-text-on-page' | 'first-run' | null;
 
-export function selectShell(state: RtlState, missingFonts: number): RtlShell {
+export function selectShell(state: RtlState): RtlShell {
 	// "Nothing in scope to mirror" is not a failure, and saying "The mirror failed and your canvas
 	// was restored" for it is alarming and untrue — nothing was attempted, so nothing was restored.
 	if (state.phase === 'failed' && state.errorCode === 'no-text-nodes') return 'no-text-on-page';
 	if (state.phase === 'failed') return 'operation-failed';
-	// Anything to review wins: the rows ARE the panel's content.
-	if (state.flagged.length > 0) return null;
-	if (state.phase === 'applied') return missingFonts > 0 ? 'fonts-unavailable' : 'no-issues';
+	if (state.phase === 'applied') return null;
 	return 'first-run';
 }
 

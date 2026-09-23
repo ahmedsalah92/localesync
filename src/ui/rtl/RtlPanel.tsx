@@ -9,15 +9,16 @@ import { StateView } from '../shell/StateView';
 import { useApplied } from '../shell/applied';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { Switch } from '../shell/primitives/Switch';
-import { FLAG_REASON, LABELS, SCOPES, STATES, appliedMessage, fontsUnavailable } from './copy';
+import { LABELS, SCOPES, STATES, appliedMessage } from './copy';
+import { summaryRows } from './rows';
 import {
 	initialRtlState,
 	isBusy,
 	isMirrorOn,
-	missingFontCount,
 	progressAction,
 	rtlReducer,
 	selectShell,
+	summarize,
 	type PendingOp,
 } from './state';
 
@@ -29,8 +30,8 @@ import {
  * there is no separate Apply button: on applies, off reverts (§2.7). Scope is implicit and resolved
  * on the main thread, which is why the panel has no scope select (§2.10).
  *
- * The rows are the **review list**, not the mirrored nodes: a mirror that worked needs no row. They
- * are nodes the mirror moved but could not rotate, because the plugin never mirrors artwork (G1).
+ * The rows are a **change summary** (LS-28): how many layers were mirrored, which icons moved and
+ * need a direction check, and what was skipped and why. Groups expand to jumpable rows.
  */
 export function RtlPanel() {
 	const [state, dispatch] = useReducer(rtlReducer, undefined, initialRtlState);
@@ -129,8 +130,7 @@ export function RtlPanel() {
 		jumpId.current = send<SelectNode>({ type: 'select-node', nodeId });
 	}, []);
 
-	const missingFonts = missingFontCount(state.blocked);
-	const which = selectShell(state, missingFonts);
+	const which = selectShell(state);
 	const shell =
 		which === null
 			? null
@@ -138,11 +138,8 @@ export function RtlPanel() {
 				? { state: which, ...STATES.operationFailed }
 				: which === 'no-text-on-page'
 					? { state: which, ...STATES.noText }
-					: which === 'fonts-unavailable'
-						? { state: which, ...fontsUnavailable(missingFonts) }
-						: which === 'no-issues'
-							? { state: which, ...STATES.nothingToReview }
-							: { state: which, ...STATES.firstRun };
+					: { state: which, ...STATES.firstRun };
+	const rows = summaryRows(summarize(state), state.expanded);
 
 	return (
 		<>
@@ -205,22 +202,46 @@ export function RtlPanel() {
 				/>
 			) : (
 				<ResultsList hasFooter={false}>
-					{state.flagged.map((entry) => (
-						<ResultsRow
-							key={entry.nodeId}
-							tone="truncates"
-							primary={entry.name}
-							meta={{ label: FLAG_REASON[entry.reason] }}
-							selected={state.selectedNodeId === entry.nodeId}
-							onSelect={() => {
-								dispatch({ kind: 'select', nodeId: entry.nodeId });
-							}}
-							onJump={() => {
-								onJump(entry.nodeId);
-							}}
-							jumpLabel={LABELS.jump}
-						/>
-					))}
+					{rows.map((row) => {
+						const trailing = row.trailing;
+						const shared = {
+							tone: row.tone,
+							primary: row.primary,
+							meta: { label: row.meta },
+							depth: row.depth,
+						};
+						switch (trailing.kind) {
+							case 'jump':
+								return (
+									<ResultsRow
+										key={row.id}
+										{...shared}
+										selected={state.selectedNodeId === trailing.nodeId}
+										onSelect={() => {
+											dispatch({ kind: 'select', nodeId: trailing.nodeId });
+										}}
+										onJump={() => {
+											onJump(trailing.nodeId);
+										}}
+										jumpLabel={LABELS.jump}
+									/>
+								);
+							case 'expand':
+								return (
+									<ResultsRow
+										key={row.id}
+										{...shared}
+										selected={false}
+										expanded={trailing.expanded}
+										onSelect={() => {
+											dispatch({ kind: 'toggle-group', key: trailing.key });
+										}}
+									/>
+								);
+							case 'none':
+								return <ResultsRow key={row.id} {...shared} selected={false} onSelect={() => {}} />;
+						}
+					})}
 				</ResultsList>
 			)}
 		</>

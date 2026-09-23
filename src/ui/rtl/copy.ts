@@ -2,8 +2,9 @@
 //
 // Every user-facing string the RTL Mirror panel renders, mirroring pseudo/copy.ts.
 //
-// Mostly transcribed from DES-2's state block rather than drafted (LS-11 §2.10). Two entries are
-// amendments, and both follow a precedent LS-10 already set — see below.
+// Mostly transcribed from DES-2's state block rather than drafted (LS-11 §2.10); `appliedMessage`
+// is an amendment following a precedent LS-10 set — see below. The change-summary copy at the
+// bottom is LS-28's (§2.2).
 import type { ScanScope } from '../../common/messages';
 import type { SkippedReason, SummaryGroup } from './state';
 
@@ -55,41 +56,7 @@ export const STATES = {
 		headline: "Couldn't complete",
 		body: 'The mirror failed and your canvas was restored. Nothing was left changed.',
 	},
-	/**
-	 * **Amendment, not transcribed.** DES-2's state table has no RTL cell for "applied, nothing to
-	 * review", but the panel reaches it whenever a mirror succeeds and flags nothing — which is the
-	 * good case and should be the common one.
-	 *
-	 * Without it the panel falls back to `firstRun` and tells the user there is "Nothing to mirror
-	 * yet" while the banner directly above says the mirror IS applied. Two contradictory claims about
-	 * the same canvas is worse than an untranscribed string.
-	 */
-	nothingToReview: {
-		headline: 'Mirror applied',
-		body: 'Nothing needs a direction check. Look at the canvas to see how your layout holds up in RTL.',
-	},
 } as const;
-
-/**
- * Counts **layers**, where the canvas said "N fonts could not be loaded".
- *
- * The same correction LS-10 §2.16 made, for the same reason: `BlockedNode` carries a reason, not a
- * font name, so a font count is not derivable at this layer and would overstate whenever two layers
- * share one missing font. Layers are also what the user goes and fixes.
- */
-export function fontsUnavailable(count: number): { headline: string; body: string } {
-	const layers = count === 1 ? 'layer uses' : 'layers use';
-	return {
-		headline: 'Fonts unavailable',
-		body: `${count} ${layers} fonts that couldn't be loaded — they're skipped and flagged, not mirrored.`,
-	};
-}
-
-/** The review row's explanation. The mirror moved it; only a human can say whether it should also
- *  have been rotated (G1). */
-export const FLAG_REASON: Record<'moved-vector', string> = {
-	'moved-vector': 'moved — check direction',
-};
 
 /** A child row's name when the node reported none, or an empty one (LS-28 §2.2). */
 export const UNNAMED_LAYER = 'Unnamed layer';

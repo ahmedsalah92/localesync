@@ -5,15 +5,7 @@
 // be easy to "correct" back toward the canvas text.
 import { describe, expect, it } from 'vitest';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
-import {
-	FLAG_REASON,
-	SKIPPED_REASON,
-	STATES,
-	UNNAMED_LAYER,
-	appliedMessage,
-	fontsUnavailable,
-	groupCopy,
-} from './copy';
+import { SKIPPED_REASON, STATES, UNNAMED_LAYER, appliedMessage, groupCopy } from './copy';
 import { SKIPPED_ORDER, type SummaryGroup } from './state';
 
 describe('appliedMessage — the banner carries the review count (LS-11 §2.9)', () => {
@@ -33,20 +25,6 @@ describe('appliedMessage — the banner carries the review count (LS-11 §2.9)',
 	});
 });
 
-describe('fontsUnavailable — counts layers, not fonts', () => {
-	// The same correction LS-10 §2.16 made: BlockedNode carries a reason, not a font name, so a font
-	// count is not derivable here and would overstate whenever two layers share one missing font.
-	it('says layers, and never a font count', () => {
-		expect(fontsUnavailable(3).body).toContain('3 layers use');
-		expect(fontsUnavailable(3).body).not.toContain('3 fonts');
-		expect(fontsUnavailable(3).body).toContain('not mirrored');
-	});
-
-	it('agrees with itself in the singular', () => {
-		expect(fontsUnavailable(1).body).toContain('1 layer uses');
-	});
-});
-
 describe('STATES — transcribed, with one deliberate omission', () => {
 	/**
 	 * DES-2's canvas copy for this panel's no-selection state reads "…or switch scope to Page", but
@@ -55,7 +33,7 @@ describe('STATES — transcribed, with one deliberate omission', () => {
 	 * the same resolution as LS-10 §2.4.
 	 */
 	it('has no no-selection state, and names no scope control anywhere', () => {
-		expect(Object.keys(STATES)).toEqual(['firstRun', 'noText', 'operationFailed', 'nothingToReview']);
+		expect(Object.keys(STATES)).toEqual(['firstRun', 'noText', 'operationFailed']);
 		for (const state of Object.values(STATES)) {
 			expect(state.body).not.toMatch(/scope/i);
 		}
@@ -63,12 +41,6 @@ describe('STATES — transcribed, with one deliberate omission', () => {
 
 	it('promises the canvas is untouched after a failure — the LS-4 guarantee, in words', () => {
 		expect(STATES.operationFailed.body).toContain('Nothing was left changed');
-	});
-});
-
-describe('FLAG_REASON — says what the user must do, not what the plugin did', () => {
-	it('asks for a direction check rather than reporting a move', () => {
-		expect(FLAG_REASON['moved-vector']).toBe('moved — check direction');
 	});
 });
 

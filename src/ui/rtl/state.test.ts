@@ -1,16 +1,7 @@
 // src/ui/rtl/state.test.ts — the reducer, pure (no React, no `./bridge`).
 import { describe, expect, it } from 'vitest';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
-import {
-	initialRtlState,
-	isBusy,
-	isMirrorOn,
-	missingFontCount,
-	progressAction,
-	rtlReducer,
-	selectShell,
-	summarize,
-} from './state';
+import { initialRtlState, isBusy, isMirrorOn, progressAction, rtlReducer, selectShell, summarize } from './state';
 import type { RtlAction, RtlState } from './state';
 
 const run = (actions: RtlAction[], from: RtlState = initialRtlState()): RtlState => actions.reduce(rtlReducer, from);
@@ -103,15 +94,7 @@ describe('failure', () => {
 	});
 });
 
-describe('missingFontCount', () => {
-	it('counts only the missing-font blocks', () => {
-		expect(missingFontCount([blocked('missing-font'), blocked('instance-locked'), blocked('missing-font')])).toBe(
-			2,
-		);
-	});
-});
-
-describe('selectShell — what the panel body shows', () => {
+describe('selectShell — what the panel body shows (LS-28 §2.4)', () => {
 	const applied = (flagged = 0, blocked: BlockedNode[] = []): RtlState =>
 		run([
 			{ kind: 'apply-started' },
@@ -122,33 +105,23 @@ describe('selectShell — what the panel body shows', () => {
 		]);
 
 	/**
-	 * The regression this function exists for. A mirror that succeeded and flagged nothing used to
-	 * fall through to the first-run copy — telling the user "Nothing to mirror yet" directly under a
-	 * banner reading "RTL mirror applied". Two contradictory claims about the same canvas.
+	 * The regression the old `no-issues` shell existed for — "Nothing to mirror yet" under a banner
+	 * reading "RTL mirror applied" — cannot happen now: an applied mirror always shows the summary.
 	 */
-	it('does NOT show first-run after a successful mirror', () => {
-		expect(selectShell(applied(), 0)).toBe('no-issues');
-		expect(selectShell(applied(), 0)).not.toBe('first-run');
+	it('shows the summary for every applied mirror, clean, flagged or blocked', () => {
+		expect(selectShell(applied())).toBeNull();
+		expect(selectShell(applied(2))).toBeNull();
+		expect(selectShell(applied(0, [blocked('missing-font')]))).toBeNull();
 	});
 
 	it('shows first-run only before anything is applied', () => {
-		expect(selectShell(initialRtlState(), 0)).toBe('first-run');
-		expect(selectShell(run([{ kind: 'revert-started' }, { kind: 'reverted' }], applied()), 0)).toBe('first-run');
+		expect(selectShell(initialRtlState())).toBe('first-run');
+		expect(selectShell(run([{ kind: 'revert-started' }, { kind: 'reverted' }], applied()))).toBe('first-run');
 	});
 
-	// The rows ARE the content when there is something to review.
-	it('renders the review list rather than any empty state', () => {
-		expect(selectShell(applied(2), 0)).toBeNull();
-		expect(selectShell(applied(2), 3)).toBeNull();
-	});
-
-	it('reports skipped layers when a mirror applied but some were blocked', () => {
-		expect(selectShell(applied(0, [blocked('missing-font')]), 1)).toBe('fonts-unavailable');
-	});
-
-	// A failure outranks everything: the canvas was restored, so there is nothing to review.
+	// A failure outranks everything: the canvas was restored, so there is nothing to summarise.
 	it('shows the failure state even with a stale review list', () => {
-		expect(selectShell(run([{ kind: 'failed', code: 'mutation-failed' }], applied(2)), 0)).toBe('operation-failed');
+		expect(selectShell(run([{ kind: 'failed', code: 'mutation-failed' }], applied(2)))).toBe('operation-failed');
 	});
 });
 
@@ -198,13 +171,13 @@ describe('selectShell distinguishes "nothing to mirror" from "the mirror failed"
 	// attempted, so nothing was restored.
 	it('shows the empty state for no-text-nodes, not the failure state', () => {
 		const state = run([{ kind: 'apply-started' }, { kind: 'failed', code: 'no-text-nodes' }]);
-		expect(selectShell(state, 0)).toBe('no-text-on-page');
+		expect(selectShell(state)).toBe('no-text-on-page');
 	});
 
 	it('still shows the failure state for a genuine failure', () => {
 		const state = run([{ kind: 'apply-started' }, { kind: 'failed', code: 'mutation-failed' }]);
-		expect(selectShell(state, 0)).toBe('operation-failed');
-		expect(selectShell(run([{ kind: 'failed', code: 'internal' }]), 0)).toBe('operation-failed');
+		expect(selectShell(state)).toBe('operation-failed');
+		expect(selectShell(run([{ kind: 'failed', code: 'internal' }]))).toBe('operation-failed');
 	});
 });
 

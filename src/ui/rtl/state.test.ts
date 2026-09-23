@@ -9,6 +9,7 @@ import {
 	progressAction,
 	rtlReducer,
 	selectShell,
+	summarize,
 } from './state';
 import type { RtlAction, RtlState } from './state';
 
@@ -33,14 +34,14 @@ describe('the apply → flagged → applied sequence', () => {
 		const state = run([
 			{ kind: 'apply-started' },
 			{ kind: 'flagged', flagged: [flag('1')] },
-			{ kind: 'applied', blocked: [] },
+			{ kind: 'applied', blocked: [], mirrored: 1 },
 		]);
 		expect(state.phase).toBe('applied');
 		expect(state.flagged).toHaveLength(1);
 	});
 
 	it('reaches applied with no review list when nothing was flagged', () => {
-		const state = run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [] }]);
+		const state = run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [], mirrored: 1 }]);
 		expect(state.phase).toBe('applied');
 		expect(state.flagged).toEqual([]);
 	});
@@ -57,7 +58,7 @@ describe('revert returns to the first-run surface', () => {
 		const applied = run([
 			{ kind: 'apply-started' },
 			{ kind: 'flagged', flagged: [flag('1')] },
-			{ kind: 'applied', blocked: [blocked('missing-font')] },
+			{ kind: 'applied', blocked: [blocked('missing-font')], mirrored: 1 },
 			{ kind: 'select', nodeId: '1' },
 		]);
 		const reverted = run([{ kind: 'revert-started' }, { kind: 'reverted' }], applied);
@@ -117,7 +118,7 @@ describe('selectShell — what the panel body shows', () => {
 			...(flagged > 0
 				? [{ kind: 'flagged' as const, flagged: Array.from({ length: flagged }, (_, i) => flag(String(i))) }]
 				: []),
-			{ kind: 'applied', blocked },
+			{ kind: 'applied', blocked, mirrored: 1 },
 		]);
 
 	/**
@@ -163,30 +164,30 @@ describe('selectShell — what the panel body shows', () => {
  */
 describe('progressAction — what a terminal progress means (regression)', () => {
 	it('completes an apply, never a revert', () => {
-		expect(progressAction('apply', [])).toEqual({ kind: 'applied', blocked: [] });
+		expect(progressAction('apply', [], 12)).toEqual({ kind: 'applied', blocked: [], mirrored: 12 });
 	});
 
 	it('completes a revert', () => {
-		expect(progressAction('revert', [])).toEqual({ kind: 'reverted' });
+		expect(progressAction('revert', [], 12)).toEqual({ kind: 'reverted' });
 	});
 
 	// A progress correlated to nothing we started must not move the panel at all.
 	it('ignores a progress we were not waiting on', () => {
-		expect(progressAction(null, [])).toBeNull();
+		expect(progressAction(null, [], 0)).toBeNull();
 	});
 
 	// `nodes-blocked` arrives BEFORE the terminal progress, so the blocked list is carried in.
 	it('carries the blocked list collected before the terminal progress', () => {
 		const list = [blocked('missing-font')];
-		expect(progressAction('apply', list)).toEqual({ kind: 'applied', blocked: list });
+		expect(progressAction('apply', list, 3)).toEqual({ kind: 'applied', blocked: list, mirrored: 3 });
 	});
 
 	// The reducer's own guarantee, which the stale closure violated end to end: an apply that
 	// completes must leave the switch ON.
 	it('an applied run leaves the mirror on, a reverted one leaves it off', () => {
-		const afterApply = run([{ kind: 'apply-started' }, progressAction('apply', []) as RtlAction]);
+		const afterApply = run([{ kind: 'apply-started' }, progressAction('apply', [], 1) as RtlAction]);
 		expect(isMirrorOn(afterApply.phase)).toBe(true);
-		const afterRevert = run([{ kind: 'revert-started' }, progressAction('revert', []) as RtlAction], afterApply);
+		const afterRevert = run([{ kind: 'revert-started' }, progressAction('revert', [], 1) as RtlAction], afterApply);
 		expect(isMirrorOn(afterRevert.phase)).toBe(false);
 	});
 });
@@ -221,12 +222,14 @@ describe('scope', () => {
 
 	it('is remembered across a run', () => {
 		const chosen = run([{ kind: 'set-scope', scope: 'selection' }]);
-		expect(run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [] }], chosen).scope).toBe('selection');
+		expect(run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [], mirrored: 1 }], chosen).scope).toBe(
+			'selection',
+		);
 	});
 
 	// Changing scope must not re-apply: this mutates the user's file, so the switch is the commit.
 	it('does not move the phase', () => {
-		const applied = run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [] }]);
+		const applied = run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [], mirrored: 1 }]);
 		expect(run([{ kind: 'set-scope', scope: 'selection' }], applied).phase).toBe('applied');
 	});
 
@@ -234,10 +237,115 @@ describe('scope', () => {
 		const state = run([
 			{ kind: 'set-scope', scope: 'selection' },
 			{ kind: 'apply-started' },
-			{ kind: 'applied', blocked: [] },
+			{ kind: 'applied', blocked: [], mirrored: 1 },
 			{ kind: 'revert-started' },
 			{ kind: 'reverted' },
 		]);
 		expect(state).toMatchObject({ phase: 'idle', scope: 'selection' });
+	});
+});
+
+// ── LS-28: the change summary ─────────────────────────────────────────────────────────────────
+
+const node = (nodeId: string, reason: BlockedNode['reason']): BlockedNode => ({ nodeId, reason, name: nodeId });
+
+/** The spec's fixed state (LS-28 §3.1): 12 mirrored, 3 flagged, instance ×2, font ×1, empty ×1. */
+const fixture = (): RtlState =>
+	run([
+		{ kind: 'apply-started' },
+		{ kind: 'flagged', flagged: [flag('1'), flag('2'), flag('3')] },
+		{
+			kind: 'applied',
+			mirrored: 12,
+			blocked: [
+				node('e', 'empty'),
+				node('i1', 'instance-locked'),
+				node('f', 'missing-font'),
+				node('i2', 'instance-locked'),
+			],
+		},
+	]);
+
+describe('summarize — groups, order, omission (LS-28 §2.1)', () => {
+	it('returns every non-empty group in the fixed order', () => {
+		const groups = summarize(fixture());
+		expect(
+			groups.map((g) => (g.kind === 'mirrored' ? `mirrored:${g.count}` : `${g.key}:${g.nodes.length}`)),
+		).toEqual(['mirrored:12', 'moved:3', 'skipped:instance-locked:2', 'skipped:missing-font:1', 'skipped:empty:1']);
+	});
+
+	it('keeps the main thread’s node order inside a group', () => {
+		const instance = summarize(fixture()).find((g) => g.kind === 'skipped' && g.reason === 'instance-locked');
+		expect(instance?.kind === 'skipped' && instance.nodes.map((n) => n.nodeId)).toEqual(['i1', 'i2']);
+	});
+
+	// Replaces the old `no-issues` shell: a clean mirror still says what it did.
+	it('a clean mirror is just the mirrored row', () => {
+		const clean = run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [], mirrored: 12 }]);
+		expect(summarize(clean)).toEqual([{ kind: 'mirrored', count: 12 }]);
+	});
+
+	// Replaces the old `fonts-unavailable` shell.
+	it('a fonts-only run is the mirrored row plus one skipped group', () => {
+		const fonts = run([
+			{ kind: 'apply-started' },
+			{ kind: 'applied', blocked: [node('f', 'missing-font')], mirrored: 5 },
+		]);
+		expect(summarize(fonts).map((g) => g.kind)).toEqual(['mirrored', 'skipped']);
+	});
+
+	it('shows the mirrored row first even when nothing was mirrored', () => {
+		const allSkipped = run([
+			{ kind: 'apply-started' },
+			{ kind: 'applied', blocked: [node('a', 'empty'), node('b', 'empty')], mirrored: 0 },
+		]);
+		expect(summarize(allSkipped)[0]).toEqual({ kind: 'mirrored', count: 0 });
+	});
+
+	it.each(['idle', 'applying', 'reverting', 'failed'] as const)('is empty while %s', (phase) => {
+		expect(summarize({ ...fixture(), phase })).toEqual([]);
+	});
+
+	// Review Focus 2: never blocked for rtl-mirror, but the type allows it — drop it quietly.
+	it('ignores a mixed-font block rather than rendering or crashing', () => {
+		const odd = run([
+			{ kind: 'apply-started' },
+			{ kind: 'applied', blocked: [node('m', 'mixed-font-char-mutation')], mirrored: 1 },
+		]);
+		expect(summarize(odd)).toEqual([{ kind: 'mirrored', count: 1 }]);
+	});
+});
+
+describe('expansion (LS-28 §2.3)', () => {
+	it('opens the moved group by default', () => {
+		expect(initialRtlState().expanded).toEqual(['moved']);
+	});
+
+	it('toggle-group opens and closes a group', () => {
+		const opened = run([{ kind: 'toggle-group', key: 'skipped:empty' }], fixture());
+		expect(opened.expanded).toEqual(['moved', 'skipped:empty']);
+		expect(run([{ kind: 'toggle-group', key: 'skipped:empty' }], opened).expanded).toEqual(['moved']);
+	});
+
+	it('resets to the default on every apply', () => {
+		const fiddled = run(
+			[
+				{ kind: 'toggle-group', key: 'moved' },
+				{ kind: 'toggle-group', key: 'skipped:empty' },
+			],
+			fixture(),
+		);
+		expect(run([{ kind: 'apply-started' }], fiddled).expanded).toEqual(['moved']);
+	});
+});
+
+// Review Focus 3: a re-apply must not show the previous run's count.
+describe('mirrored count across runs', () => {
+	it('is cleared when a new run starts and when the mirror is reverted', () => {
+		expect(run([{ kind: 'apply-started' }], fixture()).mirrored).toBe(0);
+		expect(run([{ kind: 'revert-started' }, { kind: 'reverted' }], fixture())).toMatchObject({
+			mirrored: 0,
+			expanded: ['moved'],
+		});
 	});
 });

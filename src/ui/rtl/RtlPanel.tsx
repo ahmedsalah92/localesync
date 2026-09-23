@@ -85,7 +85,7 @@ export function RtlPanel() {
 		});
 		const offProgress = on('progress', (msg) => {
 			if (msg.id !== runId.current) return;
-			const action = progressAction(pending.current, blocked.current);
+			const action = progressAction(pending.current, blocked.current, msg.completed);
 			const wasApply = pending.current === 'apply';
 			pending.current = null;
 			if (action === null) return; // a progress we were not waiting on

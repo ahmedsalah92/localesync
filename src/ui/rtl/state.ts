@@ -6,7 +6,7 @@
 // never reach `./bridge` — that module assigns a `window` listener at module scope and this file's
 // tests run under Vitest's plain Node environment.
 import type { ErrorCode, ScanScope } from '../../common/messages';
-import type { BlockedNode, FlaggedNode } from '../../common/models';
+import type { BlockReason, BlockedNode, FlaggedNode } from '../../common/models';
 
 /**
  * There is no pre-apply row list, matching the built design: the canvas carries an
@@ -16,6 +16,24 @@ import type { BlockedNode, FlaggedNode } from '../../common/models';
  * control is one Switch, so the phase IS the toggle's state (LS-11 §2.7).
  */
 export type RtlPhase = 'idle' | 'applying' | 'applied' | 'reverting' | 'failed';
+
+/** Every reason the snapshot gate can block `rtl-mirror` for (`src/main/snapshot/plan.ts`).
+ *  `mixed-font-char-mutation` is char-writing only and never reaches this panel. */
+export type SkippedReason = Exclude<BlockReason, 'mixed-font-char-mutation'>;
+
+/** Ordered by how actionable the skip is: instances and fonts are fixable in the file (LS-28 §2.1). */
+export const SKIPPED_ORDER: readonly SkippedReason[] = ['instance-locked', 'missing-font', 'already-mutated', 'empty'];
+
+export type GroupKey = 'moved' | `skipped:${SkippedReason}`;
+
+/** The group that needs a human starts open; report-only groups start closed (LS-28 §2.3). */
+const DEFAULT_EXPANDED: readonly GroupKey[] = ['moved'];
+
+/** One row of the change summary before copy is applied (LS-28 §1.4). */
+export type SummaryGroup =
+	| { kind: 'mirrored'; count: number }
+	| { kind: 'moved'; key: 'moved'; nodes: FlaggedNode[] }
+	| { kind: 'skipped'; key: GroupKey; reason: SkippedReason; nodes: BlockedNode[] };
 
 export interface RtlState {
 	phase: RtlPhase;
@@ -31,6 +49,10 @@ export interface RtlState {
 	flagged: FlaggedNode[];
 	/** Skipped nodes from the last run — the `nodes-blocked` warning's payload. */
 	blocked: BlockedNode[];
+	/** Layers the last apply wrote to — `progress.completed`. 0 when not applied. */
+	mirrored: number;
+	/** Open summary groups. Reset to the default on every apply and revert. */
+	expanded: GroupKey[];
 	selectedNodeId: string | null;
 	errorCode: ErrorCode | null;
 }
@@ -39,15 +61,25 @@ export type RtlAction =
 	| { kind: 'set-scope'; scope: ScanScope }
 	| { kind: 'apply-started' }
 	| { kind: 'flagged'; flagged: FlaggedNode[] }
-	| { kind: 'applied'; blocked: BlockedNode[] }
+	| { kind: 'applied'; blocked: BlockedNode[]; mirrored: number }
 	| { kind: 'revert-started' }
 	| { kind: 'reverted' }
 	| { kind: 'failed'; code: ErrorCode }
-	| { kind: 'select'; nodeId: string };
+	| { kind: 'select'; nodeId: string }
+	| { kind: 'toggle-group'; key: GroupKey };
 
 /** A factory rather than a frozen const, so each mount gets its own arrays. */
 export function initialRtlState(): RtlState {
-	return { phase: 'idle', scope: 'page', flagged: [], blocked: [], selectedNodeId: null, errorCode: null };
+	return {
+		phase: 'idle',
+		scope: 'page',
+		flagged: [],
+		blocked: [],
+		mirrored: 0,
+		expanded: [...DEFAULT_EXPANDED],
+		selectedNodeId: null,
+		errorCode: null,
+	};
 }
 
 export function rtlReducer(state: RtlState, action: RtlAction): RtlState {
@@ -57,7 +89,15 @@ export function rtlReducer(state: RtlState, action: RtlAction): RtlState {
 			return { ...state, scope: action.scope };
 
 		case 'apply-started':
-			return { ...state, phase: 'applying', flagged: [], blocked: [], errorCode: null };
+			return {
+				...state,
+				phase: 'applying',
+				flagged: [],
+				blocked: [],
+				mirrored: 0,
+				expanded: [...DEFAULT_EXPANDED],
+				errorCode: null,
+			};
 
 		// `rtl-flagged` arrives BEFORE the terminal progress, so this lands while still `applying`
 		// and must not itself move the phase on — otherwise a run with nothing to review and a run
@@ -66,20 +106,36 @@ export function rtlReducer(state: RtlState, action: RtlAction): RtlState {
 			return { ...state, flagged: [...action.flagged] };
 
 		case 'applied':
-			return { ...state, phase: 'applied', blocked: [...action.blocked] };
+			return { ...state, phase: 'applied', blocked: [...action.blocked], mirrored: action.mirrored };
 
 		case 'revert-started':
 			return { ...state, phase: 'reverting', errorCode: null };
 
 		// Back to the first-run surface: with the canvas restored there is nothing to review.
 		case 'reverted':
-			return { ...state, phase: 'idle', flagged: [], blocked: [], selectedNodeId: null };
+			return {
+				...state,
+				phase: 'idle',
+				flagged: [],
+				blocked: [],
+				mirrored: 0,
+				expanded: [...DEFAULT_EXPANDED],
+				selectedNodeId: null,
+			};
 
 		case 'failed':
 			return { ...state, phase: 'failed', errorCode: action.code, flagged: [] };
 
 		case 'select':
 			return { ...state, selectedNodeId: action.nodeId };
+
+		case 'toggle-group':
+			return {
+				...state,
+				expanded: state.expanded.includes(action.key)
+					? state.expanded.filter((key) => key !== action.key)
+					: [...state.expanded, action.key],
+			};
 	}
 }
 
@@ -92,6 +148,24 @@ export function isBusy(phase: RtlPhase): boolean {
  *  mid-run and never reads "off" over a mirrored canvas. */
 export function isMirrorOn(phase: RtlPhase): boolean {
 	return phase === 'applied' || phase === 'applying';
+}
+
+/**
+ * The change summary (LS-28 §2.1): what the mirror did, what needs a check, what it skipped.
+ *
+ * Empty unless applied — before that the panel shows a StateView shell. The mirrored group is
+ * always first and always present after an apply, even at 0: "0 layers mirrored" is true and is
+ * the most useful thing to say about a run where everything was skipped.
+ */
+export function summarize(state: RtlState): SummaryGroup[] {
+	if (state.phase !== 'applied') return [];
+	const groups: SummaryGroup[] = [{ kind: 'mirrored', count: state.mirrored }];
+	if (state.flagged.length > 0) groups.push({ kind: 'moved', key: 'moved', nodes: state.flagged });
+	for (const reason of SKIPPED_ORDER) {
+		const nodes = state.blocked.filter((entry) => entry.reason === reason);
+		if (nodes.length > 0) groups.push({ kind: 'skipped', key: `skipped:${reason}`, reason, nodes });
+	}
+	return groups;
 }
 
 /** Nodes blocked for a missing font — the `fonts-unavailable` count (LS-11 §2.6: only TEXT nodes
@@ -133,9 +207,14 @@ export function selectShell(state: RtlState, missingFonts: number): RtlShell {
  */
 export type PendingOp = 'apply' | 'revert' | null;
 
-/** The action a terminal `progress` should produce, or `null` to ignore an unexpected one. */
-export function progressAction(pending: PendingOp, blocked: readonly BlockedNode[]): RtlAction | null {
-	if (pending === 'apply') return { kind: 'applied', blocked: [...blocked] };
+/** The action a terminal `progress` should produce, or `null` to ignore an unexpected one.
+ *  `completed` is the progress's own count — on an apply, the layers mirrored (LS-28 §1.4). */
+export function progressAction(
+	pending: PendingOp,
+	blocked: readonly BlockedNode[],
+	completed: number,
+): RtlAction | null {
+	if (pending === 'apply') return { kind: 'applied', blocked: [...blocked], mirrored: completed };
 	if (pending === 'revert') return { kind: 'reverted' };
 	return null;
 }

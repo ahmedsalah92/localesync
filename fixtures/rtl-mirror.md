@@ -19,6 +19,7 @@ everywhere else.
 | `nested-outer` / `nested-inner` | E1 | Each frame mirrors in its own coordinate space; the transform must not compound |
 | `wrap-row` | E4 | `layoutWrap: 'WRAP'` — reversing children reverses the sequence *within* the reflow, so row breaks land elsewhere |
 | `grid-span` | **F9** | The spanning child in a 3-column grid. `setGridChildPosition` **throws on transient overlap**, so any non-identity permutation collides if written one child at a time |
+| `grid-autoflow` | F9 guard | A `ROW_AUTO_FLOW` grid places children by layer order and **`setGridChildPosition` throws on it**. The mirror must skip F9 here and the snapshot must not capture positions, or restore throws on every launch. Passes if apply and revert both complete. Its columns are **not** mirrored — a known gap, see LS-11 §2.12 |
 | `absolute-badge` | F7, F8 | The only row where `x` is *authored* rather than derived. Its constraint is `MAX`, so F8 must flip too or it drifts on the next resize |
 | `overlap-stack` | **F2** | Negative `itemSpacing` makes the avatars overlap, so reversing the array without toggling `itemReverseZIndex` visibly re-stacks them. Invisible on any non-overlapping row |
 | `plain-group` | §7.4 | A `GROUP` has no layout properties; its children mirror about the group's own bounds |

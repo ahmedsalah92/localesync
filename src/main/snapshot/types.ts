@@ -79,6 +79,12 @@ export interface LayoutSnapshot {
 	 * write. Restored in one staged pass by `./grid`.
 	 */
 	gridChildPositions?: { childId: string; row: number; column: number }[];
+	/**
+	 * The grid's width. Nothing mutates it on purpose, but the staged write in `./grid` doubles it
+	 * transiently, and a throw inside that window would otherwise leave the grid double-width with
+	 * nothing to restore it from. Optional, so snapshots written before it existed still restore.
+	 */
+	gridColumnCount?: number;
 
 	// ── as a child of its own parent ──
 	/**
@@ -179,4 +185,5 @@ export type RestoreStep =
 			readonly kind: 'set-grid-positions';
 			readonly positions: readonly { childId: string; row: number; column: number }[];
 	  }
+	| { readonly kind: 'set-grid-column-count'; readonly value: number }
 	| { readonly kind: 'set-grid-align'; readonly value: LayoutSnapshot['gridChildHorizontalAlign'] };

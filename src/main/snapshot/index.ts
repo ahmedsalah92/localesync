@@ -162,6 +162,7 @@ function captureLayoutSnapshot(node: SceneNode, op: MutationOp, capturedAt: numb
 	// The whole grid's child positions, recorded on the grid itself: a permutation cannot be
 	// restored one member at a time without a transient collision — see ./grid.
 	if (isGridParent(node) && 'children' in node) {
+		snapshot.gridColumnCount = node.gridColumnCount;
 		snapshot.gridChildPositions = node.children.filter(isGridChild).map((child) => ({
 			childId: child.id,
 			row: child.gridRowAnchorIndex,
@@ -295,6 +296,9 @@ function applyRestorePlan(node: SceneNode, steps: readonly RestoreStep[]): void 
 				placeGridChildren(node, moves);
 				break;
 			}
+			case 'set-grid-column-count':
+				if (isGridParent(node) && node.gridColumnCount !== step.value) node.gridColumnCount = step.value;
+				break;
 			case 'set-grid-align':
 				if ('gridChildHorizontalAlign' in node && step.value !== undefined) {
 					node.gridChildHorizontalAlign = step.value;

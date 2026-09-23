@@ -165,6 +165,10 @@ export function planLayoutRestore(snapshot: LayoutSnapshot): RestoreStep[] {
 	if (snapshot.gridChildPositions !== undefined) {
 		steps.push({ kind: 'set-grid-positions', positions: snapshot.gridChildPositions });
 	}
+	// After the positions: shrinking while a child is still parked in the staging half would cut it.
+	if (snapshot.gridColumnCount !== undefined) {
+		steps.push({ kind: 'set-grid-column-count', value: snapshot.gridColumnCount });
+	}
 	return steps;
 }
 

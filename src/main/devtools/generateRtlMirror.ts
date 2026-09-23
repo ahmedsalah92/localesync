@@ -1,7 +1,7 @@
 // src/main/devtools/generateRtlMirror.ts
 // Dev-only fixture bootstrapper for fixtures/rtl-mirror.fig (LS-11 §3.4).
 //
-// Builds 11 of the 12 rows. One CANNOT be scripted:
+// Builds 12 of the 13 rows. One CANNOT be scripted:
 //   • `missing-font` — loadFontAsync fails for unavailable fonts by definition; follow the manual
 //     procedure in fixtures/rtl-mirror.md after running this.
 //
@@ -158,6 +158,21 @@ export async function generateRtlMirror(): Promise<RtlMirrorReport> {
 		spanning.setGridChildPosition(0, 0);
 		spanning.gridColumnSpan = 2;
 		for (const name of ['c', 'd', 'e', 'f']) frame.appendChild(swatch(name, 24));
+	}
+
+	// ── 5b. auto-flow GRID: setGridChildPosition THROWS here ──────────────────
+	// Children are placed by layer order, so the API refuses explicit positions. The mirror must not
+	// attempt F9 on it, and the snapshot must not capture positions whose restore would throw on
+	// every launch. Passes if apply and revert both complete; its order restores via childOrder.
+	{
+		const frame = makeFrame('grid-autoflow');
+		frame.layoutMode = 'GRID';
+		frame.gridColumnCount = 3;
+		frame.gridAutoTracks = 'ROWS';
+		frame.gridItemsPositioning = 'ROW_AUTO_FLOW';
+		frame.itemSpacing = 4;
+		frame.counterAxisSpacing = 4;
+		for (const name of ['g', 'h', 'i', 'j']) frame.appendChild(swatch(name, 24));
 	}
 
 	// ── 6. absolutely-positioned badge: E2 / F7 ───────────────────────────────

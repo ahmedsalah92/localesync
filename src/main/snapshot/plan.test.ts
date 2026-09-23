@@ -335,6 +335,19 @@ describe('planLayoutRestore — only plans what was actually captured (LS-11 §1
 		expect(order.indexOf('set-child-order')).toBeLessThan(order.indexOf('set-grid-positions'));
 	});
 
+	/**
+	 * The staged grid write widens the grid to twice its width. If a write throws in between, the
+	 * grid is left widened — and without the width in the snapshot, rollback put every child back
+	 * but left the user's grid permanently double-width. Restored LAST, once children are home.
+	 */
+	it('restores the grid width after its children, so an interrupted staging heals', () => {
+		const steps = planLayoutRestore(
+			layoutSnapshot({ gridColumnCount: 3, gridChildPositions: [{ childId: 'a', row: 0, column: 0 }] }),
+		);
+		expect(steps[steps.length - 1]).toEqual({ kind: 'set-grid-column-count', value: 3 });
+		expect(kinds(steps).indexOf('set-grid-positions')).toBeLessThan(kinds(steps).indexOf('set-grid-column-count'));
+	});
+
 	it('plans no grid step for a node that is not a grid', () => {
 		expect(kinds(planLayoutRestore(layoutSnapshot({ paddingLeft: 1, paddingRight: 2 })))).not.toContain(
 			'set-grid-positions',

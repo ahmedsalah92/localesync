@@ -288,6 +288,20 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 		if (instanceLocked.length === 0) skip(notes, 'instance-locked', 'no instance children on this page');
 		else note(notes, 'instance-locked', true, `${instanceLocked.length} instance child(ren) skipped`);
 
+		// ── [4b] LS-28: every skipped node carries its live name ─────────────────────────────────
+		// The panel's skipped groups list layers by name; a missing or stale name renders as
+		// "Unnamed layer" and the user cannot find what was skipped.
+		if (first.blocked.length === 0) skip(notes, 'blocked-names', 'nothing blocked on this page');
+		else {
+			const wrong = first.blocked.filter((entry) => entry.name !== targets.get(entry.nodeId)?.name);
+			note(
+				notes,
+				'blocked-names',
+				wrong.length === 0,
+				`${first.blocked.length - wrong.length}/${first.blocked.length} named correctly`,
+			);
+		}
+
 		// ── [5] a second apply must NOT compound ─────────────────────────────────────────────────
 		const second = await applyRtlMirror('page');
 		const compounded = [...targets].filter(([id, node]) => {

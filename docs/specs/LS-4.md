@@ -226,6 +226,12 @@ serialize/deserialize, manifest merge/remove helpers, and the restore-order **pl
 
 ---
 
+**Amendment (LS-28, 2026-09-23): `BlockedNode.name`.** `withSnapshot`'s eligibility gate now also
+records `name: node.name` on every blocked entry, so the RTL panel can list skipped layers by name.
+This is read-only reporting. Eligibility, capture, mutation and restore are unchanged, and
+`restoreIds` produces no `BlockedNode`. The field is optional, so older producers and fixtures stay
+valid. Rationale: `docs/specs/LS-28.md` §1.2.
+
 ## 3. Concrete Acceptance
 
 ### Fixture — `fixtures/snapshot-restore.fig` (FIX-1)

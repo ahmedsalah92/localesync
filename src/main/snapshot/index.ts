@@ -368,7 +368,9 @@ export async function withSnapshot<T extends SceneNode>(
 	const eligible: T[] = [];
 	for (const node of nodes) {
 		const reason = mutationBlockReason(eligibilityFlagsOf(node), op);
-		if (reason !== null) result.blocked.push({ nodeId: node.id, reason });
+		// `name` is read-only reporting for the RTL panel's skipped groups (LS-28 §1.2). It cannot
+		// affect eligibility, capture or restore.
+		if (reason !== null) result.blocked.push({ nodeId: node.id, reason, name: node.name });
 		else eligible.push(node);
 	}
 	if (eligible.length === 0) return result;

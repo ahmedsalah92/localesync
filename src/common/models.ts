@@ -90,6 +90,9 @@ export type BlockReason = 'missing-font' | 'mixed-font-char-mutation' | 'instanc
 export interface BlockedNode {
 	nodeId: string;
 	reason: BlockReason;
+	/** The layer's name when it was blocked (LS-28 §1.2). Optional so existing producers and fixtures
+	 *  stay valid; the RTL panel renders `Unnamed layer` when it is absent. */
+	name?: string;
 }
 
 /**

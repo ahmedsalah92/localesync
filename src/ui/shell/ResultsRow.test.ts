@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { createElement, type FunctionComponent } from 'react';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { toneToken, type RowTone } from './ResultsRow';
 
 describe('toneToken', () => {
@@ -12,5 +13,57 @@ describe('toneToken', () => {
 
 	it.each(cases)('returns the §2.4 token for %s', (tone, expected) => {
 		expect(toneToken(tone)).toEqual(expected);
+	});
+});
+
+// Rendered rather than source-scanned, the same technique as export/ExportModal.test.ts:
+// `react-dom/server` keeps it in Vitest's plain Node environment.
+describe('ResultsRow trailing slot and depth (LS-28 §1.3)', () => {
+	let render: (props: Record<string, unknown>) => string = () => '';
+
+	beforeAll(async () => {
+		const [{ renderToStaticMarkup }, { ResultsRow }] = await Promise.all([
+			import('react-dom/server'),
+			import('./ResultsRow'),
+		]);
+		// Loosely typed on purpose: the cases below include prop combinations `RowTrailing` rejects at
+		// compile time only when written as JSX, and the test is about the rendered output.
+		const Row = ResultsRow as unknown as FunctionComponent<Record<string, unknown>>;
+		render = (props) => renderToStaticMarkup(createElement(Row, props));
+	});
+
+	const base = {
+		tone: 'neutral',
+		primary: 'Primary',
+		meta: { label: 'meta' },
+		selected: false,
+		onSelect: () => {},
+	};
+
+	it('renders the jump button for a row built with today’s props', () => {
+		const html = render({ ...base, onJump: () => {}, jumpLabel: 'Jump to node' });
+		expect(html).toContain('<button');
+		expect(html).not.toContain('data-disclosure');
+	});
+
+	it('renders no jump and no chevron when neither is given', () => {
+		const html = render(base);
+		expect(html).not.toContain('<button');
+		expect(html).not.toContain('data-disclosure');
+	});
+
+	it('renders the open chevron when expanded, and no jump', () => {
+		const html = render({ ...base, expanded: true });
+		expect(html).toContain('data-disclosure="open"');
+		expect(html).not.toContain('<button');
+	});
+
+	it('renders the closed chevron when collapsed', () => {
+		expect(render({ ...base, expanded: false })).toContain('data-disclosure="closed"');
+	});
+
+	it('insets a depth-1 row by 32px (--spacer-5) and a default row by 16px', () => {
+		expect(render({ ...base, depth: 1 })).toContain('var(--spacer-5)');
+		expect(render(base)).not.toContain('var(--spacer-5)');
 	});
 });

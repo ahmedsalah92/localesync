@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { OverflowVerdictValue } from '../../common/models';
 import { ArrowIcon } from './icons/ArrowIcon';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { Tooltip } from './primitives/Tooltip';
 
 export type RowTone = OverflowVerdictValue | 'neutral';
@@ -40,18 +42,28 @@ export function toneToken(tone: RowTone): { strip: string; meta: string } {
 	}
 }
 
-export function ResultsRow(props: {
-	tone: RowTone;
-	primary: string;
-	meta: RowMeta;
-	monoMeta?: boolean;
-	selected: boolean;
-	onSelect: () => void;
-	onJump: () => void;
-	jumpLabel: string;
-}) {
+/**
+ * The row's trailing slot (LS-28 §1.3). A union, so a row with both a jump and a disclosure
+ * chevron does not compile. Today's rows are the first member and compile unchanged.
+ */
+export type RowTrailing =
+	| { onJump: () => void; jumpLabel: string; expanded?: never }
+	| { expanded: boolean; onJump?: never; jumpLabel?: never }
+	| { onJump?: never; jumpLabel?: never; expanded?: never };
+
+export function ResultsRow(
+	props: {
+		tone: RowTone;
+		primary: string;
+		meta: RowMeta;
+		monoMeta?: boolean;
+		selected: boolean;
+		onSelect: () => void;
+		/** 1 → a child row under an expandable group: left content inset 32px instead of 16px. */
+		depth?: 0 | 1;
+	} & RowTrailing,
+) {
 	const tokens = toneToken(props.tone);
-	const [jumpHover, setJumpHover] = useState(false);
 
 	return (
 		<div
@@ -73,7 +85,7 @@ export function ResultsRow(props: {
 					display: 'flex',
 					alignItems: 'center',
 					gap: 'var(--spacer-2)',
-					padding: `var(--spacer-2) var(--spacer-3)`,
+					padding: `var(--spacer-2) var(--spacer-3) var(--spacer-2) ${props.depth === 1 ? 'var(--spacer-5)' : 'var(--spacer-3)'}`,
 				}}
 			>
 				<div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacer-1)' }}>
@@ -139,38 +151,65 @@ export function ResultsRow(props: {
 						)}
 					</div>
 				</div>
-				<Tooltip label={props.jumpLabel}>
-					{/* Glyph stays at the UI3 16×16 spec — verified against 293:1298, whose `Icon` is a
-					    10×10 shape at (3,3), so the export is faithful and is not scaled up. The *hit
-					    area* is 24×24 instead, pulled back with a negative margin so the row's layout is
-					    unchanged, and hover lifts the icon out of `icon/secondary`. */}
-					<button
-						type="button"
-						onClick={(e) => {
-							e.stopPropagation();
-							props.onJump();
-						}}
-						onMouseEnter={() => setJumpHover(true)}
-						onMouseLeave={() => setJumpHover(false)}
-						onFocus={() => setJumpHover(true)}
-						onBlur={() => setJumpHover(false)}
+				{props.onJump !== undefined ? (
+					<JumpButton onJump={props.onJump} label={props.jumpLabel} />
+				) : props.expanded !== undefined ? (
+					// Decorative: the whole row is the click target (onSelect). Same resting token as the
+					// jump glyph.
+					<span
+						aria-hidden="true"
+						data-disclosure={props.expanded ? 'open' : 'closed'}
 						style={{
 							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
-							width: 24,
-							height: 24,
-							margin: -4,
-							borderRadius: 'var(--radius-small)',
-							backgroundColor: jumpHover ? 'var(--ls-bg-hover)' : 'transparent',
-							color: jumpHover ? 'var(--ls-icon-default)' : 'var(--ls-icon-secondary)',
+							width: 16,
+							height: 16,
 							flexShrink: 0,
+							color: 'var(--ls-icon-secondary)',
 						}}
 					>
-						<ArrowIcon />
-					</button>
-				</Tooltip>
+						{props.expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+					</span>
+				) : null}
 			</div>
 		</div>
+	);
+}
+
+function JumpButton(props: { onJump: () => void; label: string }) {
+	const [jumpHover, setJumpHover] = useState(false);
+	return (
+		<Tooltip label={props.label}>
+			{/* Glyph stays at the UI3 16×16 spec — verified against 293:1298, whose `Icon` is a
+				    10×10 shape at (3,3), so the export is faithful and is not scaled up. The *hit
+				    area* is 24×24 instead, pulled back with a negative margin so the row's layout is
+				    unchanged, and hover lifts the icon out of `icon/secondary`. */}
+			<button
+				type="button"
+				onClick={(e) => {
+					e.stopPropagation();
+					props.onJump();
+				}}
+				onMouseEnter={() => setJumpHover(true)}
+				onMouseLeave={() => setJumpHover(false)}
+				onFocus={() => setJumpHover(true)}
+				onBlur={() => setJumpHover(false)}
+				style={{
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					width: 24,
+					height: 24,
+					margin: -4,
+					borderRadius: 'var(--radius-small)',
+					backgroundColor: jumpHover ? 'var(--ls-bg-hover)' : 'transparent',
+					color: jumpHover ? 'var(--ls-icon-default)' : 'var(--ls-icon-secondary)',
+					flexShrink: 0,
+				}}
+			>
+				<ArrowIcon />
+			</button>
+		</Tooltip>
 	);
 }

@@ -236,20 +236,45 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 				return true; // unparseable but present — treat as ours rather than excusing it
 			}
 		});
-		const changedByInheritance = first.blocked.filter((entry) => {
+		// A skipped node can still change without us writing it, two ways: its parent was mirrored
+		// and re-laid it out (only `x` moves), or its master was mirrored and propagated (anything).
+		// Reported apart — lumping them credited a plain text layer's reflow to master propagation.
+		const changes = first.blocked.flatMap((entry) => {
 			const node = targets.get(entry.nodeId);
 			const want = baseline.get(entry.nodeId);
-			return node !== undefined && want !== undefined && probeDiff(probe(node), want).length > 0;
+			if (node === undefined || want === undefined) return [];
+			const diff = probeDiff(probe(node), want);
+			return diff.length === 0 ? [] : [{ entry, onlyX: diff.every((line) => line.startsWith('x:')) }];
 		});
+		const reflowed = changes.filter((c) => c.onlyX).length;
+		const propagated = changes.length - reflowed;
 		note(
 			notes,
 			'blocked-untouched',
 			touchedByUs.length === 0,
 			`${first.blocked.length} blocked, ${touchedByUs.length} mutated by us` +
-				(changedByInheritance.length > 0
-					? `, ${changedByInheritance.length} changed by master propagation (expected, not a write)`
-					: ''),
+				(reflowed > 0 ? `, ${reflowed} moved by parent reflow (expected)` : '') +
+				(propagated > 0 ? `, ${propagated} changed by master propagation (expected, not a write)` : ''),
 		);
+
+		// The missing-font rule's actual claim (fixtures/rtl-mirror.md): the text's alignment is left
+		// alone, because writing it needs the font. Position may move; alignment must not.
+		const missingFont = first.blocked.filter((b) => b.reason === 'missing-font');
+		if (missingFont.length === 0) {
+			skip(notes, 'missing-font-align', 'no missing-font row on this page — see fixtures/rtl-mirror.md');
+		} else {
+			const realigned = missingFont.filter((entry) => {
+				const node = targets.get(entry.nodeId);
+				const want = baseline.get(entry.nodeId);
+				return node !== undefined && want !== undefined && probe(node).textAlign !== want.textAlign;
+			});
+			note(
+				notes,
+				'missing-font-align',
+				realigned.length === 0,
+				`${missingFont.length} missing-font node(s), ${realigned.length} realigned`,
+			);
+		}
 
 		const instanceLocked = first.blocked.filter((b) => b.reason === 'instance-locked');
 		if (instanceLocked.length === 0) skip(notes, 'instance-locked', 'no instance children on this page');

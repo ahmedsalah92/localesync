@@ -23,6 +23,7 @@ import {
 	removeFromManifest,
 	serializeSnapshot,
 } from './plan';
+import { isGridChild, isGridParent, placeGridChildren } from './grid';
 import { MANIFEST_KEY, SNAPSHOT_KEY, SNAPSHOT_MAX_BYTES, SNAPSHOT_SCHEMA_VERSION, SnapshotError } from './types';
 import type {
 	BatchResult,
@@ -53,6 +54,19 @@ export type {
 // In-memory refs of nodes mutated THIS session — the ONLY input the best-effort close handler has
 // (Design model §3). Durable recovery never reads this; restore-on-launch reads the manifest.
 const liveMutations = new Map<string, { node: SceneNode; snapshot: NodeSnapshot }>();
+
+/**
+ * Can this id still be restored onto a live scene node?
+ *
+ * **Shared by `restoreNode` and `restoreIds` on purpose.** They had separate copies, and when
+ * LS-11's layout arm widened one from `type !== 'TEXT'` to "is it still a scene node", the other
+ * kept the text-only test — so every frame in a manifest read as NODE_GONE: its entry was dropped,
+ * its durable snapshot orphaned, and its layout never restored. Restore-on-launch would have left
+ * a mirrored file mirrored forever, which is the worst outcome this module exists to prevent.
+ */
+function isRestorable(node: BaseNode | null): node is SceneNode {
+	return node !== null && node.type !== 'PAGE' && node.type !== 'DOCUMENT' && 'parent' in node;
+}
 
 // ── eligibility (live-node derivation of EligibilityFlags) ─────────────────────
 function isInsideInstance(node: BaseNode): boolean {
@@ -120,11 +134,18 @@ function captureLayoutSnapshot(node: SceneNode, op: MutationOp, capturedAt: numb
 	};
 	if ('layoutMode' in node) {
 		snapshot.layoutMode = node.layoutMode;
-		snapshot.primaryAxisAlignItems = node.primaryAxisAlignItems;
-		snapshot.counterAxisAlignItems = node.counterAxisAlignItems;
-		snapshot.paddingLeft = node.paddingLeft;
-		snapshot.paddingRight = node.paddingRight;
-		snapshot.itemReverseZIndex = node.itemReverseZIndex;
+		// Only when the node actually HAS auto-layout. These are readable on any frame but not all
+		// are writable: `itemReverseZIndex` throws with "Can only set itemReverseZIndex on nodes with
+		// layoutMode !== NONE", so capturing it off a plain frame makes the RESTORE throw — and a
+		// restore that throws inside a rollback is the least recoverable failure there is.
+		// Readable is not the same as writable, and property existence tests neither.
+		if (node.layoutMode !== 'NONE') {
+			snapshot.primaryAxisAlignItems = node.primaryAxisAlignItems;
+			snapshot.counterAxisAlignItems = node.counterAxisAlignItems;
+			snapshot.paddingLeft = node.paddingLeft;
+			snapshot.paddingRight = node.paddingRight;
+			snapshot.itemReverseZIndex = node.itemReverseZIndex;
+		}
 	}
 	if ('children' in node && node.type !== 'INSTANCE') {
 		snapshot.childOrder = node.children.map((child) => child.id);
@@ -133,11 +154,21 @@ function captureLayoutSnapshot(node: SceneNode, op: MutationOp, capturedAt: numb
 	if (parent !== null && 'layoutMode' in parent) snapshot.parentLayoutMode = parent.layoutMode;
 	if ('constraints' in node) snapshot.constraintHorizontal = node.constraints.horizontal;
 	if ('layoutPositioning' in node) snapshot.layoutPositioning = node.layoutPositioning;
-	if ('gridRowAnchorIndex' in node && 'gridColumnAnchorIndex' in node) {
-		snapshot.gridRowAnchorIndex = node.gridRowAnchorIndex;
-		snapshot.gridColumnAnchorIndex = node.gridColumnAnchorIndex;
+	// Per-child ALIGNMENT is safe to capture on the child; POSITION is not, and is captured on the
+	// parent below. Both properties exist on every auto-layout node and report junk off a grid.
+	if (snapshot.parentLayoutMode === 'GRID' && 'gridChildHorizontalAlign' in node) {
+		snapshot.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
 	}
-	if ('gridChildHorizontalAlign' in node) snapshot.gridChildHorizontalAlign = node.gridChildHorizontalAlign;
+	// The whole grid's child positions, recorded on the grid itself: a permutation cannot be
+	// restored one member at a time without a transient collision — see ./grid.
+	if (isGridParent(node) && 'children' in node) {
+		snapshot.gridColumnCount = node.gridColumnCount;
+		snapshot.gridChildPositions = node.children.filter(isGridChild).map((child) => ({
+			childId: child.id,
+			row: child.gridRowAnchorIndex,
+			column: child.gridColumnAnchorIndex,
+		}));
+	}
 	return snapshot;
 }
 
@@ -254,8 +285,19 @@ function applyRestorePlan(node: SceneNode, steps: readonly RestoreStep[]): void 
 			case 'set-constraint-horizontal':
 				if ('constraints' in node) node.constraints = { ...node.constraints, horizontal: step.value };
 				break;
-			case 'set-grid-position':
-				if ('setGridChildPosition' in node) node.setGridChildPosition(step.row, step.column);
+			case 'set-grid-positions': {
+				if (!isGridParent(node) || !('children' in node)) break;
+				const byId = new Map(node.children.filter(isGridChild).map((child) => [child.id, child]));
+				const moves = step.positions.flatMap((position) => {
+					const child = byId.get(position.childId);
+					// A child deleted since capture is skipped; the rest still land correctly.
+					return child === undefined ? [] : [{ child, row: position.row, column: position.column }];
+				});
+				placeGridChildren(node, moves);
+				break;
+			}
+			case 'set-grid-column-count':
+				if (isGridParent(node) && node.gridColumnCount !== step.value) node.gridColumnCount = step.value;
 				break;
 			case 'set-grid-align':
 				if ('gridChildHorizontalAlign' in node && step.value !== undefined) {
@@ -412,9 +454,7 @@ async function rollbackBatch(
  *  clears its pluginData entry and manifest entry. Idempotent: no snapshot → no-op. */
 export async function restoreNode(nodeId: string): Promise<RestoreResult> {
 	const node = await figma.getNodeByIdAsync(nodeId);
-	// Any scene node may now hold a snapshot (LS-11's layout arm), so the gate is "is it still a
-	// scene node", not "is it still text". Anything else is NODE_GONE, as before.
-	if (node === null || node.type === 'PAGE' || node.type === 'DOCUMENT' || !('parent' in node)) {
+	if (!isRestorable(node)) {
 		// Deleted or retyped (Resolved Defaults §6) — drop the manifest entry, never throw.
 		await removeManifestEntries([nodeId]);
 		liveMutations.delete(nodeId);
@@ -476,7 +516,7 @@ async function restoreIds(manifest: Manifest, nodeIds: readonly string[]): Promi
 
 	for (const nodeId of nodeIds) {
 		const node = await figma.getNodeByIdAsync(nodeId);
-		if (node === null || node.type !== 'TEXT') {
+		if (!isRestorable(node)) {
 			toRemove.push(nodeId); // NODE_GONE (§6) — drop silently; not a failure
 			liveMutations.delete(nodeId);
 			continue;

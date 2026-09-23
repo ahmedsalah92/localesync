@@ -146,13 +146,6 @@ export function planLayoutRestore(snapshot: LayoutSnapshot): RestoreStep[] {
 	if (snapshot.constraintHorizontal !== undefined) {
 		steps.push({ kind: 'set-constraint-horizontal', value: snapshot.constraintHorizontal });
 	}
-	if (snapshot.gridRowAnchorIndex !== undefined && snapshot.gridColumnAnchorIndex !== undefined) {
-		steps.push({
-			kind: 'set-grid-position',
-			row: snapshot.gridRowAnchorIndex,
-			column: snapshot.gridColumnAnchorIndex,
-		});
-	}
 	if (snapshot.gridChildHorizontalAlign !== undefined) {
 		steps.push({ kind: 'set-grid-align', value: snapshot.gridChildHorizontalAlign });
 	}
@@ -166,6 +159,15 @@ export function planLayoutRestore(snapshot: LayoutSnapshot): RestoreStep[] {
 	if (!laidOutByParent) steps.push({ kind: 'set-x', x: snapshot.x });
 	if (snapshot.childOrder !== undefined) {
 		steps.push({ kind: 'set-child-order', childIds: snapshot.childOrder });
+	}
+	// Last, and after child order: both re-place children, and a grid write that collided would
+	// throw inside a rollback — the one place a failure is least recoverable.
+	if (snapshot.gridChildPositions !== undefined) {
+		steps.push({ kind: 'set-grid-positions', positions: snapshot.gridChildPositions });
+	}
+	// After the positions: shrinking while a child is still parked in the staging half would cut it.
+	if (snapshot.gridColumnCount !== undefined) {
+		steps.push({ kind: 'set-grid-column-count', value: snapshot.gridColumnCount });
 	}
 	return steps;
 }

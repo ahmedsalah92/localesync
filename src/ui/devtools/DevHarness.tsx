@@ -72,6 +72,21 @@ export function DevHarness() {
 				>
 					Run LS-10 pseudo-loc check
 				</button>
+				{/* Builds fixtures/rtl-mirror.fig. Run in a FRESH empty file — it refuses a non-empty page. */}
+				<button
+					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:generate-rtl-mirror' } }, '*')}
+				>
+					Generate rtl-mirror
+				</button>
+				{/* Mutates the canvas and restores it. Run against fixtures/rtl-mirror.fig, which carries the
+				    grid, wrap, instance, overlapping-stack and absolutely-positioned rows the rules need. */}
+				<button
+					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:rtl-check' } }, '*')}
+				>
+					Run LS-11 RTL check
+				</button>
 				{/* Read-only: clones to measure, never mutates. Run on the design file that produced the
 				    34% baseline — it measures the shipped and the superseded band tables against the SAME
 				    nodes in one pass, so the result cannot be confounded by the file having changed. */}

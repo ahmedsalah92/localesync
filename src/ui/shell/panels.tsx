@@ -5,6 +5,7 @@ import { OverflowPanel } from '../overflow/OverflowPanel';
 import { PseudoPanel } from '../pseudo/PseudoPanel';
 import { ResultsList } from './ResultsList';
 import { StateView } from './StateView';
+import { RtlPanel } from '../rtl/RtlPanel';
 
 export type PanelId = 'overflow' | 'extract' | 'preview' | 'pseudo' | 'rtl';
 
@@ -46,5 +47,5 @@ export const PANELS: readonly PanelDef[] = [
 	{ id: 'preview', label: 'Preview', Panel: makeStubPanel('Preview', 'Translate') },
 	// No fifth paid pillar — the absence is principled, not an omission (LS-5 §2.2).
 	{ id: 'pseudo', label: 'Pseudo', Panel: PseudoPanel },
-	{ id: 'rtl', label: 'RTL', Panel: makeStubPanel('RTL', 'Sync') },
+	{ id: 'rtl', label: 'RTL', Panel: RtlPanel },
 ];

@@ -180,10 +180,19 @@ Two known hazards, both already recorded in `docs/agent-guidelines.md` §2:
    — useful for LS-11's acceptance cases and for the row copy — but it is **not** an implementation
    rule, because a name heuristic is locale-dependent and guesses at meaning the plugin cannot know.
    G1 already puts every icon worth checking in front of the designer.
-3. **Scope is implicit: selection when non-empty, else page.** Settled by precedent rather than
-   preference — DES-2's RTL panel carries a Mirror toggle and no scope select, and LS-10 resolved
-   the identical question the same way (`docs/specs/LS-10.md` §2.4). Revisit only if the panel gains
-   a scope control.
+3. **Scope is EXPLICIT: a scope select, defaulting to Page.**
+
+   *Corrected 2026-09-20.* This rule previously read "implicit: selection when non-empty, else
+   page", justified by the claim that "DES-2's RTL panel carries a Mirror toggle and no scope
+   select". **That claim was false.** The built panel (`186:296`) has a `Dropdown` at `538:1437`
+   reading "Page", and `docs/design.md` Deliverable 4 says so in as many words: *"Scope select —
+   cloned from the same Scope Select pattern as Extract."* The decision was settled from a premise
+   about a panel nobody had looked at.
+
+   The design is also right on the merits, which is why the correction changes the code rather than
+   just the sentence. Implicit scope is defensible for pseudo-loc, which swaps text; a mirror
+   **restructures layout**, and a user who cannot tell what is about to be restructured before
+   flipping the switch has no way to scope the blast radius. LS-10's precedent does not transfer.
 4. **Groups mirror about their own bounding box.** A `GROUP` has no layout properties, so F1/F3–F5
    do not apply and its children are mirrored by F7 relative to the group's bounds. This is the only
    reading consistent with F7 being parent-relative (E1); treating groups as opaque would silently

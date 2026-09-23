@@ -312,14 +312,46 @@ describe('planLayoutRestore — only plans what was actually captured (LS-11 §1
 		).not.toContain('set-x');
 	});
 
-	it('plans grid position and alignment only when both anchors were captured', () => {
+	/**
+	 * Grid positions are a PARENT fact, captured for the whole grid at once. Per child they could not
+	 * be restored at all: `setGridChildPosition` throws on a transient overlap, so putting a reversed
+	 * permutation back one member at a time collides on its first write.
+	 */
+	it('plans one parent-level step for the whole grid, after child order', () => {
 		const withGrid = planLayoutRestore(
-			layoutSnapshot({ gridRowAnchorIndex: 1, gridColumnAnchorIndex: 2, gridChildHorizontalAlign: 'MIN' }),
+			layoutSnapshot({
+				parentLayoutMode: 'GRID',
+				gridChildHorizontalAlign: 'MIN',
+				childOrder: ['a', 'b'],
+				gridChildPositions: [
+					{ childId: 'a', row: 0, column: 2 },
+					{ childId: 'b', row: 0, column: 0 },
+				],
+			}),
 		);
-		expect(kinds(withGrid)).toContain('set-grid-position');
 		expect(kinds(withGrid)).toContain('set-grid-align');
-		// A half-captured grid position is not a position; planning it would throw on restore.
-		expect(kinds(planLayoutRestore(layoutSnapshot({ gridRowAnchorIndex: 1 })))).not.toContain('set-grid-position');
+		const order = kinds(withGrid);
+		expect(order[order.length - 1]).toBe('set-grid-positions');
+		expect(order.indexOf('set-child-order')).toBeLessThan(order.indexOf('set-grid-positions'));
+	});
+
+	/**
+	 * The staged grid write widens the grid to twice its width. If a write throws in between, the
+	 * grid is left widened — and without the width in the snapshot, rollback put every child back
+	 * but left the user's grid permanently double-width. Restored LAST, once children are home.
+	 */
+	it('restores the grid width after its children, so an interrupted staging heals', () => {
+		const steps = planLayoutRestore(
+			layoutSnapshot({ gridColumnCount: 3, gridChildPositions: [{ childId: 'a', row: 0, column: 0 }] }),
+		);
+		expect(steps[steps.length - 1]).toEqual({ kind: 'set-grid-column-count', value: 3 });
+		expect(kinds(steps).indexOf('set-grid-positions')).toBeLessThan(kinds(steps).indexOf('set-grid-column-count'));
+	});
+
+	it('plans no grid step for a node that is not a grid', () => {
+		expect(kinds(planLayoutRestore(layoutSnapshot({ paddingLeft: 1, paddingRight: 2 })))).not.toContain(
+			'set-grid-positions',
+		);
 	});
 });
 

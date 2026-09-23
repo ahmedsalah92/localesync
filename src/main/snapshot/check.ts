@@ -89,7 +89,8 @@ export function probeDiff(got: Probe, want: Probe): string[] {
 	if (!near(got.rotation, want.rotation)) failures.push(`rotation=${got.rotation} (want ${want.rotation})`);
 	if (got.textAutoResize !== want.textAutoResize) failures.push(`textAutoResize=${got.textAutoResize}`);
 	if (got.textTruncation !== want.textTruncation) failures.push(`textTruncation=${got.textTruncation}`);
-	if (got.maxLines !== want.maxLines) failures.push(`maxLines=${String(got.maxLines)} (want ${String(want.maxLines)})`);
+	if (got.maxLines !== want.maxLines)
+		failures.push(`maxLines=${String(got.maxLines)} (want ${String(want.maxLines)})`);
 	if (got.textAlignHorizontal !== want.textAlignHorizontal) failures.push(`alignH=${got.textAlignHorizontal}`);
 	if (got.textAlignVertical !== want.textAlignVertical) failures.push(`alignV=${got.textAlignVertical}`);
 	return failures;

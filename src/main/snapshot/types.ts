@@ -72,6 +72,19 @@ export interface LayoutSnapshot {
 	itemReverseZIndex?: boolean;
 	/** Ordered child ids. Restored by re-insertion, so it survives a reversal exactly. */
 	childOrder?: string[];
+	/**
+	 * Grid child positions, captured on the PARENT rather than per child — for the same reason
+	 * `childOrder` is: a permutation cannot be restored one member at a time. `setGridChildPosition`
+	 * throws on a transient overlap, so restoring a reversal child-by-child collides on its first
+	 * write. Restored in one staged pass by `./grid`.
+	 */
+	gridChildPositions?: { childId: string; row: number; column: number }[];
+	/**
+	 * The grid's width. Nothing mutates it on purpose, but the staged write in `./grid` doubles it
+	 * transiently, and a throw inside that window would otherwise leave the grid double-width with
+	 * nothing to restore it from. Optional, so snapshots written before it existed still restore.
+	 */
+	gridColumnCount?: number;
 
 	// ── as a child of its own parent ──
 	/**
@@ -84,8 +97,6 @@ export interface LayoutSnapshot {
 	y: number;
 	constraintHorizontal?: ConstraintType;
 	layoutPositioning?: 'AUTO' | 'ABSOLUTE';
-	gridRowAnchorIndex?: number;
-	gridColumnAnchorIndex?: number;
 	gridChildHorizontalAlign?: 'MIN' | 'CENTER' | 'MAX' | 'AUTO';
 
 	capturedAt: number;
@@ -170,5 +181,9 @@ export type RestoreStep =
 	| { readonly kind: 'set-child-order'; readonly childIds: readonly string[] }
 	| { readonly kind: 'set-x'; readonly x: number }
 	| { readonly kind: 'set-constraint-horizontal'; readonly value: ConstraintType }
-	| { readonly kind: 'set-grid-position'; readonly row: number; readonly column: number }
+	| {
+			readonly kind: 'set-grid-positions';
+			readonly positions: readonly { childId: string; row: number; column: number }[];
+	  }
+	| { readonly kind: 'set-grid-column-count'; readonly value: number }
 	| { readonly kind: 'set-grid-align'; readonly value: LayoutSnapshot['gridChildHorizontalAlign'] };

@@ -123,7 +123,12 @@ export async function runPseudoLocCheck(): Promise<PseudoLocCheckReport> {
 			const want = baseline.get(entry.nodeId);
 			return node !== undefined && want !== undefined && probeDiff(probe(node), want).length > 0;
 		});
-		note(notes, 'blocked-untouched', touched.length === 0, `${first.blocked.length} blocked, ${touched.length} touched`);
+		note(
+			notes,
+			'blocked-untouched',
+			touched.length === 0,
+			`${first.blocked.length} blocked, ${touched.length} touched`,
+		);
 
 		const missingFont = first.blocked.filter((b) => b.reason === 'missing-font');
 		if (missingFont.length === 0) skip(notes, 'missing-font-flagged', 'no missing-font row on this page');

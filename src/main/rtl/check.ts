@@ -155,10 +155,18 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 		// predicting where those writes would land: that prediction must equal the baseline. Comparing
 		// a plan to itself would assert nothing, and applying a third mutation to find out would be
 		// testing the applier rather than the rules.
+		//
+		// Only over nodes the first pass actually WROTE. A blocked node is still at baseline, so
+		// re-planning it predicts a FIRST mirror and "fails" against the baseline it never left —
+		// the missing-font row did exactly that (constraint MAX → MIN). Blocked nodes are held to
+		// their own claim instead, in [4]: never written by us.
+		const skipped = new Set(first.blocked.map((entry) => entry.nodeId));
 		const involutionBreaks: string[] = [];
+		let involutionChecked = 0;
 		for (const [id, node] of targets) {
 			const before = baseline.get(id);
-			if (before === undefined) continue;
+			if (before === undefined || skipped.has(id)) continue;
+			involutionChecked += 1;
 			const back = planMirror(readMirrorInput(node));
 			if (back.length === 0) continue;
 			const predicted: Probe = { ...probe(node) };
@@ -208,7 +216,7 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 			'mirror-twice-identity',
 			involutionBreaks.length === 0,
 			involutionBreaks.length === 0
-				? 'every re-plan predicts the baseline'
+				? `every re-plan predicts the baseline (${involutionChecked} node(s), ${skipped.size} blocked excluded)`
 				: involutionBreaks.slice(0, 3).join(' | '),
 		);
 

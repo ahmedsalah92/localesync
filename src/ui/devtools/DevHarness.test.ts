@@ -62,6 +62,10 @@ describe('DevHarness reachability in DEV builds', () => {
 			// LS-10 §3.3: the only proof that revert is byte-identical and that a second Apply does
 			// not compound — neither is reachable from Vitest.
 			'Run LS-10 pseudo-loc check',
+			// LS-12 §3.2: the fixture builder and the only proof that apply/switch/edit/revert round-trip
+			// byte-identically on a real canvas.
+			'Generate preview',
+			'Run LS-12 preview check',
 		]) {
 			expect(markup).toContain(label);
 		}

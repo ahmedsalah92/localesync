@@ -4,6 +4,7 @@ import { generateExportCases } from './devtools/generateExportCases';
 import { generateExtractKeys } from './devtools/generateExtractKeys';
 import { generateLargeFile } from './devtools/generateLargeFile';
 import { generateOverflowSpike } from './devtools/generateOverflowSpike';
+import { generatePreview } from './devtools/generatePreview';
 import { generateRtlMirror } from './devtools/generateRtlMirror';
 import { generateSnapshotRestore } from './devtools/generateSnapshotRestore';
 import { registerExtraction } from './extract';
@@ -12,6 +13,7 @@ import { registerOverflow } from './overflow';
 import { runCalibrationCompare } from './overflow/calibration';
 import { registerOverflowCheck } from './overflow/check';
 import { registerPreview } from './preview';
+import { runPreviewCheck } from './preview/check';
 import { registerPseudoLoc } from './pseudoloc';
 import { registerRtlMirror } from './rtl';
 import { runRtlCheck } from './rtl/check';
@@ -226,6 +228,37 @@ export default async function () {
 					})
 					.catch((err: unknown) => {
 						console.error(`[dev] runRtlCheck failed: ${err instanceof Error ? err.message : String(err)}`);
+					});
+				return;
+			}
+
+			if (devType === '__dev:generate-preview') {
+				void generatePreview()
+					.then((report) => {
+						console.log(`[dev] generatePreview: created ${report.created.length} node(s)`, report.created);
+						console.log('[dev] manual steps remaining:', report.manualSteps);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] generatePreview failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			if (devType === '__dev:preview-check') {
+				void runPreviewCheck()
+					.then(({ notes }) => {
+						for (const line of notes) console.log(`[dev] ${line}`);
+						const failed = notes.filter((n) => n.includes(':FAIL')).length;
+						console.log(
+							`[dev] LS-12 check complete — ${notes.filter((n) => n.includes(':PASS')).length} passed, ${failed} failed`,
+						);
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] runPreviewCheck failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
 					});
 				return;
 			}

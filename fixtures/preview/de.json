@@ -1,0 +1,10 @@
+{
+	"preview": {
+		"title": "Willkommen zurück",
+		"cta": "In den Warenkorb",
+		"mixed": "Gemischt",
+		"missing_font": "Schrift fehlt",
+		"badge": { "inst": "Instanz" }
+	},
+	"checkout": { "old": "Veraltet" }
+}

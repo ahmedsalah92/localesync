@@ -5,7 +5,7 @@
 // be easy to "correct" back toward the canvas text.
 import { describe, expect, it } from 'vitest';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
-import { SKIPPED_REASON, STATES, UNNAMED_LAYER, appliedMessage, groupCopy } from './copy';
+import { BUSY, SKIPPED_REASON, STATES, UNNAMED_LAYER, appliedMessage, groupCopy } from './copy';
 import { SKIPPED_ORDER, type SummaryGroup } from './state';
 
 describe('appliedMessage — the banner carries the review count (LS-11 §2.9)', () => {
@@ -102,5 +102,13 @@ describe('groupCopy — the change summary’s rows (LS-28 §2.2)', () => {
 
 	it('names the fallback for a layer with no name', () => {
 		expect(UNNAMED_LAYER).toBe('Unnamed layer');
+	});
+});
+
+// LS-30. The ellipsis is the single character, matching Overflow's `Scanning…` in the same band.
+describe('BUSY — the in-flight band', () => {
+	it('names the operation in flight', () => {
+		expect(BUSY.applying).toBe('Applying mirror…');
+		expect(BUSY.reverting).toBe('Reverting mirror…');
 	});
 });

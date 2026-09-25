@@ -126,6 +126,50 @@ describe('selectShell — what the panel body shows (LS-28 §2.4)', () => {
 });
 
 /**
+ * LS-30: the body mid-mutation. `selectShell` used to fall through to `first-run` for every phase
+ * but `failed` and `applied`, so the panel read "Nothing to mirror yet" under a Switch that was on
+ * and disabled — for the whole apply, which on a large page is not brief. Same for a revert.
+ */
+describe('selectShell — busy while a mirror is in flight (LS-30)', () => {
+	const applied = (): RtlState => run([{ kind: 'apply-started' }, { kind: 'applied', blocked: [], mirrored: 1 }]);
+
+	it('shows the busy band while applying, never first-run', () => {
+		expect(selectShell(run([{ kind: 'apply-started' }]))).toBe('busy');
+	});
+
+	// `rtl-flagged` lands mid-apply; a review list arriving early must not surface the rows yet.
+	it('stays busy when the review list arrives before the terminal progress', () => {
+		expect(selectShell(run([{ kind: 'apply-started' }, { kind: 'flagged', flagged: [flag('1')] }]))).toBe('busy');
+	});
+
+	it('shows the busy band while reverting, never first-run', () => {
+		expect(selectShell(run([{ kind: 'revert-started' }], applied()))).toBe('busy');
+	});
+
+	// The path the bug report took: apply, revert, apply again — the second apply starts from `idle`.
+	it('shows the busy band on a re-apply after a revert', () => {
+		const reverted = run([{ kind: 'revert-started' }, { kind: 'reverted' }], applied());
+		expect(selectShell(reverted)).toBe('first-run');
+		expect(selectShell(run([{ kind: 'apply-started' }], reverted))).toBe('busy');
+	});
+
+	// Try Again from the failure state is also an apply, and must not flash the failure copy.
+	it('shows the busy band on a retry after a failure', () => {
+		const failed = run([{ kind: 'apply-started' }, { kind: 'failed', code: 'mutation-failed' }]);
+		expect(selectShell(run([{ kind: 'apply-started' }], failed))).toBe('busy');
+	});
+
+	it.each(['applying', 'reverting'] as const)('agrees with isBusy for %s', (phase) => {
+		expect(isBusy(phase)).toBe(true);
+		expect(selectShell({ ...initialRtlState(), phase })).toBe('busy');
+	});
+
+	it.each(['idle', 'applied', 'failed'] as const)('is never busy while %s', (phase) => {
+		expect(selectShell({ ...initialRtlState(), phase })).not.toBe('busy');
+	});
+});
+
+/**
  * The bug that made the switch snap back off while the canvas mirrored.
  *
  * The panel decided what an arriving `progress` meant by reading `phase === 'applying'` INSIDE its

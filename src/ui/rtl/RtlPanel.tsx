@@ -2,14 +2,14 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { ApplyRtlMirror, RevertRtlMirror, ScanScope, SelectNode } from '../../common/messages';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
 import { on, send } from '../bridge';
-import { ControlBar } from '../shell/bands';
+import { ControlBar, SummaryBar } from '../shell/bands';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
 import { StateView } from '../shell/StateView';
 import { useApplied } from '../shell/applied';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { Switch } from '../shell/primitives/Switch';
-import { LABELS, SCOPES, STATES, appliedMessage } from './copy';
+import { BUSY, LABELS, SCOPES, STATES, appliedMessage } from './copy';
 import { summaryRows } from './rows';
 import {
 	initialRtlState,
@@ -132,7 +132,7 @@ export function RtlPanel() {
 
 	const which = selectShell(state);
 	const shell =
-		which === null
+		which === null || which === 'busy'
 			? null
 			: which === 'operation-failed'
 				? { state: which, ...STATES.operationFailed }
@@ -184,7 +184,11 @@ export function RtlPanel() {
 				</div>
 			</ControlBar>
 
-			{shell !== null ? (
+			{/* In flight, the body is the shared band alone — the treatment Overflow uses while scanning,
+			    indeterminate because the mirror reports no intermediate progress (LS-30). */}
+			{which === 'busy' && isBusy(state.phase) ? (
+				<SummaryBar count={BUSY[state.phase]} tone="secondary" progress="indeterminate" />
+			) : shell !== null ? (
 				<StateView
 					state={shell.state}
 					headline={shell.headline}

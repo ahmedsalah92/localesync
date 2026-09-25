@@ -139,8 +139,12 @@ export function rtlReducer(state: RtlState, action: RtlAction): RtlState {
 	}
 }
 
-/** True while a canvas mutation is in flight — the toggle is disabled throughout. */
-export function isBusy(phase: RtlPhase): boolean {
+/** The phases in which a canvas mutation is in flight. */
+export type BusyPhase = Extract<RtlPhase, 'applying' | 'reverting'>;
+
+/** True while a canvas mutation is in flight — the toggle is disabled throughout. A type guard so
+ *  the panel can key the busy band's copy by phase without a second decision of its own. */
+export function isBusy(phase: RtlPhase): phase is BusyPhase {
 	return phase === 'applying' || phase === 'reverting';
 }
 
@@ -168,16 +172,23 @@ export function summarize(state: RtlState): SummaryGroup[] {
 	return groups;
 }
 
-/** Which empty state the panel body should show, or `null` to render the change summary.
+/** Which empty state the panel body should show, `'busy'` for the in-flight band, or `null` to
+ * render the change summary.
  *
  * Extracted from the panel because it is decision logic, not markup — it shipped wrong once
  * (a successful mirror with nothing to review fell through to the first-run copy). Since LS-28 the
  * phase alone decides: an applied mirror always has a summary to show, so the `no-issues` and
  * `fonts-unavailable` shells are gone.
+ *
+ * `'busy'` is not a StateView shell: it renders the shared SummaryBar, indeterminate, and nothing
+ * else (LS-30). It shipped wrong too — every in-flight phase fell through to `first-run`, so a large
+ * apply read "Nothing to mirror yet" under a Switch that was on and disabled.
  */
-export type RtlShell = 'operation-failed' | 'no-text-on-page' | 'first-run' | null;
+export type RtlShell = 'busy' | 'operation-failed' | 'no-text-on-page' | 'first-run' | null;
 
 export function selectShell(state: RtlState): RtlShell {
+	// First, so a retry from `failed` or a re-apply from `idle` never shows the phase it left.
+	if (isBusy(state.phase)) return 'busy';
 	// "Nothing in scope to mirror" is not a failure, and saying "The mirror failed and your canvas
 	// was restored" for it is alarming and untrue — nothing was attempted, so nothing was restored.
 	if (state.phase === 'failed' && state.errorCode === 'no-text-nodes') return 'no-text-on-page';

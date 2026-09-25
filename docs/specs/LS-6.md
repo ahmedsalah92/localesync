@@ -103,6 +103,11 @@ a key's ancestors as well as the key itself**, so the second node to claim `home
 suffixed at derivation time and the conflict never reaches export. Until that lands, §2.1.2 defines
 what export does with it.
 
+**Landed 2026-09-25 (LS-26)** — LS-9 §2 rule 6. §2.1.2 is now a **backstop only**: it fires for
+pairs stamped before LS-26 (rule 9 keeps an owner's key verbatim, so they are never re-keyed) and
+for any other input that did not come through derivation. Under `snake` a key has no `.`, so it
+never nests and the case cannot arise.
+
 ### 1.3 Owned by LS-6
 
 ```ts
@@ -167,6 +172,8 @@ One entry point per §4's ownership rule; the three format serializers are inter
    is not, (b) lossless for the strictly greater number of strings, and (c) **visible**, so the UI can
    tell the user which string did not make it. Suffixing the leaf was rejected: inventing a key is
    generation, and it would not match the key LS-9 stamped on the node. The real fix is §1.2.
+   *Backstop only since LS-26 (2026-09-25):* derivation no longer mints such a pair; this path stays,
+   and stays tested, for keys stamped before it.
 3. Escaping is `JSON.stringify`'s: `"` → `\"`, `\` → `\\`, control characters to their short escapes.
    **Non-ASCII stays literal UTF-8** — no `\u` escaping — so Arabic, CJK and emoji read as themselves.
 4. **2-space indent** (Gleef-anchored), LF newlines, **no BOM, no trailing newline**.
@@ -382,8 +389,9 @@ download is DOM, not plugin API.
 
 ## Carried forward
 
-- **LS-26** (split out of LS-9, which is Done): the §1.2 prefix-collision amendment. Until it lands, `ExportResult.omitted` is reachable
-  and the UI must surface it.
+- ~~**LS-26** (split out of LS-9, which is Done): the §1.2 prefix-collision amendment.~~ **Landed
+  2026-09-25.** `ExportResult.omitted` remains reachable for pre-LS-26 stamps, so the UI must still
+  surface it.
 - **LS-14:** copy for the omitted-key and `keyMap` disclosures, and for the dedup toggle's help text.
   §2.1.2 and §2.2.13 both produce user-visible outcomes with no words yet.
 - **LS-18:** the three §0 gaps are scoped exceptions on its fourth criterion, not silent passes. Its

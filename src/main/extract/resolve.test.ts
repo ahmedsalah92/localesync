@@ -261,6 +261,61 @@ describe('resolveKeys — page-wide claims under a selection scope', () => {
 	});
 });
 
+describe('resolveKeys — ancestor paths (rule 6, LS-26)', () => {
+	// A text layer `Title` beside a frame `Title` holding a text `Sub`, both in frame `Home`.
+	const leaf = (id: string, stored: StoredKey | null = null) => node(id, 'Title', ['Home'], stored);
+	const branch = (id: string, stored: StoredKey | null = null) => node(id, 'Sub', ['Title', 'Home'], stored);
+
+	it('prefix first in document order: the second claimant is suffixed at the colliding segment', () => {
+		const out = resolve([leaf('1:1'), branch('1:2')]);
+		expect(out.map((r) => r.key)).toEqual(['home.title', 'home.title_2.sub']);
+	});
+
+	it('longer key first in document order: the prefix is suffixed', () => {
+		const out = resolve([branch('1:2'), leaf('1:1')]);
+		expect(out.map((r) => r.key)).toEqual(['home.title.sub', 'home.title_2']);
+	});
+
+	it('an owned key reserves its ancestor paths before derivation runs (rule 7)', () => {
+		// The owner sits AFTER the new node in document order and still keeps its key.
+		const out = resolve([leaf('1:1'), branch('1:2', stamp('home.title.sub', '1:2', 10))]);
+		expect(out.map((r) => r.key)).toEqual(['home.title_2', 'home.title.sub']);
+		expect(out[1]?.write).toBeNull();
+	});
+
+	it('an out-of-scope owner reserves its ancestor paths too (rule 15)', () => {
+		const page = [outside('1:1', stamp('home.title', '1:1', 10)), outside('1:2', null)];
+		const [out] = resolve([branch('1:2')], page);
+		expect(out?.key).toBe('home.title_2.sub');
+	});
+
+	it('an ancestor-suffixed key rescans clean: written nothing, no drift', () => {
+		const first = resolve([leaf('1:1'), branch('1:2')]);
+		const [a, b] = first;
+		const rescan = resolve([leaf('1:1', a?.write ?? null), branch('1:2', b?.write ?? null)]);
+		expect(rescan.map((r) => r.key)).toEqual(['home.title', 'home.title_2.sub']);
+		expect(rescan.every((r) => r.write === null)).toBe(true);
+		expect(rescan.map((r) => r.drifted)).toEqual([false, false]);
+	});
+
+	it('stamped before LS-26: both owners keep their colliding keys verbatim (rule 9)', () => {
+		// The export's §2.1.2 omission remains the backstop for exactly this pair.
+		const out = resolve([
+			leaf('1:1', stamp('home.title', '1:1', 10)),
+			branch('1:2', stamp('home.title.sub', '1:2', 20)),
+		]);
+		expect(out).toEqual([
+			{ nodeId: '1:1', key: 'home.title', drifted: false, write: null },
+			{ nodeId: '1:2', key: 'home.title.sub', drifted: false, write: null },
+		]);
+	});
+
+	it('leaves a page with no path collision exactly as before', () => {
+		const out = resolve([leaf('1:1'), node('1:3', 'Title AR', ['Home']), node('1:4', 'Sub', ['Other', 'Home'])]);
+		expect(out.map((r) => r.key)).toEqual(['home.title', 'home.title_ar', 'home.other.sub']);
+	});
+});
+
 describe('resolveKeys — output shape', () => {
 	it('preserves input order and length', () => {
 		const inputs = [node('3', 'C', []), node('1', 'A', []), node('2', 'B', [])];

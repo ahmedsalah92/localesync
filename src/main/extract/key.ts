@@ -46,13 +46,73 @@ export function deriveKey(model: Pick<TextNodeModel, 'name' | 'ancestorFrameName
 	return [...ancestors, leaf].join(JOIN[scheme]);
 }
 
-/** `base` when free in `reserved`, else `${base}_2`, `${base}_3`, … Pure; does
- *  not mutate `reserved`. */
-export function uniqueKey(base: string, reserved: ReadonlySet<string>): string {
-	if (!reserved.has(base)) return base;
+/**
+ * The path separator a key is nested on — i18next's default `keySeparator`, which LS-6's JSON export
+ * splits on whatever the scheme. Slugs never contain it, so a `snake` key is a single segment with no
+ * ancestor paths, and prefix collisions exist only under `dot`.
+ */
+const PATH = '.';
+
+/**
+ * The keys claimed so far in one pass, and every ancestor path of each (rule 6, LS-26).
+ *
+ * `home.title.sub` reserves the key itself and the branch paths `home` and `home.title`. Branches are
+ * tracked separately from keys because they are taken differently: a new key may not BE a branch
+ * (`home.title` would be both a string and an object in nested JSON), but a new key may sit UNDER one
+ * — a branch is a namespace other keys share, not a claim.
+ */
+export class ReservedKeys {
+	private readonly keys = new Set<string>();
+	private readonly branches = new Set<string>();
+
+	constructor(keys: Iterable<string> = []) {
+		for (const key of keys) this.add(key);
+	}
+
+	add(key: string): void {
+		this.keys.add(key);
+		for (let i = key.indexOf(PATH); i !== -1; i = key.indexOf(PATH, i + 1)) this.branches.add(key.slice(0, i));
+	}
+
+	/** Whether `key` itself is claimed. */
+	has(key: string): boolean {
+		return this.keys.has(key);
+	}
+
+	/** Whether `path` is a strict ancestor path of some claimed key. */
+	hasBranch(path: string): boolean {
+		return this.branches.has(path);
+	}
+}
+
+/** `segment` when `isFree`, else the first free of `${segment}_2`, `${segment}_3`, … */
+function suffixed(segment: string, isFree: (candidate: string) => boolean): string {
+	if (isFree(segment)) return segment;
 	let n = 2;
-	while (reserved.has(`${base}_${n}`)) n++;
-	return `${base}_${n}`;
+	while (!isFree(`${segment}_${n}`)) n++;
+	return `${segment}_${n}`;
+}
+
+/**
+ * `base` when free in `reserved`, else suffixed `_2`, `_3`, … at the segment where it collides. Pure;
+ * does not mutate `reserved`.
+ *
+ * A candidate is taken when it (a) equals a reserved key, (b) is an ancestor path of one, or (c) has
+ * one as an ancestor path — (b) and (c) are the two directions of a prefix collision, which nested
+ * JSON cannot represent (LS-6 §1.2). Walked root to leaf:
+ *   - each ancestor path must not be a reserved KEY (c). If it is, THAT segment is suffixed — `_N` on
+ *     the leaf cannot help, since `home.title.sub_2` still nests under the key `home.title`. Being a
+ *     reserved branch is fine: branches are shared;
+ *   - the full key must be neither a reserved key (a) nor a reserved branch (b); the leaf is suffixed.
+ * A base with no collision comes back unchanged, so a file without one is never re-keyed.
+ */
+export function uniqueKey(base: string, reserved: ReservedKeys): string {
+	const segments = base.split(PATH);
+	const leaf = segments.pop() ?? base;
+	let path = '';
+	const under = (segment: string): string => (path === '' ? segment : `${path}${PATH}${segment}`);
+	for (const segment of segments) path = under(suffixed(segment, (s) => !reserved.has(under(s))));
+	return under(suffixed(leaf, (s) => !reserved.has(under(s)) && !reserved.hasBranch(under(s))));
 }
 
 /**
@@ -65,12 +125,28 @@ export function uniqueKey(base: string, reserved: ReadonlySet<string>): string {
  * drift: renaming `Welcome` → `Welcome 2` derives `home.welcome_2` against stamp `home.welcome`, and
  * that is a genuine rename.
  *
+ * Judged per `.` segment, since uniqueKey may suffix an ancestor segment rather than the leaf
+ * (`home.title_2.sub`, rule 6): the segment counts must match and each stored segment must derive
+ * from its counterpart. A `snake` key is one segment, so this is the whole-key rule there.
+ *
  * One false negative is accepted: a node stamped `list.item_2` whose layer is renamed `Item 2` →
- * `Item` now derives `list.item`, and the suffix allowance masks it. Drift is advisory, so this is
- * fine. If it ever matters, the exact fix is storing the pre-suffix base in the envelope and
- * comparing against that instead of stripping suffixes.
+ * `Item` now derives `list.item`, and the suffix allowance masks it — likewise a frame renamed
+ * `Title 2` → `Title` over a stamp `home.title_2.sub`. Drift is advisory, so this is fine. If it ever
+ * matters, the exact fix is storing the pre-suffix base in the envelope and comparing against that
+ * instead of stripping suffixes.
  */
 export function derivesFrom(stored: string, derived: string): boolean {
+	if (stored === derived) return true;
+	const storedSegments = stored.split(PATH);
+	const derivedSegments = derived.split(PATH);
+	return (
+		storedSegments.length === derivedSegments.length &&
+		storedSegments.every((segment, i) => segmentDerivesFrom(segment, derivedSegments[i] ?? ''))
+	);
+}
+
+/** `stored === derived`, or `stored === derived_N` for an integer N ≥ 2. */
+function segmentDerivesFrom(stored: string, derived: string): boolean {
 	if (stored === derived) return true;
 	const prefix = `${derived}_`;
 	if (!stored.startsWith(prefix)) return false;

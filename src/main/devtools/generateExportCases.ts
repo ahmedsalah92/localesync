@@ -12,7 +12,10 @@
 // — so frame `home` ends up holding both a TEXT named `title` and a FRAME named `title`. That is
 // legal in Figma and it is the point: it reproduces the leaf/branch collision on the canvas, so
 // Gleef's own export has to answer it too. It also means LS-9 derives the fixture's own keys back
-// out of the structure, which is what makes this file reusable as an end-to-end check later.
+// out of the structure, which is what makes this file reusable as an end-to-end check later — with
+// one deliberate exception since LS-26: on an unstamped file, rule 6 suffixes the second claimant of
+// the colliding path, so case 37 derives `home.title_2.sub` (the text `title` precedes the frame
+// `title` in document order), not `home.title.sub`.
 //
 // Container: one GROUP named `export-cases`, never a frame — groups are not frame-like, so the
 // wrapper contributes no key segment. A frame here would prefix all 42 keys (`home.title` →

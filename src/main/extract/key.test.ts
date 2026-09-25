@@ -4,7 +4,7 @@
 // authority and the goldens derive from it, never independently (agent-guidelines §6).
 import { describe, expect, it } from 'vitest';
 import cases from '../../../fixtures/extract-cases.json';
-import { deriveKey, derivesFrom, MAX_SEGMENT_CHARS, slugSegment, uniqueKey, type KeyScheme } from './key';
+import { deriveKey, derivesFrom, MAX_SEGMENT_CHARS, ReservedKeys, slugSegment, uniqueKey, type KeyScheme } from './key';
 
 describe('deriveKey — LS-9 §3.2 case table', () => {
 	it('transcribes all twelve rows', () => {
@@ -24,13 +24,68 @@ describe('deriveKey — LS-9 §3.2 case table', () => {
 
 describe('uniqueKey — LS-9 §3.2', () => {
 	it.each(cases.uniqueKey)('$base against $reserved → $expected', (row) => {
-		expect(uniqueKey(row.base, new Set(row.reserved))).toBe(row.expected);
+		expect(uniqueKey(row.base, new ReservedKeys(row.reserved))).toBe(row.expected);
 	});
 
 	it('does not mutate the reserved set', () => {
-		const reserved = new Set(['home.text']);
-		uniqueKey('home.text', reserved);
-		expect([...reserved]).toEqual(['home.text']);
+		const reserved = new ReservedKeys(['home.text']);
+		expect(uniqueKey('home.text', reserved)).toBe('home.text_2');
+		expect(uniqueKey('home.text', reserved)).toBe('home.text_2');
+		expect(reserved.has('home.text_2')).toBe(false);
+	});
+});
+
+describe('uniqueKey — ancestor paths (rule 6, LS-26)', () => {
+	it('returns a colliding-free base byte-identical — no re-key without a collision', () => {
+		const base = 'checkout.summary.total';
+		// Shares both branches of `base` and a string prefix of every segment, yet collides with nothing.
+		const reserved = new ReservedKeys([
+			'checkout.summary.subtotal',
+			'checkout.summary_note',
+			'check',
+			'home.title.sub',
+		]);
+		expect(uniqueKey(base, reserved)).toBe(base);
+	});
+
+	it('prefix claimed first: the longer key is suffixed at the colliding segment', () => {
+		// Suffixing the leaf (`home.title.sub_2`) would leave `home.title` as both leaf and branch.
+		expect(uniqueKey('home.title.sub', new ReservedKeys(['home.title']))).toBe('home.title_2.sub');
+	});
+
+	it('longer key claimed first: the prefix is suffixed', () => {
+		expect(uniqueKey('home.title', new ReservedKeys(['home.title.sub']))).toBe('home.title_2');
+	});
+
+	it('both directions three levels apart', () => {
+		expect(uniqueKey('a.b.c.d', new ReservedKeys(['a.b']))).toBe('a.b_2.c.d');
+		expect(uniqueKey('a.b', new ReservedKeys(['a.b.c.d']))).toBe('a.b_2');
+		expect(uniqueKey('a', new ReservedKeys(['a.b.c.d']))).toBe('a_2');
+		expect(uniqueKey('a.b.c.d', new ReservedKeys(['a']))).toBe('a_2.b.c.d');
+	});
+
+	it('a suffixed segment is itself checked, and skips a taken suffix', () => {
+		expect(uniqueKey('home.title.sub', new ReservedKeys(['home.title', 'home.title_2']))).toBe('home.title_3.sub');
+		expect(uniqueKey('home.title', new ReservedKeys(['home.title.sub', 'home.title_2.x']))).toBe('home.title_3');
+	});
+
+	it('shares a branch another key already uses — a branch is a namespace, not a claim', () => {
+		expect(uniqueKey('home.title.sub', new ReservedKeys(['home.title', 'home.title_2.other']))).toBe(
+			'home.title_2.sub',
+		);
+		expect(uniqueKey('home.title.sub', new ReservedKeys(['home.title', 'home.title_2.sub']))).toBe(
+			'home.title_2.sub_2',
+		);
+	});
+
+	it('a string prefix is not a path prefix', () => {
+		expect(uniqueKey('home.titles', new ReservedKeys(['home.title']))).toBe('home.titles');
+		expect(uniqueKey('home.title', new ReservedKeys(['home.titles.sub']))).toBe('home.title');
+	});
+
+	it('snake keys hold no `.`, so they have no ancestor paths to collide on', () => {
+		expect(uniqueKey('home_title_sub', new ReservedKeys(['home_title']))).toBe('home_title_sub');
+		expect(uniqueKey('home_title', new ReservedKeys(['home_title_sub']))).toBe('home_title');
 	});
 });
 
@@ -85,6 +140,21 @@ describe('derivesFrom(stored, derived)', () => {
 		['checkout.subtotal', 'checkout.total', false],
 		['summary.total', 'checkout.total', false],
 	])('%s from %s → %s', (key, base, expected) => {
+		expect(derivesFrom(key, base)).toBe(expected);
+	});
+
+	it.each([
+		// uniqueKey suffixes the colliding ANCESTOR segment (rule 6, LS-26); without a per-segment
+		// allowance every such key would read as drifted on every scan.
+		['home.title_2.sub', 'home.title.sub', true],
+		['a.b_2.c.d', 'a.b.c.d', true],
+		['home.title_2.sub_2', 'home.title.sub', true],
+		['home.title.sub', 'home.title_2.sub', false], // still asymmetric, per segment
+		['home.title_1.sub', 'home.title.sub', false],
+		['a.b_2.c', 'a.b.c.d', false],
+		['a.b.c.d', 'a.b.c', false],
+		['home_2.sub', 'home.title.sub', false],
+	])('per segment: %s from %s → %s', (key, base, expected) => {
 		expect(derivesFrom(key, base)).toBe(expected);
 	});
 });

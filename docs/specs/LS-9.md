@@ -307,7 +307,17 @@ src/ui/extract/ExtractPanel.tsx  PanelDef.Panel — owns its control bar, summar
    maximum. On deeper trees the **outermost** frame is dropped, which is usually the screen name.
    Accepted cost; observed live in the fixture, where `deep-tree` yields `l1.l2.l3.total` and its own
    row frame is dropped while every shallower row keeps its name.
-6. **Uniqueness:** `_2`, `_3`, … appended against the reserved set.
+6. **Uniqueness:** `_2`, `_3`, … appended against the reserved set. **Amended 2026-09-25 (LS-26):
+   the reserved set holds each key's ancestor paths too, so no minted key is a strict prefix path of
+   another.** `home.title` and `home.title.sub` are distinct but cannot both exist in nested i18next
+   JSON (LS-6 §1.2). A candidate is taken if it equals a reserved key, is an ancestor path of one, or
+   has one as an ancestor path; the second claimant is suffixed at the colliding segment:
+   `home.title` reserved → `home.title.sub` mints `home.title_2.sub` (suffixing the leaf would still
+   nest under the key `home.title`); `home.title.sub` reserved → `home.title` mints `home.title_2`.
+   Sharing a branch is not a collision (`home.title.a` beside `home.title.b`), nor is a string prefix
+   (`home.title_ar`). Paths split on `.`, the export's separator, so `snake` keys — one segment —
+   never collide this way. Owners (rule 9) and adopters (rule 12) keep their keys verbatim, so a pair
+   stamped before this rule survives, and LS-6 §2.1.2's export omission stays as its backstop.
 7. **Reserved set** is seeded with every key claimed by an *owning* stamp before any derivation runs,
    so a new node can never take an existing node's key.
 8. **Schemes:** `dot` joins with `.`, `snake` joins with `_`. Both share rules 1–7 entirely; only the
@@ -348,7 +358,9 @@ samples are illustrative row content, not a specification; the divergence is del
     derive `home.welcome_2` against stamp `home.welcome` and read as clean. One false negative is
     accepted: a node stamped `list.item_2` whose layer is renamed `Item 2` → `Item` derives
     `list.item` and is masked. Drift is advisory; storing the pre-suffix base in the envelope is the
-    exact fix if it ever matters.
+    exact fix if it ever matters. **Amended 2026-09-25 (LS-26):** judged per `.` segment, because
+    rule 6 may now suffix an ancestor segment — `home.title_2.sub` derives from `home.title.sub`.
+    Segment counts must match; the asymmetry and the masked-rename false negative hold per segment.
 
 ### Persistence
 
@@ -458,6 +470,15 @@ independently. `ancestorFrameNames` is nearest-first, as the model stores it.
 | `checkout.summary.total` | `{checkout.summary.total}` | `checkout.summary.total_2` |
 | `checkout.summary.total` | `{…total, …total_2}` | `checkout.summary.total_3` |
 | `home.text` | `{home.text}` | `home.text_2` |
+| `home.title.sub` | `{home.title}` | `home.title_2.sub` |
+| `home.title` | `{home.title.sub}` | `home.title_2` |
+| `a.b.c.d` | `{a.b}` | `a.b_2.c.d` |
+| `a.b` | `{a.b.c.d}` | `a.b_2` |
+| `home.title_ar` | `{home.title}` | `home.title_ar` |
+
+The last five rows are rule 6's ancestor-path guarantee (LS-26, 2026-09-25): the prefix claimed
+first, the longer key claimed first, both again three levels apart, and a *string* prefix that is not
+a *path* prefix — no collision, returned unchanged.
 
 ### 3.3 In-Figma harness
 

@@ -4,7 +4,7 @@
 // Factored out of ./index for the same reason snapshot/plan.ts is: the rules are the part most
 // likely to be subtly wrong, and as a pure function they are Vitest-coverable. What Vitest cannot
 // prove — that a stamp actually persists, and how Figma copies it — stays with the §3.3 harness.
-import { deriveKey, derivesFrom, uniqueKey, type KeyScheme } from './key';
+import { deriveKey, derivesFrom, ReservedKeys, uniqueKey, type KeyScheme } from './key';
 import type { Stamp, StoredKey } from './persist';
 import type { TextNodeModel } from '../traversal/model';
 
@@ -84,7 +84,9 @@ function compareClaims(a: Claim & { stored: StoredKey }, b: Claim & { stored: St
  *   2. adopters, page-wide — a stamp whose owner is absent from the page, carried by exactly one node
  *      on the page, is adopted and re-stamped with that node's id (rule 11);
  *   3. in-scope everything else derives: unstamped (13), copies of an owner still on the page (10),
- *      ambiguous carriers (12) and owner-tiebreak losers, each suffixed against the reserved set (6).
+ *      ambiguous carriers (12) and owner-tiebreak losers, each suffixed against the reserved set (6) —
+ *      which holds every retained key's ancestor paths too, so no minted key is a prefix path of
+ *      another or has one as its own (LS-26).
  */
 export function resolveKeys(inputs: readonly KeyInput[], scheme: KeyScheme, options: ResolveOptions): KeyResolution[] {
 	const { now } = options;
@@ -100,7 +102,7 @@ export function resolveKeys(inputs: readonly KeyInput[], scheme: KeyScheme, opti
 		else claim.stored = stored; // the in-scope read is authoritative for its own node
 	}
 
-	const reserved = new Set<string>();
+	const reserved = new ReservedKeys();
 	const resolved: (KeyResolution | undefined)[] = new Array<KeyResolution | undefined>(inputs.length);
 
 	// 1. Owners. Every owned key is reserved, including keys owned only outside the scope — a key a
@@ -130,6 +132,8 @@ export function resolveKeys(inputs: readonly KeyInput[], scheme: KeyScheme, opti
 	}
 	for (const [nodeId, { stored }] of claims) {
 		if (stored === null || stored.n === nodeId || claims.has(stored.n)) continue;
+		// Exact key only, like an owner: adoption continues an existing claim rather than minting one, so
+		// a pre-LS-26 prefix collision is kept verbatim and left to LS-6's export backstop (§2.1.2).
 		if (carriers.get(stored.n) !== 1 || reserved.has(stored.k)) continue;
 		reserved.add(stored.k);
 		const i = inScope.get(nodeId);

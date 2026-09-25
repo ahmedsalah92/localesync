@@ -30,7 +30,8 @@ function branchKeys(entries: readonly ExtractedString[]): ReadonlySet<string> {
  * out and reported. i18next cannot represent both: `t('home.title')` walks the same path whether the
  * value is a string or an object. Of the available options this is the only one that is
  * deterministic regardless of input order, lossless for the greater number of strings, and visible
- * to the user. The real fix is upstream in LS-9's uniqueness rule (§1.2).
+ * to the user. The real fix is upstream in LS-9's uniqueness rule (§1.2), landed by LS-26: this is
+ * now a backstop for keys stamped before it, which rule 9 never re-keys.
  */
 export function serializeJson(entries: readonly ExtractedString[]): {
 	content: string;

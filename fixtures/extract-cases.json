@@ -18,6 +18,11 @@
 		{ "base": "checkout.summary.total", "reserved": [], "expected": "checkout.summary.total" },
 		{ "base": "checkout.summary.total", "reserved": ["checkout.summary.total"], "expected": "checkout.summary.total_2" },
 		{ "base": "checkout.summary.total", "reserved": ["checkout.summary.total", "checkout.summary.total_2"], "expected": "checkout.summary.total_3" },
-		{ "base": "home.text", "reserved": ["home.text"], "expected": "home.text_2" }
+		{ "base": "home.text", "reserved": ["home.text"], "expected": "home.text_2" },
+		{ "base": "home.title.sub", "reserved": ["home.title"], "expected": "home.title_2.sub" },
+		{ "base": "home.title", "reserved": ["home.title.sub"], "expected": "home.title_2" },
+		{ "base": "a.b.c.d", "reserved": ["a.b"], "expected": "a.b_2.c.d" },
+		{ "base": "a.b", "reserved": ["a.b.c.d"], "expected": "a.b_2" },
+		{ "base": "home.title_ar", "reserved": ["home.title"], "expected": "home.title_ar" }
 	]
 }

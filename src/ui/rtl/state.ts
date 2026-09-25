@@ -184,7 +184,7 @@ export function summarize(state: RtlState): SummaryGroup[] {
  * else (LS-30). It shipped wrong too — every in-flight phase fell through to `first-run`, so a large
  * apply read "Nothing to mirror yet" under a Switch that was on and disabled.
  */
-export type RtlShell = 'busy' | 'operation-failed' | 'no-text-on-page' | 'first-run' | null;
+export type RtlShell = 'busy' | 'operation-failed' | 'no-selection' | 'no-text-on-page' | 'first-run' | null;
 
 export function selectShell(state: RtlState): RtlShell {
 	// First, so a retry from `failed` or a re-apply from `idle` never shows the phase it left.
@@ -192,6 +192,9 @@ export function selectShell(state: RtlState): RtlShell {
 	// "Nothing in scope to mirror" is not a failure, and saying "The mirror failed and your canvas
 	// was restored" for it is alarming and untrue — nothing was attempted, so nothing was restored.
 	if (state.phase === 'failed' && state.errorCode === 'no-text-nodes') return 'no-text-on-page';
+	// Selection scope with nothing selected: nothing was attempted either, and the fix is the user's
+	// to make — select something, or switch scope to Page (LS-33).
+	if (state.phase === 'failed' && state.errorCode === 'no-selection') return 'no-selection';
 	if (state.phase === 'failed') return 'operation-failed';
 	if (state.phase === 'applied') return null;
 	return 'first-run';

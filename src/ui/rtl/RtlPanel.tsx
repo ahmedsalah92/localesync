@@ -137,9 +137,11 @@ export function RtlPanel() {
 			? null
 			: which === 'operation-failed'
 				? { state: which, ...STATES.operationFailed }
-				: which === 'no-text-on-page'
-					? { state: which, ...STATES.noText }
-					: { state: which, ...STATES.firstRun };
+				: which === 'no-selection'
+					? { state: which, ...STATES.noSelection }
+					: which === 'no-text-on-page'
+						? { state: which, ...STATES.noText }
+						: { state: which, ...STATES.firstRun };
 	const rows = summaryRows(summarize(state), state.expanded);
 
 	return (

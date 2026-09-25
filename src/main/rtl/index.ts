@@ -14,18 +14,12 @@ import { on, send } from '../bridge';
 import { isGridChild, isGridParent, placeGridChildren } from '../snapshot/grid';
 import { restoreByOp, withSnapshot } from '../snapshot';
 import type { BatchResult } from '../snapshot';
-import { collectContainers } from '../traversal';
+import { NoSelectionError, collectContainers } from '../traversal';
 import { movedByParent, planMirror, shouldFlagMoved } from './mirror';
 import type { MirrorInput, MirrorWrite } from './mirror';
+import { resolveMirrorScope } from './scope';
 
 const OP = 'rtl-mirror' as const;
-
-/** Scope is selection-preferred and resolved HERE — the selection lives on the main thread, so the
- *  panel cannot know whether one exists (LS-11 §2.10, matching LS-10 §2.5). */
-function resolveScope(intent: ScanScope): ScanScope {
-	if (intent === 'page') return 'page';
-	return figma.currentPage.selection.length > 0 ? 'selection' : 'page';
-}
 
 /** Read everything the rules need off a live node. Absent fields mean the property does not exist
  *  on this node type — the rules treat that as "not applicable", never "unknown". */
@@ -157,9 +151,13 @@ export interface MirrorResult extends BatchResult {
 export async function applyRtlMirror(intent: ScanScope): Promise<MirrorResult> {
 	// dynamic-page: findAllWithCriteria throws on an unloaded page (agent-guidelines §2).
 	await figma.currentPage.loadAsync();
+	// Before anything is touched — including the restore — so "nothing selected" leaves the canvas
+	// exactly as it was (LS-33).
+	const scope = resolveMirrorScope(intent, figma.currentPage.selection.length);
+	if (scope === 'no-selection') throw new NoSelectionError();
 	await restoreByOp(OP);
 
-	const containers = collectContainers(resolveScope(intent));
+	const containers = collectContainers(scope);
 
 	// Containers AND their direct children: a child carries the position, constraint and grid rules,
 	// and a text child carries the alignment rule. De-duped — a frame is both a container in its own
@@ -282,6 +280,10 @@ export function registerRtlMirror(): void {
 					total: batch.succeeded.length + batch.blocked.length,
 				});
 			} catch (err) {
+				if (err instanceof NoSelectionError) {
+					send({ type: 'error', id: msg.id, code: 'no-selection', severity: 'error', message: err.message });
+					return;
+				}
 				send({
 					type: 'error',
 					id: msg.id,

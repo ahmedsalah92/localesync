@@ -14,7 +14,7 @@
 //
 // Scaffolding only — never run by Vitest. Wired behind import.meta.env.DEV in main.ts.
 import { SNAPSHOT_KEY, restoreByOp, withSnapshot } from '../snapshot';
-import { collectContainers } from '../traversal';
+import { NoSelectionError, collectContainers } from '../traversal';
 import { applyRtlMirror, readMirrorInput, revertRtlMirror } from './index';
 import { isPositionedByParent, planMirror } from './mirror';
 
@@ -106,6 +106,24 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 	for (const [id, node] of targets) baseline.set(id, probe(node));
 
 	try {
+		// ── [0] LS-33: Selection scope with nothing selected mirrors NOTHING ──────────────────────
+		// It used to fall back to the whole page. It must now refuse before touching anything —
+		// including the restore — so every target must still match the baseline afterwards.
+		const savedSelection = figma.currentPage.selection;
+		figma.currentPage.selection = [];
+		let refused = false;
+		try {
+			await applyRtlMirror('selection');
+		} catch (err) {
+			refused = err instanceof NoSelectionError;
+		}
+		figma.currentPage.selection = savedSelection;
+		const touched = [...targets].filter(([id, node]) => {
+			const before = baseline.get(id);
+			return before !== undefined && probeDiff(probe(node), before).length > 0;
+		});
+		note(notes, 'no-selection', refused && touched.length === 0, `refused=${refused} touched=${touched.length}`);
+
 		// ── [1] apply ────────────────────────────────────────────────────────────────────────────
 		const first = await applyRtlMirror('page');
 		note(

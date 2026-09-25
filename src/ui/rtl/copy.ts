@@ -35,18 +35,22 @@ export function appliedMessage(toCheck = 0): string {
 }
 
 /**
- * Transcribed from DES-2's state block, with one omission and one correction.
+ * Transcribed from design.md's RTL state cells, with one correction: `firstRun` asks for a selection,
+ * not for strings to be extracted first — the mirror never needs extraction (LS-29).
  *
- * **`no-selection` is absent.** The panel never reaches it: with Selection chosen and nothing
- * selected, the main thread's `resolveScope` (`src/main/rtl/index.ts`) falls back to the whole page
- * rather than failing. That fallback predates explicit scope (`docs/rtl-mirroring-ruleset.md` §7.3,
- * corrected 2026-09-20) and is an open question, not a settled rule: the scope select now exists, so
- * the canvas copy "…or switch scope to Page" would name a real control.
+ * **`noSelection`** was once omitted: scope was implicit, and its copy names a scope control the
+ * panel did not have. Scope is explicit now (`docs/rtl-mirroring-ruleset.md` §7.3), and Selection
+ * with nothing selected mirrors nothing and lands here, where it used to fall back to the whole page
+ * (LS-33).
  */
 export const STATES = {
 	firstRun: {
 		headline: 'Nothing to mirror yet',
 		body: 'Select a frame or layer, then apply the mirror to stress-test your layout in RTL.',
+	},
+	noSelection: {
+		headline: 'Nothing selected',
+		body: 'Select a frame or layer to mirror, or switch scope to Page.',
 	},
 	noText: {
 		headline: 'No layers to mirror here',

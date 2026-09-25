@@ -193,6 +193,10 @@ Two known hazards, both already recorded in `docs/agent-guidelines.md` §2:
    just the sentence. Implicit scope is defensible for pseudo-loc, which swaps text; a mirror
    **restructures layout**, and a user who cannot tell what is about to be restructured before
    flipping the switch has no way to scope the blast radius. LS-10's precedent does not transfer.
+
+   *Completed 2026-09-25 (LS-33).* The main thread still fell back from an empty Selection to the
+   whole page, which undid this rule. Selection with nothing selected now mirrors nothing and shows
+   the design's "Nothing selected" state.
 4. **Groups mirror about their own bounding box.** A `GROUP` has no layout properties, so F1/F3–F5
    do not apply and its children are mirrored by F7 relative to the group's bounds. This is the only
    reading consistent with F7 being parent-relative (E1); treating groups as opaque would silently

@@ -218,6 +218,12 @@ describe('selectShell distinguishes "nothing to mirror" from "the mirror failed"
 		expect(selectShell(state)).toBe('no-text-on-page');
 	});
 
+	// LS-33: Selection scope with nothing selected mirrors nothing and says so (design.md RTL cell).
+	it('shows the no-selection state for no-selection, not the failure state', () => {
+		const state = run([{ kind: 'apply-started' }, { kind: 'failed', code: 'no-selection' }]);
+		expect(selectShell(state)).toBe('no-selection');
+	});
+
 	it('still shows the failure state for a genuine failure', () => {
 		const state = run([{ kind: 'apply-started' }, { kind: 'failed', code: 'mutation-failed' }]);
 		expect(selectShell(state)).toBe('operation-failed');

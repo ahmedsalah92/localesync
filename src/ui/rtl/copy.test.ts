@@ -25,17 +25,16 @@ describe('appliedMessage — the banner carries the review count (LS-11 §2.9)',
 	});
 });
 
-describe('STATES — transcribed, with one deliberate omission', () => {
+describe('STATES — transcribed from design.md', () => {
 	/**
-	 * DES-2's canvas copy for this panel's no-selection state reads "…or switch scope to Page", but
-	 * scope is implicit here and `resolveScope` downgrades to page, so the panel can never reach that
-	 * state. Shipping copy naming a control the panel does not have would be worse than omitting it —
-	 * the same resolution as LS-10 §2.4.
+	 * `noSelection` was once omitted, because scope was implicit and its copy — "…or switch scope to
+	 * Page" — named a control the panel did not have. Scope is explicit now (ruleset §7.3) and the
+	 * panel has the select, so the state exists and its copy is the only one that may name it (LS-33).
 	 */
-	it('has no no-selection state, and names no scope control anywhere', () => {
-		expect(Object.keys(STATES)).toEqual(['firstRun', 'noText', 'operationFailed']);
-		for (const state of Object.values(STATES)) {
-			expect(state.body).not.toMatch(/scope/i);
+	it('has the no-selection state, and only it names the scope control', () => {
+		expect(Object.keys(STATES)).toEqual(['firstRun', 'noSelection', 'noText', 'operationFailed']);
+		for (const [key, state] of Object.entries(STATES)) {
+			if (key !== 'noSelection') expect(state.body).not.toMatch(/scope/i);
 		}
 	});
 
@@ -110,5 +109,14 @@ describe('BUSY — the in-flight band', () => {
 	it('names the operation in flight', () => {
 		expect(BUSY.applying).toBe('Applying mirror…');
 		expect(BUSY.reverting).toBe('Reverting mirror…');
+	});
+});
+
+describe('STATES.noSelection — transcribed from design.md (LS-33)', () => {
+	it('names the scope control, which the panel now has', () => {
+		expect(STATES.noSelection).toEqual({
+			headline: 'Nothing selected',
+			body: 'Select a frame or layer to mirror, or switch scope to Page.',
+		});
 	});
 });

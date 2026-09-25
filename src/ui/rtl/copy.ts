@@ -37,11 +37,11 @@ export function appliedMessage(toCheck = 0): string {
 /**
  * Transcribed from DES-2's state block, with one omission and one correction.
  *
- * **`no-selection` is absent, deliberately.** The canvas copy reads "…or switch scope to Page", but
- * scope is implicit here — selection when non-empty, else page (`docs/rtl-mirroring-ruleset.md`
- * §7.3) — so `resolveScope` downgrades and the panel can never reach that state. Same resolution as
- * LS-10 §2.4; shipping copy that names a control the panel does not have would be worse than
- * omitting the state.
+ * **`no-selection` is absent.** The panel never reaches it: with Selection chosen and nothing
+ * selected, the main thread's `resolveScope` (`src/main/rtl/index.ts`) falls back to the whole page
+ * rather than failing. That fallback predates explicit scope (`docs/rtl-mirroring-ruleset.md` §7.3,
+ * corrected 2026-09-20) and is an open question, not a settled rule: the scope select now exists, so
+ * the canvas copy "…or switch scope to Page" would name a real control.
  */
 export const STATES = {
 	firstRun: {

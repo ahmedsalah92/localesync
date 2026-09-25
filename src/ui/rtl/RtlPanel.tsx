@@ -27,8 +27,9 @@ import {
  * byte-identically (LS-11).
  *
  * **One control, a Switch** — unlike pseudo-loc there is nothing to choose before committing, so
- * there is no separate Apply button: on applies, off reverts (§2.7). Scope is implicit and resolved
- * on the main thread, which is why the panel has no scope select (§2.10).
+ * there is no separate Apply button: on applies, off reverts (§2.7). Scope is explicit — the scope
+ * select beside the Switch, defaulting to Page (`docs/rtl-mirroring-ruleset.md` §7.3) — and is
+ * locked while the mirror is on, so it always describes the operation on the canvas.
  *
  * The rows are a **change summary** (LS-28): how many layers were mirrored, which icons moved and
  * need a direction check, and what was skipped and why. Groups expand to jumpable rows.

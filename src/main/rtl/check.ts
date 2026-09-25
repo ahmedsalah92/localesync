@@ -290,13 +290,19 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 
 		// ── [4a] LS-28: the fixture still produces every summary group ───────────────────────────
 		// A group the fixture never produces is a group no in-Figma run exercises — which is how the
-		// dropped `rtl-flagged` message went unnoticed. `badge` is the absolutely-positioned ellipse
-		// in `absolute-badge`: an authored `x` the mirror rewrites, so it must be flagged as moved.
+		// dropped `rtl-flagged` message went unnoticed. Both halves of G1:
+		//   • F7 — `badge`, the absolutely-positioned ellipse whose authored `x` the mirror rewrites;
+		//   • F1 — `overlap-stack`'s avatars, reordered by their parent: the ends move, the middle
+		//     of three does not, so `avatar-2` must NOT be flagged.
+		const flaggedNames = new Set(first.flagged.map((entry) => entry.name));
 		note(
 			notes,
 			'flagged-moved',
-			first.flagged.some((entry) => entry.name === 'badge'),
-			`${first.flagged.length} flagged: ${first.flagged.map((entry) => entry.name).join(', ') || 'none'}`,
+			flaggedNames.has('badge') &&
+				flaggedNames.has('avatar-1') &&
+				flaggedNames.has('avatar-3') &&
+				!flaggedNames.has('avatar-2'),
+			`${first.flagged.length} flagged: ${[...flaggedNames].join(', ') || 'none'}`,
 		);
 		const emptyBlocked = first.blocked.find((entry) => entry.reason === 'empty');
 		if (emptyBlocked === undefined && ![...targets.values()].some((n) => n.name === 'empty-text')) {

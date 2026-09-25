@@ -34,7 +34,7 @@ everywhere else.
 | Panel group | Produced by |
 |---|---|
 | `N layers mirrored` | Every row |
-| `N icons moved — check direction` | `badge` in `absolute-badge`, and `g-left` / `g-right` in `plain-group`: ellipses whose `x` the mirror rewrites |
+| `N icons moved — check direction` | F7, where the mirror rewrites the icon's own `x`: `badge` in `absolute-badge`, and `g-left` / `g-right` in `plain-group`. F1, where the parent reverses its children: `avatar-1` and `avatar-3` in `overlap-stack`, but **not** `avatar-2`, the middle child, which doesn't move. F9, where the grid reflects its columns: the swatches in `grid-span` whose column changes |
 | skipped · inside an instance | `m-one` / `m-two` in `rtl-instance` |
 | skipped · font unavailable | the manual `missing-font` row |
 | skipped · empty layer | `empty-text` |

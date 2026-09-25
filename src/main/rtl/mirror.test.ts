@@ -2,7 +2,7 @@
 //
 // Every case derives from `docs/rtl-mirroring-ruleset.md` (F1–F10) and `docs/specs/LS-11.md` §3.1.
 import { describe, expect, it } from 'vitest';
-import { mirrorColumn, mirrorX, planMirror, shouldFlagMoved } from './mirror';
+import { mirrorColumn, mirrorX, movedByParent, planMirror, shouldFlagMoved } from './mirror';
 import type { MirrorInput, MirrorWrite } from './mirror';
 
 const node = (overrides: Partial<MirrorInput> = {}): MirrorInput => ({ nodeId: 'n:1', ...overrides });
@@ -384,5 +384,50 @@ describe('a GROUP is mirrored through its children, never repositioned itself (r
 		expect(find(planMirror(node({ parentLayoutMode: 'NONE', x: 0, width: 24, parentWidth: 208 })), 'x').x).toBe(
 			184,
 		);
+	});
+});
+
+/**
+ * G1 says "moved under F1 or F7". F7 is the child's own `x` write; these are the moves its PARENT
+ * causes. Before LS-28 only F7 was detected, so an icon reordered inside an auto-layout row — the
+ * "Next ›" chevron, the commonest directional icon — was moved and never flagged.
+ */
+describe('movedByParent — G1 for parent-driven moves (F1, F9)', () => {
+	const flow = (...ids: string[]) => ids.map((id) => ({ id, absolute: false }));
+	const row = (childCount: number) => node({ layoutMode: 'HORIZONTAL', childCount });
+
+	it('F1: a reversed row of three moves both ends, never the middle', () => {
+		expect(movedByParent(row(3), planMirror(row(3)), flow('a', 'b', 'c'))).toEqual(['a', 'c']);
+	});
+
+	it('F1: a reversed row of four moves every child', () => {
+		expect(movedByParent(row(4), planMirror(row(4)), flow('a', 'b', 'c', 'd'))).toEqual(['a', 'b', 'c', 'd']);
+	});
+
+	// An absolute child is not placed by the flow, so reversing the array does not move it — its own
+	// F7 write does, and is detected there. It also does not count toward the middle.
+	it('F1: skips absolute children, and finds the middle among flow children only', () => {
+		const children = [...flow('a'), { id: 'abs', absolute: true }, ...flow('b', 'c')];
+		expect(movedByParent(row(4), planMirror(row(4)), children)).toEqual(['a', 'c']);
+	});
+
+	it('moves nothing when the plan does not reverse (vertical, instance, single child)', () => {
+		const vertical = node({ layoutMode: 'VERTICAL', childCount: 3 });
+		expect(movedByParent(vertical, planMirror(vertical), flow('a', 'b', 'c'))).toEqual([]);
+		const instance = node({ layoutMode: 'HORIZONTAL', childCount: 3, isInstance: true });
+		expect(movedByParent(instance, planMirror(instance), flow('a', 'b', 'c'))).toEqual([]);
+	});
+
+	it('F9: a grid child moves when its column changes, and only then', () => {
+		const grid = node({
+			layoutMode: 'GRID',
+			gridColumnCount: 3,
+			gridChildren: [
+				{ childId: 'left', row: 0, column: 0, span: 1 },
+				{ childId: 'centre', row: 0, column: 1, span: 1 },
+				{ childId: 'right', row: 0, column: 2, span: 1 },
+			],
+		});
+		expect(movedByParent(grid, planMirror(grid), [])).toEqual(['left', 'right']);
 	});
 });

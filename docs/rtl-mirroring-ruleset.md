@@ -92,7 +92,7 @@ to see**, and it is not something the plugin can fix without inventing artwork (
 
 | # | Flagged | Why the plugin cannot decide |
 |---|---|---|
-| **G1** | Any vector/icon child whose position moved under F1 or F7 | Whether it *should* have rotated depends on what it depicts. The plugin knows geometry, not meaning. |
+| **G1** | Any vector/icon child whose position moved under F1 or F7 (and F9's column moves, per decision 2 in §7: "flag every vector whose position moved") | Whether it *should* have rotated depends on what it depicts. The plugin knows geometry, not meaning. |
 | **G2** | Nodes whose name suggests N4–N6 (`play`, `pause`, `rewind`, `clock`, `search`, `logo`, `check`…) | A name heuristic is a hint, not a fact. Flag, never act. |
 | **G3** | Text nodes containing both RTL and LTR runs | Mixed content is where bidi actually bites, and the correct result is a judgement about the content. |
 | **G4** | Locked nodes, and nodes with `hasMissingFont` | CLAUDE.md hard rule: never mutate the content or layout of a missing-font node. Skip and flag, per LS-4's eligibility table. |

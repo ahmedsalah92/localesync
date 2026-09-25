@@ -15,7 +15,7 @@ import { isGridChild, isGridParent, placeGridChildren } from '../snapshot/grid';
 import { restoreByOp, withSnapshot } from '../snapshot';
 import type { BatchResult } from '../snapshot';
 import { collectContainers } from '../traversal';
-import { planMirror, shouldFlagMoved } from './mirror';
+import { movedByParent, planMirror, shouldFlagMoved } from './mirror';
 import type { MirrorInput, MirrorWrite } from './mirror';
 
 const OP = 'rtl-mirror' as const;
@@ -171,18 +171,39 @@ export async function applyRtlMirror(intent: ScanScope): Promise<MirrorResult> {
 	}
 
 	const plans = new Map<string, MirrorWrite[]>();
-	const flagged: FlaggedNode[] = [];
+	// Each flag records the node whose write causes the move — the icon itself for F7, its parent for
+	// F1/F9 — because only that node's success means the icon really moved. A child moved by its
+	// parent has no writes of its own and never enters the batch, so filtering on the child would
+	// silently drop every parent-driven flag.
+	const flagged = new Map<string, { entry: FlaggedNode; cause: string }>();
+	const flag = (node: SceneNode, cause: string): void => {
+		if (!flagged.has(node.id))
+			flagged.set(node.id, { entry: { nodeId: node.id, name: node.name, reason: 'moved-vector' }, cause });
+	};
 	for (const [id, node] of targets) {
-		const writes = planMirror(readMirrorInput(node));
+		const input = readMirrorInput(node);
+		const writes = planMirror(input);
 		if (writes.length === 0) continue;
 		plans.set(id, writes);
+		// G1 via F7: the node's own `x` moved.
 		if (
 			shouldFlagMoved(
 				node.type,
 				writes.some((w) => w.kind === 'x'),
 			)
 		) {
-			flagged.push({ nodeId: id, name: node.name, reason: 'moved-vector' });
+			flag(node, id);
+		}
+		// G1 via F1/F9: the parent's reversal or grid reflection moved its children (LS-28).
+		if ('children' in node) {
+			const children = node.children.map((child) => ({
+				id: child.id,
+				absolute: 'layoutPositioning' in child && child.layoutPositioning === 'ABSOLUTE',
+			}));
+			for (const childId of movedByParent(input, writes, children)) {
+				const child = node.children.find((c) => c.id === childId);
+				if (child !== undefined && shouldFlagMoved(child.type, true)) flag(child, id);
+			}
 		}
 	}
 
@@ -192,9 +213,12 @@ export async function applyRtlMirror(intent: ScanScope): Promise<MirrorResult> {
 		return Promise.resolve();
 	});
 
-	// Only report a flag for a node the batch actually mirrored.
+	// Only report a flag whose move actually happened: the node that causes it was mirrored.
 	const succeeded = new Set(batch.succeeded);
-	return { ...batch, flagged: flagged.filter((entry) => succeeded.has(entry.nodeId)) };
+	return {
+		...batch,
+		flagged: [...flagged.values()].filter(({ cause }) => succeeded.has(cause)).map(({ entry }) => entry),
+	};
 }
 
 /** Revert only this op's nodes, leaving an active preview or pseudo-loc alone (§2.7). */

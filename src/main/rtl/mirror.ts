@@ -211,3 +211,42 @@ export const FLAGGABLE_TYPES: readonly string[] = [
 export function shouldFlagMoved(nodeType: string, moved: boolean): boolean {
 	return moved && FLAGGABLE_TYPES.includes(nodeType);
 }
+
+/** A parent's child as the move rule needs it: its id, and whether the flow places it. */
+export interface FlowChild {
+	id: string;
+	absolute: boolean;
+}
+
+/**
+ * The children whose POSITION this parent's plan changes — G1's "moved under F1", plus F9.
+ *
+ * G1 flags any vector/icon whose position moved. F7 is the child's own `x` write and is detected on
+ * the child; this covers the moves its parent causes, which before LS-28 were never flagged — so an
+ * icon reordered inside an auto-layout row, the commonest directional icon, went unreported.
+ *
+ * F1: a reversal moves every flow child except the middle one of an odd count. Absolute children
+ * are not placed by the flow, so they neither move with it nor count toward the middle.
+ * F9: a grid child moves when its column changes.
+ */
+export function movedByParent(
+	input: MirrorInput,
+	writes: readonly MirrorWrite[],
+	children: readonly FlowChild[],
+): string[] {
+	const moved: string[] = [];
+	if (writes.some((write) => write.kind === 'reverse-children')) {
+		const flowIds = children.filter((child) => !child.absolute).map((child) => child.id);
+		flowIds.forEach((id, index) => {
+			if (index !== flowIds.length - 1 - index) moved.push(id);
+		});
+	}
+	for (const write of writes) {
+		if (write.kind !== 'grid-reposition') continue;
+		for (const move of write.moves) {
+			const before = input.gridChildren?.find((child) => child.childId === move.childId);
+			if (before !== undefined && before.column !== move.column) moved.push(move.childId);
+		}
+	}
+	return moved;
+}

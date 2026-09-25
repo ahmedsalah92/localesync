@@ -500,7 +500,7 @@ Same placeholder-content finding. Replaced with:
 | State | Extract | Preview | Pseudo-loc | RTL Mirror |
 |---|---|---|---|---|
 | First run | Already built — see Empty Extract Shell ("No strings extracted") | **Nothing to preview yet** — Extract strings first, then choose a language to preview translations in place. | **Nothing to pseudo-localize yet** — Select a frame or layer, then set an expansion ratio to preview how your layout holds up. | **Nothing to mirror yet** — Select a frame or layer, then apply the mirror to stress-test your layout in RTL. |
-| No selection | **Nothing selected** — Select a frame or layer to extract from, or switch scope to Page. | **Nothing selected** — Select a frame or layer to preview, or switch scope to Page. | **N/A — unreachable**, see below | **Nothing selected** — Select a frame or layer to mirror, or switch scope to Page. |
+| No selection | **Nothing selected** — Select a frame or layer to extract from, or switch scope to Page. | **N/A — unreachable**: scope is always the page (LS-12 §2.5) | **N/A — unreachable**, see below | **Nothing selected** — Select a frame or layer to mirror, or switch scope to Page. |
 | No text on page | **No text layers here** — This page has nothing to extract. Try another page. | **No text layers here** — This page has nothing to preview. Try another page. | **No text layers here** — This page has nothing to pseudo-localize. Try another page. | **No text layers here** — This page has nothing to mirror. Try another page. |
 | Fonts unavailable | **Fonts unavailable** — 3 fonts could not be loaded. Text using them will be skipped and flagged. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged in the fallback list. | **Fonts unavailable** — 3 layers use fonts that couldn't be loaded — they're skipped and flagged, not expanded. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not mirrored. |
 | Large file | **Large file — 3,410 nodes** — Extracting may take a moment. You can stop at any time. | N/A | N/A | N/A |
@@ -547,7 +547,17 @@ What remains is a mix of **design decisions still open** (above) and **build wor
 
 - **LS-14** — build and wire `State Block` instances into the four non-Overflow panels, using the copy table settled under LS-24 Deliverable 5. Implementation only.
 - ~~**LS-6**~~ — **built 2026-09-12.** The Export sub-surface is implemented as specified: a 400px Modal opened from the `Export ▸` link in the Extract summary bar, with format selection, the dedup toggle and Download. Composed from the UI3 kit, both icons taken from Figma's exported assets. `docs/specs/LS-6.md`.
-- **LS-10, LS-11, LS-12** — the panels are designed and on canvas; these tickets carry their implementation.
+- **LS-10, LS-11** — the panels are designed and on canvas; these tickets carry their implementation.
+- **LS-12** — the Preview panel is designed and on canvas; implementation carries the design
+  follow-ups recorded on the ticket (`docs/specs/LS-12.md` §4): (1) a 40px control-bar band with
+  the Language Select above the summary bar (D5); (2) the Import Modal's JSON-only Language field
+  and its invalid-code message (D3); (3) the replace-language confirm; (4) two new empty states,
+  "no stored languages" and "choose a language"; (5) confirming the `'editing'` `RowTone` token —
+  the brand strip on the editing row is already drawn; and (6) new copy surfaced during
+  build with no canvas home yet — the unmatched group's "check your translation file" and its
+  children's "no layer has this key", the busy label "Loading translations…", the plural
+  replace-confirm, "This file couldn't be read.", and the `storage-failed` edit-failure state's
+  "Couldn't save" copy.
 - **LS-13** — copy and the `openExternal` wiring for the four Pro stubs, which are placed but not wired.
 
 Two design items sit outside Phase 1 and are tracked where they belong, not here:

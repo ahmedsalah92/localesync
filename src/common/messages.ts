@@ -192,6 +192,20 @@ const MAIN_TO_UI_TYPES: Record<MainToUi['type'], true> = {
 	'rtl-flagged': true,
 };
 
+/**
+ * The same allow-lists as typed arrays, for code that must visit every type — the dev round-trip
+ * driver (LS-31), whose hand-kept copies drifted exactly as the allow-list once did. Functions, not
+ * module-level constants, so production — where only dev code calls them — tree-shakes them away.
+ * The cast is sound because the Records are exhaustive over, and limited to, each union's types.
+ */
+export function uiToMainTypes(): UiToMain['type'][] {
+	return Object.keys(UI_TO_MAIN_TYPES) as UiToMain['type'][];
+}
+
+export function mainToUiTypes(): MainToUi['type'][] {
+	return Object.keys(MAIN_TO_UI_TYPES) as MainToUi['type'][];
+}
+
 const ALL_TYPES: ReadonlySet<string> = new Set<string>([
 	...Object.keys(UI_TO_MAIN_TYPES),
 	...Object.keys(MAIN_TO_UI_TYPES),

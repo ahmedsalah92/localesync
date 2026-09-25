@@ -6,9 +6,10 @@
 // registered first in main.ts), which answer the roundtrip's probes with genuine results. Each
 // remaining handler deep-equals the inbound message against its canonical fixture (payload only —
 // the id is minted UI-side) and reports the outcome on the typed channel: the six commands answer
-// with a `progress` (pass) or `error` (fail). Receipt of the last command additionally emits the six
-// MainToUi fixtures verbatim so the UI can assert the main→UI direction for every
-// result/notification type.
+// with a `progress` (pass) or `error` (fail). Receipt of the last command additionally emits every
+// MainToUi fixture verbatim so the UI can assert the main→UI direction for every
+// result/notification type. Both lists come from ../common/roundtrip, derived from the message
+// unions (LS-31) — a hard-coded six here once meant `rtl-flagged` was never checked.
 //
 // The extraction pair is not probed over the wire: a real extraction-request stamps whatever is in
 // scope. Instead the last command also calls extractStrings directly with `{ stamp: false }` and
@@ -16,17 +17,9 @@
 //
 // This is scaffolding only — real feature handlers (LS-3+) replace these registrations. It is never
 // exercised by Vitest (no `figma` runtime); run it via `npm run dev` and the UI's dev-only button.
-import type {
-	ErrorMessage,
-	ExtractionResult,
-	OverflowScanPartial,
-	OverflowScanResult,
-	ProgressMessage,
-	ScanResult,
-	UiToMain,
-} from '../common/messages';
+import type { ErrorMessage, UiToMain } from '../common/messages';
 import { fixtures } from '../common/messages.fixtures';
-import { isRoundtripId } from '../common/roundtrip';
+import { isRoundtripId, mainToUiFixtures, roundtripCommandTypes } from '../common/roundtrip';
 import { nextMainId, on, send } from './bridge';
 import { DEFAULT_SCHEME, extractStrings } from './extract';
 import { KEY_DATA } from './extract/persist';
@@ -58,25 +51,14 @@ function fail(id: string, message: string): ErrorMessage {
 }
 
 // Emit every MainToUi fixture verbatim (with its own fixture id) so the UI can deep-equal the
-// main→UI transport for all six result/notification types.
+// main→UI transport for every result/notification type.
 //
-// The lookups live inside the function, never at module scope. A top-level `fixtures.find(…)` is a
-// call the bundler must assume has side effects, so it kept `fixtures` in dist/main.js even with
-// registerRoundtrip() unreachable in production. Inside a function that nothing calls, the whole
-// module tree-shakes away (scripts/check-dist.mjs asserts it).
+// The lookups live inside a function (here, mainToUiFixtures), never at module scope. A top-level
+// `fixtures.find(…)` is a call the bundler must assume has side effects, so it kept `fixtures` in
+// dist/main.js even with registerRoundtrip() unreachable in production. Inside a function that
+// nothing calls, the whole module tree-shakes away (scripts/check-dist.mjs asserts it).
 function emitVerbatim(): void {
-	const scanResult = fixtures.find((m) => m.type === 'scan-result') as ScanResult;
-	const extractionResult = fixtures.find((m) => m.type === 'extraction-result') as ExtractionResult;
-	const overflowPartial = fixtures.find((m) => m.type === 'overflow-scan-partial') as OverflowScanPartial;
-	const overflowResult = fixtures.find((m) => m.type === 'overflow-scan-result') as OverflowScanResult;
-	const progressFx = fixtures.find((m) => m.type === 'progress') as ProgressMessage;
-	const errorFx = fixtures.find((m) => m.type === 'error') as ErrorMessage;
-	send(scanResult);
-	send(extractionResult);
-	send(overflowPartial);
-	send(overflowResult);
-	send(progressFx);
-	send(errorFx);
+	for (const fixture of mainToUiFixtures()) send(fixture);
 }
 
 // Direct, non-stamping extraction over the open page: resolves keys exactly as a real pass would,
@@ -117,16 +99,14 @@ export function registerRoundtrip(): void {
 			after?.();
 		});
 	};
-	command('apply-pseudoloc');
-	command('revert-pseudoloc');
-	command('apply-rtl-mirror');
-	command('revert-rtl-mirror');
-	command('apply-preview');
-	command('revert-preview', () => {
-		// Last command received → echo the MainToUi fixtures for the main→UI conformance check.
+	// Last command received → echo the MainToUi fixtures for the main→UI conformance check.
+	const afterLast = () => {
 		emitVerbatim();
 		void probeExtraction()
 			.catch((err: unknown) => `roundtrip:extract:FAIL threw ${err instanceof Error ? err.message : String(err)}`)
 			.then((note) => send({ type: 'progress', id: nextMainId(), completed: 1, total: 1, note }));
-	});
+	};
+	const commands = roundtripCommandTypes();
+	const last = commands[commands.length - 1];
+	for (const type of commands) command(type, type === last ? afterLast : undefined);
 }

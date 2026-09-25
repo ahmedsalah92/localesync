@@ -1,11 +1,11 @@
 // src/common/messages.test.ts — pure unit tests (no `figma`, no DOM).
 import { describe, expect, it } from 'vitest';
-import { isPluginMessage } from './messages';
+import { isPluginMessage, mainToUiTypes, uiToMainTypes } from './messages';
 import { fixtures } from './messages.fixtures';
 
 // The authoritative Phase-1 type set. Kept independent of messages.ts internals so a drift between
 // the union and the fixtures is caught here rather than passing silently.
-const ALL_TYPES = [
+const UI_TO_MAIN = [
 	'scan-request',
 	'extraction-request',
 	'overflow-scan-request',
@@ -18,6 +18,8 @@ const ALL_TYPES = [
 	'select-node',
 	'overflow-scan-cancel',
 	'resize-window',
+] as const;
+const MAIN_TO_UI = [
 	'scan-result',
 	'extraction-result',
 	'overflow-scan-partial',
@@ -26,6 +28,7 @@ const ALL_TYPES = [
 	'error',
 	'rtl-flagged',
 ] as const;
+const ALL_TYPES = [...UI_TO_MAIN, ...MAIN_TO_UI];
 
 describe('isPluginMessage', () => {
 	it('accepts every canonical fixture', () => {
@@ -58,5 +61,17 @@ describe('fixture coverage', () => {
 	it('gives every fixture a distinct id', () => {
 		const ids = new Set(fixtures.map((m) => m.id));
 		expect(ids.size).toBe(fixtures.length);
+	});
+});
+
+// The runtime type lists the dev round-trip driver iterates (LS-31). Read off the exhaustive
+// allow-list Records, so they cannot drift from the unions the way the driver's hand-kept arrays did.
+describe('message type lists', () => {
+	it('lists every UI→main type exactly once', () => {
+		expect([...uiToMainTypes()].sort()).toEqual([...UI_TO_MAIN].sort());
+	});
+
+	it('lists every main→UI type exactly once, rtl-flagged included', () => {
+		expect([...mainToUiTypes()].sort()).toEqual([...MAIN_TO_UI].sort());
 	});
 });

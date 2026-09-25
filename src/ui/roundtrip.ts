@@ -12,9 +12,9 @@
 //
 // Scaffolding only — never run by Vitest (needs a real Figma runtime). Invoke via the dev-only
 // button in App.tsx under `npm run dev`.
-import type { MainToUi, UiToMain } from '../common/messages';
+import type { UiToMain } from '../common/messages';
 import { fixtures } from '../common/messages.fixtures';
-import { ROUNDTRIP_ID_PREFIX } from '../common/roundtrip';
+import { ROUNDTRIP_ID_PREFIX, mainToUiFixtures, roundtripCommandTypes } from '../common/roundtrip';
 import { on, request, send } from './bridge';
 
 function deepEqual(a: unknown, b: unknown): boolean {
@@ -31,24 +31,6 @@ function deepEqual(a: unknown, b: unknown): boolean {
 	return ak.every((k) => deepEqual(ao[k], bo[k]));
 }
 
-const MAIN_TO_UI_TYPES: MainToUi['type'][] = [
-	'scan-result',
-	'extraction-result',
-	'overflow-scan-partial',
-	'overflow-scan-result',
-	'progress',
-	'error',
-];
-
-const COMMAND_TYPES: UiToMain['type'][] = [
-	'apply-pseudoloc',
-	'revert-pseudoloc',
-	'apply-rtl-mirror',
-	'revert-rtl-mirror',
-	'apply-preview',
-	'revert-preview',
-];
-
 export async function runRoundtrip(): Promise<void> {
 	let checks = 0;
 	const log = (ok: boolean, label: string) => {
@@ -57,10 +39,11 @@ export async function runRoundtrip(): Promise<void> {
 	};
 
 	// main→UI conformance: each verbatim fixture (matched by its own fixture id) must deep-equal.
-	for (const type of MAIN_TO_UI_TYPES) {
-		const fixture = fixtures.find((m) => m.type === type);
-		on(type, (msg) => {
-			if (fixture && msg.id === fixture.id) log(deepEqual(msg, fixture), `main→ui ${type}`);
+	// One per MainToUi type, derived from the union (../common/roundtrip) — a hand-kept list here
+	// omitted rtl-flagged (LS-31).
+	for (const fixture of mainToUiFixtures()) {
+		on(fixture.type, (msg) => {
+			if (msg.id === fixture.id) log(deepEqual(msg, fixture), `main→ui ${fixture.type}`);
 			// Non-matching ids are correctly ignored (no log): the real LS-3/LS-8 answers to the
 			// request probes below (their ids are minted per request).
 		});
@@ -91,7 +74,7 @@ export async function runRoundtrip(): Promise<void> {
 
 	// Ids in the scaffold's own namespace: main's scaffold answers only these, so it can never race
 	// a real panel command's handler with a fake result (see ../common/roundtrip).
-	COMMAND_TYPES.forEach((type, index) => {
+	roundtripCommandTypes().forEach((type, index) => {
 		const fixture = fixtures.find((m) => m.type === type);
 		if (!fixture) return;
 		const body = { ...fixture } as Record<string, unknown>;

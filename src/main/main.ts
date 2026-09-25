@@ -11,6 +11,7 @@ import { registerExtractionCheck } from './extract/check';
 import { registerOverflow } from './overflow';
 import { runCalibrationCompare } from './overflow/calibration';
 import { registerOverflowCheck } from './overflow/check';
+import { registerPreview } from './preview';
 import { registerPseudoLoc } from './pseudoloc';
 import { registerRtlMirror } from './rtl';
 import { runRtlCheck } from './rtl/check';
@@ -60,6 +61,7 @@ export default async function () {
 	// mutating handler — it is the first production caller of withSnapshot.
 	registerPseudoLoc();
 	registerRtlMirror();
+	registerPreview();
 	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and

@@ -8,7 +8,7 @@ import type { ErrorCode } from '../../common/messages';
 import type { BlockedNode, PreviewRow } from '../../common/models';
 import { on, respond, send } from '../bridge';
 import { readStoredKey } from '../extract/persist';
-import { ensureFontsLoaded, restoreByOp, restoreNode, withSnapshot, type BatchResult } from '../snapshot';
+import { SNAPSHOT_KEY, ensureFontsLoaded, restoreByOp, restoreNode, withSnapshot, type BatchResult } from '../snapshot';
 import { collectTextNodes } from '../traversal';
 import { loadStore, saveStore } from './persist';
 import { ownersOf, planPreview, unmatchedKeys, withoutBlocked, type Owner } from './rows';
@@ -87,35 +87,58 @@ export async function reapplyEdit(
 	if (owner === undefined) return outcomeFor(s);
 
 	const empty = value === null || value === '';
-	if (s.mutated.has(owner.nodeId)) {
-		if (empty) {
-			await restoreNode(owner.nodeId);
+	if (empty) {
+		if (s.mutated.has(owner.nodeId)) {
+			const result = await restoreNode(owner.nodeId);
+			// NODE_GONE (deleted) and "no durable snapshot" (reason undefined — already effectively
+			// restored) both mean there is nothing left to track. RESTORE_FAILED (font unavailable) is
+			// the one outcome that leaves the node still mutated: keep tracking it and report failure
+			// rather than silently losing the source (Review Focus 5).
+			if (result.restored || result.reason === 'NODE_GONE' || result.reason === undefined) {
+				s.mutated.delete(owner.nodeId);
+			} else {
+				return { kind: 'error', code: 'mutation-failed', message: 'The layer could not be restored.' };
+			}
+		}
+		return outcomeFor(s);
+	}
+
+	const node = await figma.getNodeByIdAsync(owner.nodeId);
+	if (node?.type !== 'TEXT') return outcomeFor(s);
+
+	// Direct-write is only safe when the node's own durable snapshot is still there to restore from
+	// later. `s.mutated` alone is stale session bookkeeping — a user Cmd-Z between apply and this edit
+	// can revert the mutation (and clear the node's snapshot pluginData) without this session hearing
+	// about it, and a direct write onto that would overwrite the real source with no way back
+	// (Review Focus 2). When the snapshot is gone, fall through to `withSnapshot`, whose
+	// `already-mutated` eligibility gate recomputes fresh off the live node and is the real safety net.
+	const canDirectWrite = s.mutated.has(owner.nodeId) && node.getPluginData(SNAPSHOT_KEY) !== '';
+	if (canDirectWrite) {
+		try {
+			await ensureFontsLoaded(node);
+		} catch {
+			// Font went missing since the last apply/edit. Never let this reach `internal` — report it
+			// through the normal blocked channel instead, and drop it from `mutated` since its text was
+			// never written.
+			s.blocked = [
+				...s.blocked.filter((b) => b.nodeId !== owner.nodeId),
+				{ nodeId: owner.nodeId, reason: 'missing-font', name: node.name },
+			];
 			s.mutated.delete(owner.nodeId);
-		} else {
-			const node = await figma.getNodeByIdAsync(owner.nodeId);
-			if (node?.type === 'TEXT') {
-				await ensureFontsLoaded(node);
-				node.characters = value;
-				figma.commitUndo();
-			}
+			return outcomeFor(s);
 		}
-	} else if (!empty) {
-		const node = await figma.getNodeByIdAsync(owner.nodeId);
-		if (node?.type === 'TEXT') {
-			const batch = await withSnapshot([node], OP, (n) => {
-				n.characters = value;
-				return Promise.resolve();
-			});
-			if (batch.failed.length > 0) {
-				return {
-					kind: 'error',
-					code: 'mutation-failed',
-					message: 'The edit failed and the layer was restored.',
-				};
-			}
-			for (const id of batch.succeeded) s.mutated.add(id);
-			s.blocked = [...s.blocked.filter((b) => b.nodeId !== owner.nodeId), ...batch.blocked];
+		node.characters = value;
+		figma.commitUndo();
+	} else {
+		const batch = await withSnapshot([node], OP, (n) => {
+			n.characters = value;
+			return Promise.resolve();
+		});
+		if (batch.failed.length > 0) {
+			return { kind: 'error', code: 'mutation-failed', message: 'The edit failed and the layer was restored.' };
 		}
+		for (const id of batch.succeeded) s.mutated.add(id);
+		s.blocked = [...s.blocked.filter((b) => b.nodeId !== owner.nodeId), ...batch.blocked];
 	}
 	return outcomeFor(s);
 }
@@ -174,44 +197,55 @@ function storageFailed(id: string): void {
 	});
 }
 
+// A promise-chain mutex: every handler body below runs through `serial`, so the store's
+// read-modify-write and the apply/edit canvas windows never interleave across two commands that
+// arrived close together (Review Focus 3) — each runs to completion, in arrival order, before the
+// next starts.
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+	const run = queue.then(fn, fn);
+	queue = run.catch(() => undefined);
+	return run;
+}
+
 /** All four are COMMANDS except preview-state-request (a request, answered via `respond`). */
 export function registerPreview(): void {
 	on('preview-state-request', (msg) => {
-		void loadStore().then((store) => {
-			respond<'preview-state-request'>(msg.id, { type: 'preview-state', languages: languagesOf(store) });
-		});
+		void serial(() =>
+			loadStore()
+				.then((store) => {
+					respond<'preview-state-request'>(msg.id, { type: 'preview-state', languages: languagesOf(store) });
+				})
+				// Review Focus 1: an unhandled rejection here left the UI's request waiter hanging forever.
+				.catch((err: unknown) => internal(msg.id, 'Preview state', err)),
+		);
 	});
 
 	on('preview-import', (msg) => {
-		void (async () => {
+		void serial(async () => {
 			try {
 				await saveStore(mergeImport(await loadStore(), msg.maps));
 			} catch {
 				storageFailed(msg.id);
 				return;
 			}
-			// Review Focus 4: a re-imported language that is on the canvas must not stay stale.
-			const active = session?.language;
-			if (active !== undefined && msg.maps.some((map) => map.language === active)) {
-				try {
-					reply(msg.id, await applyPreview(active));
-				} catch (err) {
-					internal(msg.id, 'Preview', err);
-				}
-				return;
-			}
+			// Review Focus 4: re-applying the active language here could report a failure AFTER the
+			// import already succeeded and was saved. Import only saves and answers progress; the panel
+			// (Task 7) re-applies the active language itself when it was among the imported ones.
 			send({ type: 'progress', id: msg.id, completed: msg.maps.length, total: msg.maps.length });
-		})();
+		});
 	});
 
 	on('apply-preview', (msg) => {
-		void applyPreview(msg.language)
-			.then((outcome) => reply(msg.id, outcome))
-			.catch((err: unknown) => internal(msg.id, 'Preview', err));
+		void serial(() =>
+			applyPreview(msg.language)
+				.then((outcome) => reply(msg.id, outcome))
+				.catch((err: unknown) => internal(msg.id, 'Preview', err)),
+		);
 	});
 
 	on('preview-edit', (msg) => {
-		void (async () => {
+		void serial(async () => {
 			try {
 				await saveEdit(msg.language, msg.key, msg.value);
 			} catch {
@@ -225,11 +259,11 @@ export function registerPreview(): void {
 			} catch (err) {
 				internal(msg.id, 'Edit', err);
 			}
-		})();
+		});
 	});
 
 	on('revert-preview', (msg) => {
-		void (async () => {
+		void serial(async () => {
 			try {
 				const batch = await revertPreview();
 				if (batch.failed.length > 0) {
@@ -251,6 +285,6 @@ export function registerPreview(): void {
 			} catch (err) {
 				internal(msg.id, 'Revert', err);
 			}
-		})();
+		});
 	});
 }

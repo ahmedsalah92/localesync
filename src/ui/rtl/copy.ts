@@ -6,7 +6,7 @@
 // is an amendment following a precedent LS-10 set — see below. The change-summary copy at the
 // bottom is LS-28's (§2.2).
 import type { ScanScope } from '../../common/messages';
-import type { SkippedReason, SummaryGroup } from './state';
+import type { BusyPhase, SkippedReason, SummaryGroup } from './state';
 
 /** Same two values, same labels, same order as Extract's — it is the shared Scope Select pattern
  *  (design.md LS-24 Deliverable 4), not a second one. */
@@ -57,6 +57,16 @@ export const STATES = {
 		body: 'The mirror failed and your canvas was restored. Nothing was left changed.',
 	},
 } as const;
+
+/**
+ * The in-flight band's label, keyed by the operation (LS-30). No count: the mirror sends no
+ * intermediate progress, so there is nothing to state but what is happening — the same reasoning
+ * as Overflow's `SCANNING_START`, and the same single-character ellipsis.
+ */
+export const BUSY: Record<BusyPhase, string> = {
+	applying: 'Applying mirror…',
+	reverting: 'Reverting mirror…',
+};
 
 /** A child row's name when the node reported none, or an empty one (LS-28 §2.2). */
 export const UNNAMED_LAYER = 'Unnamed layer';

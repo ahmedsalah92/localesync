@@ -107,6 +107,7 @@ i18n-text {
 	--ls-icon-tertiary: var(--figma-color-icon-tertiary);
 
 	--ls-border-default: var(--figma-color-border);
+	--ls-border-selected: var(--figma-color-border-selected);
 	--ls-border-selected-strong: var(--figma-color-border-selected-strong);
 	--ls-border-neutral: var(--figma-color-border-strong);
 }

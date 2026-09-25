@@ -4,6 +4,7 @@ import type { PreviewRow } from '../../common/models';
 import {
 	commitDecision,
 	initialPreviewState,
+	onCommandError,
 	previewReducer,
 	reapplyAfterImport,
 	selectShell,
@@ -133,5 +134,53 @@ describe('loading failure (LS-12 §2.2)', () => {
 	it('keeps a failure that belongs to an apply', () => {
 		const noKeys = run([{ kind: 'failed', code: 'no-keys' }], applied());
 		expect(run([{ kind: 'languages', languages: ['de'] }], noKeys).phase).toBe('failed');
+	});
+});
+
+describe('revert-failed (fix round 1)', () => {
+	it('puts the panel back in the applied state with its rows — the preview is still on the canvas', () => {
+		const s = run([{ kind: 'revert-started' }, { kind: 'revert-failed' }], applied());
+		expect(s.phase).toBe('applied');
+		expect(s.language).toBe('de');
+		expect(s.rows).toEqual(rows);
+		expect(s.unmatched).toEqual(['z']);
+		expect(s.errorCode).toBeNull();
+		expect(selectShell(s)).toBeNull();
+	});
+
+	it('leaves the still-applied language eligible for re-apply after an import', () => {
+		const s = run([{ kind: 'revert-started' }, { kind: 'revert-failed' }], applied());
+		expect(reapplyAfterImport(s, ['de'])).toBe('de');
+	});
+});
+
+describe('onCommandError (fix round 1)', () => {
+	it('re-applies after a failed edit, so canvas and panel converge', () => {
+		expect(onCommandError('edit', 'mutation-failed')).toBe('reapply');
+		expect(onCommandError('edit', 'internal')).toBe('reapply');
+	});
+
+	it('keeps a failed edit save as its own state — that failure changed nothing', () => {
+		expect(onCommandError('edit', 'storage-failed')).toBe('failed');
+	});
+
+	it('returns a failed revert to the applied state', () => {
+		expect(onCommandError('revert', 'mutation-failed')).toBe('revert-failed');
+	});
+
+	it('reports an import failure in the modal', () => {
+		expect(onCommandError('import', 'storage-failed')).toBe('import-failed');
+	});
+
+	it('fails an apply the ordinary way — its restore makes the copy true', () => {
+		expect(onCommandError('apply', 'mutation-failed')).toBe('failed');
+		expect(onCommandError('apply', 'no-keys')).toBe('failed');
+		expect(onCommandError(null, 'internal')).toBe('failed');
+	});
+
+	it('does not re-apply after an edit that failed out of a re-apply-driven state', () => {
+		const reapplying = run([{ kind: 'apply-started', language: 'de' }], applied());
+		const failed = run([{ kind: 'failed', code: 'mutation-failed' }], reapplying);
+		expect(reapplyAfterImport(failed, ['de'])).toBeNull();
 	});
 });

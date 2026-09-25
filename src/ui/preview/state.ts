@@ -36,6 +36,7 @@ export type PreviewAction =
 	| { kind: 'applied'; blocked: BlockedNode[] }
 	| { kind: 'revert-started' }
 	| { kind: 'reverted' }
+	| { kind: 'revert-failed' }
 	| { kind: 'failed'; code: ErrorCode }
 	| { kind: 'edit-start'; nodeId: string; value: string }
 	| { kind: 'edit-change'; draft: string }
@@ -100,6 +101,9 @@ export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState 
 				expanded: [],
 				selectedNodeId: null,
 			};
+		// A failed revert left the preview on the canvas: back to applied, rows and groups kept.
+		case 'revert-failed':
+			return { ...s, phase: 'applied', errorCode: null };
 		case 'failed':
 			return { ...s, phase: 'failed', errorCode: a.code, editing: null };
 		case 'edit-start':
@@ -176,4 +180,27 @@ export function reapplyAfterImport(s: PreviewState, imported: readonly string[])
 	if (s.language === null || !imported.includes(s.language)) return null;
 	const onCanvas = s.phase === 'applied' || (s.phase === 'failed' && s.errorCode === 'storage-failed');
 	return onCanvas ? s.language : null;
+}
+
+/** The command a Preview message answers. */
+export type PendingOp = 'apply' | 'edit' | 'revert' | 'import' | null;
+
+/**
+ * What the panel does with a terminal `error`, so the banner and body never contradict the canvas:
+ * - `import-failed`: the modal shows it; nothing changed (§2.1.7).
+ * - `reapply`: a failed edit may leave other layers translated; re-applying restores first, then
+ *   applies, so canvas and panel converge — and if that apply fails, its "restored" copy is true.
+ * - `revert-failed`: the preview is still on the canvas; stay applied, banner kept (its Revert
+ *   retries).
+ * - `failed`: the ordinary failure state — an apply's failure restores the canvas, and a failed edit
+ *   save (`storage-failed`) changed nothing.
+ */
+export function onCommandError(
+	op: PendingOp,
+	code: ErrorCode,
+): 'import-failed' | 'reapply' | 'revert-failed' | 'failed' {
+	if (op === 'import') return 'import-failed';
+	if (op === 'revert') return 'revert-failed';
+	if (op === 'edit' && code !== 'storage-failed') return 'reapply';
+	return 'failed';
 }

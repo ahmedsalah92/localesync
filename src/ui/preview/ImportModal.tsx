@@ -52,7 +52,13 @@ export function ImportModal(props: {
 
 	async function onImportClick(): Promise<void> {
 		if (file === null || !ready) return;
-		const text = await file.text();
+		let text: string;
+		try {
+			text = await file.text();
+		} catch {
+			setParseError(IMPORT.unreadable);
+			return;
+		}
 		const parsed: { maps: PreviewMap[] } | ParseError =
 			kind === 'json'
 				? (() => {

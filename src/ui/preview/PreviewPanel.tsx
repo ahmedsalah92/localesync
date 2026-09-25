@@ -18,13 +18,13 @@ import {
 	commitDecision,
 	initialPreviewState,
 	isBusy,
+	onCommandError,
 	previewReducer,
 	reapplyAfterImport,
 	selectShell,
 	translatedCount,
+	type PendingOp,
 } from './state';
-
-type PendingOp = 'apply' | 'edit' | 'revert' | 'import' | null;
 
 /**
  * The Preview tab: apply an imported language to the page in place, edit it inline, revert it
@@ -133,9 +133,22 @@ export function PreviewPanel() {
 			const op = pending.current;
 			pending.current = null;
 			if (import.meta.env.DEV) console.error(`[dev] preview ${msg.code}: ${msg.message}`);
-			if (op === 'import') {
+			const outcome = onCommandError(op, msg.code);
+			if (outcome === 'import-failed') {
 				// The modal stays open with the reason; nothing changed (§2.1.7).
 				setImportError(msg.code === 'storage-failed' ? IMPORT.storageFailed : msg.message);
+				return;
+			}
+			if (outcome === 'revert-failed') {
+				// The preview is still on the canvas: stay applied, keep the banner — its Revert retries.
+				dispatch({ kind: 'revert-failed' });
+				return;
+			}
+			const language = languageRef.current;
+			if (outcome === 'reapply' && language !== null) {
+				// A failed edit may leave other layers translated. Re-applying restores first, then
+				// applies; the banner stays until that apply's own progress or error settles it.
+				apply(language);
 				return;
 			}
 			dispatch({ kind: 'failed', code: msg.code });
@@ -397,7 +410,7 @@ export function PreviewPanel() {
 					boxSizing: 'border-box',
 					padding: `0 var(--spacer-2)`,
 					backgroundColor: 'var(--ls-bg-secondary)',
-					border: '1px solid var(--ls-border-selected-strong)',
+					border: '1px solid var(--ls-border-selected)',
 					borderRadius: 'var(--radius-medium)',
 					outline: 'none',
 					fontSize: 'var(--ls-text-size)',

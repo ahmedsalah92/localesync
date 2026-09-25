@@ -25,6 +25,7 @@ export const IMPORT = {
 	cancel: 'Cancel',
 	import: 'Import',
 	replace: 'Replace',
+	unreadable: "This file couldn't be read.",
 	storageFailed: "Couldn't save these translations — LocaleSync's storage is full or unavailable.",
 } as const;
 

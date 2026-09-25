@@ -121,9 +121,20 @@ export interface PseudoLocOptions {
 }
 
 // ── owned by LS-12 (preview) — expand here, do not fork ──
-// Translations parsed UI-side from JSON/CSV, keyed to LS-9 keys. Main resolves key→node and
-// reports keys that match nothing (LS-12 success criterion).
+// Translations parsed UI-side from JSON/CSV, keyed to LS-9 keys. Main owns the stored maps
+// (clientStorage, LS-12 §1.4); apply-preview names a language.
 export interface PreviewMap {
 	language: string;
 	entries: { key: string; value: string }[];
+}
+
+/**
+ * One key-owning text layer in the current preview (LS-12 §1.3). `source` is the layer's text before
+ * any preview; `value` is the translation now on the canvas, or null when it falls back to source.
+ */
+export interface PreviewRow {
+	nodeId: string;
+	key: string;
+	source: string;
+	value: string | null;
 }

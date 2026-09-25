@@ -1,13 +1,13 @@
 // src/common/messages.fixtures.ts
 //
-// Exactly one canonical value per message type (all 19), each with a distinct `id`. The single
+// Exactly one canonical value per message type (all 24), each with a distinct `id`. The single
 // source of truth for "one of every type," shared by the pure unit tests (messages.test.ts) and
 // the in-Figma round-trip command (__test:roundtrip). Adding a message type without adding a
 // fixture here fails the coverage assertion in messages.test.ts.
 import type { AnyMessage } from './messages';
 
 export const fixtures: readonly AnyMessage[] = [
-	// ── UI → main (12) ──
+	// ── UI → main (15) ──
 	{ type: 'scan-request', id: 'fx-scan-request', scope: 'page' },
 	{ type: 'extraction-request', id: 'fx-extraction-request', scope: 'selection' },
 	{ type: 'overflow-scan-request', id: 'fx-overflow-scan-request', scope: 'page', targetLanguages: ['de'] },
@@ -20,17 +20,20 @@ export const fixtures: readonly AnyMessage[] = [
 	{ type: 'revert-pseudoloc', id: 'fx-revert-pseudoloc' },
 	{ type: 'apply-rtl-mirror', id: 'fx-apply-rtl-mirror', scope: 'page' },
 	{ type: 'revert-rtl-mirror', id: 'fx-revert-rtl-mirror' },
-	{
-		type: 'apply-preview',
-		id: 'fx-apply-preview',
-		translations: { language: 'de', entries: [{ key: 'home.title', value: 'Startseite' }] },
-	},
+	{ type: 'apply-preview', id: 'fx-apply-preview', language: 'de' },
 	{ type: 'revert-preview', id: 'fx-revert-preview' },
+	{
+		type: 'preview-import',
+		id: 'fx-preview-import',
+		maps: [{ language: 'de', entries: [{ key: 'home.title', value: 'Startseite' }] }],
+	},
+	{ type: 'preview-edit', id: 'fx-preview-edit', language: 'de', key: 'home.title', value: 'Willkommen' },
+	{ type: 'preview-state-request', id: 'fx-preview-state-request' },
 	{ type: 'select-node', id: 'fx-select-node', nodeId: '1:2' },
 	{ type: 'overflow-scan-cancel', id: 'fx-overflow-scan-cancel' },
 	{ type: 'resize-window', id: 'fx-resize-window', width: 400, height: 680 },
 
-	// ── main → UI (7) ──
+	// ── main → UI (9) ──
 	{
 		type: 'scan-result',
 		id: 'fx-scan-result',
@@ -109,5 +112,16 @@ export const fixtures: readonly AnyMessage[] = [
 		type: 'rtl-flagged',
 		id: 'fx-rtl-flagged',
 		flagged: [{ nodeId: '3:4', name: 'chevron', reason: 'moved-vector' }],
+	},
+	{ type: 'preview-state', id: 'fx-preview-state', languages: ['de', 'fr-FR'] },
+	{
+		type: 'preview-result',
+		id: 'fx-preview-result',
+		language: 'de',
+		rows: [
+			{ nodeId: '1:2', key: 'home.title', source: 'Welcome back', value: 'Willkommen zurück' },
+			{ nodeId: '1:3', key: 'home.sub', source: 'Good to see you', value: null },
+		],
+		unmatched: ['checkout.old'],
 	},
 ];

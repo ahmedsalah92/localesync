@@ -15,6 +15,9 @@ const UI_TO_MAIN = [
 	'revert-rtl-mirror',
 	'apply-preview',
 	'revert-preview',
+	'preview-import',
+	'preview-edit',
+	'preview-state-request',
 	'select-node',
 	'overflow-scan-cancel',
 	'resize-window',
@@ -27,6 +30,8 @@ const MAIN_TO_UI = [
 	'progress',
 	'error',
 	'rtl-flagged',
+	'preview-state',
+	'preview-result',
 ] as const;
 const ALL_TYPES = [...UI_TO_MAIN, ...MAIN_TO_UI];
 

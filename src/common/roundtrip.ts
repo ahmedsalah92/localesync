@@ -38,6 +38,8 @@ const PROBED_COMMANDS: Record<CommandType, boolean> = {
 	'revert-rtl-mirror': true,
 	'apply-preview': true,
 	'revert-preview': true,
+	'preview-import': false, // real LS-12 handler writes the user's clientStorage; never probe it
+	'preview-edit': false, // real LS-12 handler writes the store and the canvas
 	'select-node': false, // real LS-8 handler: answers with a real `node-gone` or nothing
 	'overflow-scan-cancel': false, // outcome is a scan's `stopped: true` result, not a reply
 	'resize-window': false, // resizes the real plugin window; no reply at all

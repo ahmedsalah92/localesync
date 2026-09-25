@@ -6,11 +6,7 @@ import type { OverflowVerdict, OverflowVerdictValue } from './models';
 const VERDICTS: readonly OverflowVerdictValue[] = ['overflows', 'truncates', 'unmeasurable', 'fits'];
 
 /** Minimal verdict. `nodeId` doubles as the document-order label so tie-breaks are readable. */
-function row(
-	nodeId: string,
-	verdict: OverflowVerdictValue,
-	extra: Partial<OverflowVerdict> = {},
-): OverflowVerdict {
+function row(nodeId: string, verdict: OverflowVerdictValue, extra: Partial<OverflowVerdict> = {}): OverflowVerdict {
 	return {
 		nodeId,
 		language: 'de',

@@ -140,4 +140,3 @@ export function transform(source: string, options: PseudoLocOptions): string {
 		accentize(pad, options.accent);
 	return MARKERS[options.markers](body);
 }
-

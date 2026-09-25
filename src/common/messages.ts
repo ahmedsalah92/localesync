@@ -7,6 +7,7 @@ import type {
 	FlaggedNode,
 	PseudoLocOptions,
 	PreviewMap,
+	PreviewRow,
 } from './models';
 
 export type ScanScope = 'page' | 'selection';
@@ -17,6 +18,8 @@ export type ErrorCode =
 	| 'nodes-blocked' // op succeeded but some nodes were skipped; see `blocked` (warning severity)
 	| 'mutation-failed' // batch rolled back; nothing left mutated (LS-4 withSnapshot failure)
 	| 'node-gone' // select-node target deleted or not reachable on the current page
+	| 'no-keys' // page has text layers but none owns an LS-9 key: nothing extracted yet (LS-12)
+	| 'storage-failed' // clientStorage refused the write: 5 MB cap, cleared or unavailable (LS-12)
 	| 'internal'; // unexpected
 
 // Every message is an envelope: a `type` discriminant + a correlation `id`. Payload fields sit
@@ -46,10 +49,22 @@ export interface ApplyRtlMirror extends Envelope<'apply-rtl-mirror'> {
 	scope: ScanScope;
 }
 export type RevertRtlMirror = Envelope<'revert-rtl-mirror'>;
+// The main thread holds the imported translations (LS-12 §1.2), so apply names a language.
 export interface ApplyPreview extends Envelope<'apply-preview'> {
-	translations: PreviewMap;
+	language: string; // canonical BCP 47, one of the stored languages
 }
 export type RevertPreview = Envelope<'revert-preview'>;
+// Commands: outcome on progress/error. Each map REPLACES that stored language wholesale.
+export interface PreviewImport extends Envelope<'preview-import'> {
+	maps: PreviewMap[];
+}
+// null or '' deletes the translation, so the layer falls back to source.
+export interface PreviewEdit extends Envelope<'preview-edit'> {
+	language: string;
+	key: string;
+	value: string | null;
+}
+export type PreviewStateRequest = Envelope<'preview-state-request'>;
 // Command, not request (no RequestResponse entry): failure is reported on `error` (`node-gone`),
 // correlated by id. Shared surface — LS-8's results panel and LS-9's extraction list both send it.
 export interface SelectNode extends Envelope<'select-node'> {
@@ -75,6 +90,9 @@ export type UiToMain =
 	| RevertRtlMirror
 	| ApplyPreview
 	| RevertPreview
+	| PreviewImport
+	| PreviewEdit
+	| PreviewStateRequest
 	| SelectNode
 	| OverflowScanCancel
 	| ResizeWindow;
@@ -126,6 +144,21 @@ export interface RtlFlagged extends Envelope<'rtl-flagged'> {
 	flagged: FlaggedNode[];
 }
 
+/** The stored languages for this file (LS-12 §2.2). */
+export interface PreviewState extends Envelope<'preview-state'> {
+	languages: string[]; // sorted by code
+}
+/**
+ * The rows and unmatched keys of an apply or edit (LS-12 §1.2). Sent BEFORE the terminal progress
+ * and before any `nodes-blocked` warning, the `rtl-flagged` ordering, so a panel treating progress
+ * as "finished" already holds them.
+ */
+export interface PreviewResult extends Envelope<'preview-result'> {
+	language: string;
+	rows: PreviewRow[]; // every non-blocked key-owning text layer on the page, in document order
+	unmatched: string[]; // stored keys of this language that no layer owns, sorted
+}
+
 export type MainToUi =
 	| ScanResult
 	| ExtractionResult
@@ -133,7 +166,9 @@ export type MainToUi =
 	| OverflowScanResult
 	| ProgressMessage
 	| ErrorMessage
-	| RtlFlagged;
+	| RtlFlagged
+	| PreviewState
+	| PreviewResult;
 
 export type AnyMessage = UiToMain | MainToUi;
 
@@ -143,6 +178,7 @@ export interface RequestResponse {
 	'scan-request': ScanResult;
 	'extraction-request': ExtractionResult;
 	'overflow-scan-request': OverflowScanResult;
+	'preview-state-request': PreviewState;
 }
 
 /**
@@ -157,6 +193,7 @@ export const RESPONSE_TYPE: { [T in keyof RequestResponse]: RequestResponse[T]['
 	'scan-request': 'scan-result',
 	'extraction-request': 'extraction-result',
 	'overflow-scan-request': 'overflow-scan-result',
+	'preview-state-request': 'preview-state',
 };
 
 /**
@@ -177,6 +214,9 @@ const UI_TO_MAIN_TYPES: Record<UiToMain['type'], true> = {
 	'revert-rtl-mirror': true,
 	'apply-preview': true,
 	'revert-preview': true,
+	'preview-import': true,
+	'preview-edit': true,
+	'preview-state-request': true,
 	'select-node': true,
 	'overflow-scan-cancel': true,
 	'resize-window': true,
@@ -190,6 +230,8 @@ const MAIN_TO_UI_TYPES: Record<MainToUi['type'], true> = {
 	progress: true,
 	error: true,
 	'rtl-flagged': true,
+	'preview-state': true,
+	'preview-result': true,
 };
 
 /**

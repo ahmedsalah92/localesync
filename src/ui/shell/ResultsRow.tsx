@@ -1,11 +1,11 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { OverflowVerdictValue } from '../../common/models';
 import { ArrowIcon } from './icons/ArrowIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { Tooltip } from './primitives/Tooltip';
 
-export type RowTone = OverflowVerdictValue | 'neutral';
+export type RowTone = OverflowVerdictValue | 'neutral' | 'editing';
 
 /**
  * The row's second line, as two independently-laid-out parts rather than one prepared string.
@@ -39,6 +39,8 @@ export function toneToken(tone: RowTone): { strip: string; meta: string } {
 			return { strip: '--ls-icon-tertiary', meta: '--ls-text-tertiary' };
 		case 'neutral':
 			return { strip: '--ls-border-neutral', meta: '--ls-text-tertiary' };
+		case 'editing':
+			return { strip: '--ls-text-brand', meta: '--ls-text-brand' };
 	}
 }
 
@@ -48,7 +50,7 @@ export function toneToken(tone: RowTone): { strip: string; meta: string } {
  */
 export type RowTrailing =
 	| { onJump: () => void; jumpLabel: string; expanded?: never }
-	| { expanded: boolean; onJump?: never; jumpLabel?: never }
+	| { expanded: boolean; onJump?: never; jumpLabel?: never; onEdit?: never }
 	| { onJump?: never; jumpLabel?: never; expanded?: never };
 
 /** Enter and Space activate a `role="button"` element, matching a native button. */
@@ -66,6 +68,10 @@ export function ResultsRow(
 		onSelect: () => void;
 		/** 1 → a child row under an expandable group: left content inset 32px instead of 16px. */
 		depth?: 0 | 1;
+		/** Replaces the primary line — the inline edit field (LS-12 §2.4). */
+		editor?: ReactNode;
+		/** Double-click, or Enter on the focused row, starts an edit (LS-12 D6). Never on a disclosure row. */
+		onEdit?: () => void;
 	} & RowTrailing,
 ) {
 	const tokens = toneToken(props.tone);
@@ -86,10 +92,26 @@ export function ResultsRow(
 					},
 				};
 
+	const onEdit = props.onEdit;
+	const editable =
+		onEdit === undefined
+			? {}
+			: {
+					tabIndex: 0,
+					'data-editable': 'true',
+					onDoubleClick: onEdit,
+					onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+						if (e.key !== 'Enter' || e.target !== e.currentTarget) return;
+						e.preventDefault();
+						onEdit();
+					},
+				};
+
 	return (
 		<div
 			onClick={props.onSelect}
 			{...disclosure}
+			{...editable}
 			style={{
 				display: 'flex',
 				height: 56,
@@ -111,20 +133,22 @@ export function ResultsRow(
 				}}
 			>
 				<div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacer-1)' }}>
-					<div
-						style={{
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-							whiteSpace: 'nowrap',
-							fontSize: 'var(--ls-text-size)',
-							lineHeight: 'var(--ls-text-line)',
-							letterSpacing: 'var(--ls-text-tracking)',
-							fontWeight: 'var(--ls-text-weight)',
-							color: 'var(--ls-text-default)',
-						}}
-					>
-						{props.primary}
-					</div>
+					{props.editor ?? (
+						<div
+							style={{
+								overflow: 'hidden',
+								textOverflow: 'ellipsis',
+								whiteSpace: 'nowrap',
+								fontSize: 'var(--ls-text-size)',
+								lineHeight: 'var(--ls-text-line)',
+								letterSpacing: 'var(--ls-text-tracking)',
+								fontWeight: 'var(--ls-text-weight)',
+								color: 'var(--ls-text-default)',
+							}}
+						>
+							{props.primary}
+						</div>
+					)}
 					{/* Two flex siblings, not one string. Concatenated, a deep container path ate the
 					    whole line and took the verdict and the delta with it — observed live as
 					    `Section — Plugin Header / Figma host chrome — not p…`, no verdict, no px. The

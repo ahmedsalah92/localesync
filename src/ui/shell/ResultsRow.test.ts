@@ -9,6 +9,7 @@ describe('toneToken', () => {
 		['overflows', { strip: '--ls-icon-danger', meta: '--ls-text-danger' }],
 		['unmeasurable', { strip: '--ls-icon-tertiary', meta: '--ls-text-tertiary' }],
 		['neutral', { strip: '--ls-border-neutral', meta: '--ls-text-tertiary' }],
+		['editing', { strip: '--ls-text-brand', meta: '--ls-text-brand' }],
 	];
 
 	it.each(cases)('returns the §2.4 token for %s', (tone, expected) => {
@@ -86,5 +87,17 @@ describe('ResultsRow trailing slot and depth (LS-28 §1.3)', () => {
 	it('insets a depth-1 row by 32px (--spacer-5) and a default row by 16px', () => {
 		expect(render({ ...base, depth: 1 })).toContain('var(--spacer-5)');
 		expect(render(base)).not.toContain('var(--spacer-5)');
+	});
+
+	it('renders an editable row focusable, with a double-click edit trigger', () => {
+		const html = render({ ...base, onJump: () => {}, jumpLabel: 'Jump to node', onEdit: () => {} });
+		expect(html).toContain('tabindex="0"');
+		expect(html).toContain('data-editable="true"');
+	});
+
+	it('replaces the primary line with the editor when one is given', () => {
+		const html = render({ ...base, editor: createElement('input', { value: 'Hallo', readOnly: true }) });
+		expect(html).toContain('<input');
+		expect(html).not.toContain('>Primary<');
 	});
 });

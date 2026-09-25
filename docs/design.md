@@ -499,13 +499,19 @@ Same placeholder-content finding. Replaced with:
 
 | State | Extract | Preview | Pseudo-loc | RTL Mirror |
 |---|---|---|---|---|
-| First run | Already built — see Empty Extract Shell ("No strings extracted") | **Nothing to preview yet** — Extract strings first, then choose a language to preview translations in place. | **Nothing to pseudo-localize yet** — Extract strings first, then set an expansion ratio to preview how your layout holds up. | **Nothing to mirror yet** — Extract strings first, then apply the mirror to stress-test your layout in RTL. |
+| First run | Already built — see Empty Extract Shell ("No strings extracted") | **Nothing to preview yet** — Extract strings first, then choose a language to preview translations in place. | **Nothing to pseudo-localize yet** — Select a frame or layer, then set an expansion ratio to preview how your layout holds up. | **Nothing to mirror yet** — Select a frame or layer, then apply the mirror to stress-test your layout in RTL. |
 | No selection | **Nothing selected** — Select a frame or layer to extract from, or switch scope to Page. | **Nothing selected** — Select a frame or layer to preview, or switch scope to Page. | **N/A — unreachable**, see below | **Nothing selected** — Select a frame or layer to mirror, or switch scope to Page. |
 | No text on page | **No text layers here** — This page has nothing to extract. Try another page. | **No text layers here** — This page has nothing to preview. Try another page. | **No text layers here** — This page has nothing to pseudo-localize. Try another page. | **No text layers here** — This page has nothing to mirror. Try another page. |
 | Fonts unavailable | **Fonts unavailable** — 3 fonts could not be loaded. Text using them will be skipped and flagged. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged in the fallback list. | **Fonts unavailable** — 3 layers use fonts that couldn't be loaded — they're skipped and flagged, not expanded. | **Fonts unavailable** — 3 fonts could not be loaded. Affected strings will be skipped and flagged, not mirrored. |
 | Large file | **Large file — 3,410 nodes** — Extracting may take a moment. You can stop at any time. | N/A | N/A | N/A |
 | Scan stopped | **Stopped at 1,284 of 3,410** — 6 strings found so far. | N/A | N/A | N/A |
 | Operation failed | N/A | **Couldn't complete** — The preview failed and your canvas was restored. Nothing was left changed. [Try again] | **Couldn't complete** — The pseudo-loc transform failed and your canvas was restored. Nothing was left changed. [Try again] | **Couldn't complete** — The mirror failed and your canvas was restored. Nothing was left changed. [Try again] |
+
+> **Amended 2026-09-25 (LS-29).** The RTL Mirror and Pseudo-loc *First run* cells no longer say
+> "Extract strings first". Neither operation needs extraction: both work on the layers in scope. The
+> cells now match the canvas (State × Panel Copy Table `544:1473`) and the shipped copy. Preview's
+> cell is unchanged, because Preview does need extracted strings. The canvas's RTL Switch
+> (`538:1431`) also had its `👁️ Label` property switched off, so it no longer shows "On, Normal".
 
 **LS-14 remains implementation-only** — building and wiring the `State Block` instances per panel.
 

@@ -237,6 +237,7 @@ function JumpButton(props: { onJump: () => void; label: string }) {
 					e.stopPropagation();
 					props.onJump();
 				}}
+				onDoubleClick={(e) => e.stopPropagation()} // A double-click on the jump arrow is two jumps, never an edit
 				onMouseEnter={() => setJumpHover(true)}
 				onMouseLeave={() => setJumpHover(false)}
 				onFocus={() => setJumpHover(true)}

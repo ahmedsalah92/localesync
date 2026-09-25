@@ -288,6 +288,21 @@ export async function runRtlCheck(): Promise<RtlCheckReport> {
 		if (instanceLocked.length === 0) skip(notes, 'instance-locked', 'no instance children on this page');
 		else note(notes, 'instance-locked', true, `${instanceLocked.length} instance child(ren) skipped`);
 
+		// ── [4a] LS-28: the fixture still produces every summary group ───────────────────────────
+		// A group the fixture never produces is a group no in-Figma run exercises — which is how the
+		// dropped `rtl-flagged` message went unnoticed. `badge` is the absolutely-positioned ellipse
+		// in `absolute-badge`: an authored `x` the mirror rewrites, so it must be flagged as moved.
+		note(
+			notes,
+			'flagged-moved',
+			first.flagged.some((entry) => entry.name === 'badge'),
+			`${first.flagged.length} flagged: ${first.flagged.map((entry) => entry.name).join(', ') || 'none'}`,
+		);
+		const emptyBlocked = first.blocked.find((entry) => entry.reason === 'empty');
+		if (emptyBlocked === undefined && ![...targets.values()].some((n) => n.name === 'empty-text')) {
+			skip(notes, 'blocked-empty', 'no empty-text row on this page — regenerate rtl-mirror');
+		} else note(notes, 'blocked-empty', emptyBlocked?.name === 'empty-text', emptyBlocked?.name ?? 'not blocked');
+
 		// ── [4b] LS-28: every skipped node carries its live name ─────────────────────────────────
 		// The panel's skipped groups list layers by name; a missing or stale name renders as
 		// "Unnamed layer" and the user cannot find what was skipped.

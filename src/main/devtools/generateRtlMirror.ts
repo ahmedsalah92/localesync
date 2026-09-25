@@ -1,7 +1,7 @@
 // src/main/devtools/generateRtlMirror.ts
 // Dev-only fixture bootstrapper for fixtures/rtl-mirror.fig (LS-11 §3.4).
 //
-// Builds 12 of the 13 rows. One CANNOT be scripted:
+// Builds 13 of the 14 rows. One CANNOT be scripted:
 //   • `missing-font` — loadFontAsync fails for unavailable fonts by definition; follow the manual
 //     procedure in fixtures/rtl-mirror.md after running this.
 //
@@ -269,6 +269,19 @@ export async function generateRtlMirror(): Promise<RtlMirrorReport> {
 		mixed.textAlignHorizontal = 'LEFT';
 		const plain = label('Left aligned', frame, 200);
 		plain.textAlignHorizontal = 'LEFT';
+	}
+
+	// ── 12. empty text: the `empty` skip reason (LS-28) ───────────────────────
+	// A LEFT-aligned text layer with no characters: the mirror plans an F6 write for it, and the
+	// snapshot gate blocks it as `empty`. The only row that puts "empty layer" in the panel.
+	{
+		const frame = makeFrame('empty-text-row');
+		frame.layoutMode = 'HORIZONTAL';
+		frame.itemSpacing = 8;
+		const empty = label('', frame, 80);
+		empty.name = 'empty-text';
+		empty.textAlignHorizontal = 'LEFT';
+		label('beside', frame, 80);
 	}
 
 	figma.currentPage.name = 'rtl-mirror';

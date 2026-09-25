@@ -26,7 +26,19 @@ everywhere else.
 | `rtl-instance` | §2.5 | Instance children **cannot be reparented**, so F1 is impossible. Padding and alignment must still mirror, and the instance must be flagged as partial |
 | `locked-row` | §2.6 | `locked` must **not** block the mirror — it is a canvas affordance, and the API writes through it. Proves the correction to ruleset G4 rather than assuming it |
 | `mixed-bidi` | E3, G3 | A text node with both LTR and RTL runs. The mirror must **not** touch the text, only flag it |
+| `empty-text-row` | LS-28 | A text layer with no characters. The mirror plans an alignment write, and the snapshot gate skips it as `empty`. It's the only row that puts **"empty layer"** in the panel |
 | `missing-font` | CLAUDE.md hard rule | **Manual — see below.** The only row proving the missing-font rule on the *layout* path |
+
+**Which rows fill each group of the RTL panel's summary (LS-28):**
+
+| Panel group | Produced by |
+|---|---|
+| `N layers mirrored` | Every row |
+| `N icons moved — check direction` | `badge` in `absolute-badge`, and `g-left` / `g-right` in `plain-group`: ellipses whose `x` the mirror rewrites |
+| skipped · inside an instance | `m-one` / `m-two` in `rtl-instance` |
+| skipped · font unavailable | the manual `missing-font` row |
+| skipped · empty layer | `empty-text` |
+| skipped · Preview or Pseudo-loc is active | **Manual — see "Checking the Preview/Pseudo-loc skip" below** |
 
 ## The one manual step
 
@@ -41,6 +53,16 @@ would otherwise want to change its `textAlignHorizontal`.
 prints `ls11:blocked-untouched:PASS` and `ls11:missing-font-align:PASS`. The row's `x` may move — its
 parent is mirrored and re-lays it out — but its alignment must not change.
 
+## Checking the Preview/Pseudo-loc skip
+
+No fixture row can produce this reason. It depends on what the user has active, not on what is on
+the canvas. To see it in the panel:
+
+1. In the **Pseudo** tab, apply pseudo-localization to the page.
+2. In the **RTL** tab, turn Mirror on.
+3. **Expected:** a `N layers skipped — Preview or Pseudo-loc is active` group, listing the text
+   layers Pseudo-loc changed. Revert the mirror, then revert Pseudo-loc.
+
 ## What a good run looks like
 
 `Run LS-11 RTL check` prints `ls11:` lines to the main-thread console. The ones that matter:
@@ -54,6 +76,10 @@ parent is mirrored and re-lays it out — but its alignment must not change.
 - `ls11:one-undo-step:PASS apply=1 revert=1` — plus the `MANUAL` line: confirm once by hand that a
   single Cmd-Z reverts the whole mirror.
   Confirmed 2026-09-23 (LS-11 §2.8).
+
+- `ls11:flagged-moved:PASS` and `ls11:blocked-empty:PASS` — the fixture still produces the "icons
+  moved" and "empty layer" groups (LS-28). `ls11:blocked-names:PASS` — every skipped layer comes back
+  with its name.
 
 A `SKIP` is not a pass. `ls11:instance-locked:SKIP` on this fixture means the instance row did not
 build, not that the rule is satisfied.

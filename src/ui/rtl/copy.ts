@@ -66,7 +66,10 @@ export const UNNAMED_LAYER = 'Unnamed layer';
  * adding a `BlockReason` the mirror can hit fails `tsc` until it has copy.
  */
 export const SKIPPED_REASON: Record<SkippedReason, string> = {
-	'instance-locked': 'inside a component instance',
+	// "Skipped" alone reads as "did not change", but an instance child whose main component was
+	// mirrored in the same run visibly moves anyway (LS-11 §2.11: blocked means "we did not write
+	// it"). The second clause tells the user why the layer they are watching move is listed here.
+	'instance-locked': 'inside an instance — follows its main component',
 	'missing-font': 'font unavailable',
 	'already-mutated': 'Preview or Pseudo-loc is active',
 	empty: 'empty layer',

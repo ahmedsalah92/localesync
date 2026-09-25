@@ -65,7 +65,7 @@ describe('groupCopy — the change summary’s rows (LS-28 §2.2)', () => {
 				nodes: skipped('instance-locked', 2),
 			},
 			'2 layers skipped',
-			'inside a component instance',
+			'inside an instance — follows its main component',
 		],
 		[
 			{ kind: 'skipped', key: 'skipped:missing-font', reason: 'missing-font', nodes: skipped('missing-font', 1) },

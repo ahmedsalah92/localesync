@@ -24,6 +24,7 @@ const ALL_TYPES = [
 	'overflow-scan-result',
 	'progress',
 	'error',
+	'rtl-flagged',
 ] as const;
 
 describe('isPluginMessage', () => {

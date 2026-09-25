@@ -159,31 +159,43 @@ export const RESPONSE_TYPE: { [T in keyof RequestResponse]: RequestResponse[T]['
 	'overflow-scan-request': 'overflow-scan-result',
 };
 
-const UI_TO_MAIN_TYPES = [
-	'scan-request',
-	'extraction-request',
-	'overflow-scan-request',
-	'apply-pseudoloc',
-	'revert-pseudoloc',
-	'apply-rtl-mirror',
-	'revert-rtl-mirror',
-	'apply-preview',
-	'revert-preview',
-	'select-node',
-	'overflow-scan-cancel',
-	'resize-window',
-] as const;
+/**
+ * The runtime allow-list `isPluginMessage` checks, one entry per member of each union.
+ *
+ * A `Record` over the union's `type`, not an array, so it is exhaustive by construction: a message
+ * type missing here is a compile error, and so is an entry the union does not have. As a plain
+ * array it drifted — `rtl-flagged` was added to `MainToUi` by LS-11 but never here, so the UI bridge
+ * dropped every one and the RTL review list never reached the panel (found in LS-28).
+ */
+const UI_TO_MAIN_TYPES: Record<UiToMain['type'], true> = {
+	'scan-request': true,
+	'extraction-request': true,
+	'overflow-scan-request': true,
+	'apply-pseudoloc': true,
+	'revert-pseudoloc': true,
+	'apply-rtl-mirror': true,
+	'revert-rtl-mirror': true,
+	'apply-preview': true,
+	'revert-preview': true,
+	'select-node': true,
+	'overflow-scan-cancel': true,
+	'resize-window': true,
+};
 
-const MAIN_TO_UI_TYPES = [
-	'scan-result',
-	'extraction-result',
-	'overflow-scan-partial',
-	'overflow-scan-result',
-	'progress',
-	'error',
-] as const;
+const MAIN_TO_UI_TYPES: Record<MainToUi['type'], true> = {
+	'scan-result': true,
+	'extraction-result': true,
+	'overflow-scan-partial': true,
+	'overflow-scan-result': true,
+	progress: true,
+	error: true,
+	'rtl-flagged': true,
+};
 
-const ALL_TYPES: ReadonlySet<string> = new Set<string>([...UI_TO_MAIN_TYPES, ...MAIN_TO_UI_TYPES]);
+const ALL_TYPES: ReadonlySet<string> = new Set<string>([
+	...Object.keys(UI_TO_MAIN_TYPES),
+	...Object.keys(MAIN_TO_UI_TYPES),
+]);
 
 /**
  * Runtime shape guard. Both bridge dispatchers validate every inbound message with this and drop

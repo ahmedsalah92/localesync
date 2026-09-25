@@ -1,6 +1,6 @@
 // src/common/messages.fixtures.ts
 //
-// Exactly one canonical value per message type (all 18), each with a distinct `id`. The single
+// Exactly one canonical value per message type (all 19), each with a distinct `id`. The single
 // source of truth for "one of every type," shared by the pure unit tests (messages.test.ts) and
 // the in-Figma round-trip command (__test:roundtrip). Adding a message type without adding a
 // fixture here fails the coverage assertion in messages.test.ts.
@@ -30,7 +30,7 @@ export const fixtures: readonly AnyMessage[] = [
 	{ type: 'overflow-scan-cancel', id: 'fx-overflow-scan-cancel' },
 	{ type: 'resize-window', id: 'fx-resize-window', width: 400, height: 680 },
 
-	// ── main → UI (6) ──
+	// ── main → UI (7) ──
 	{
 		type: 'scan-result',
 		id: 'fx-scan-result',
@@ -104,5 +104,10 @@ export const fixtures: readonly AnyMessage[] = [
 		severity: 'warning',
 		message: 'Some nodes were skipped.',
 		blocked: [{ nodeId: '1:2', reason: 'missing-font' }],
+	},
+	{
+		type: 'rtl-flagged',
+		id: 'fx-rtl-flagged',
+		flagged: [{ nodeId: '3:4', name: 'chevron', reason: 'moved-vector' }],
 	},
 ];

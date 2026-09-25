@@ -23,8 +23,10 @@ import type {
 	OverflowScanResult,
 	ProgressMessage,
 	ScanResult,
+	UiToMain,
 } from '../common/messages';
 import { fixtures } from '../common/messages.fixtures';
+import { isRoundtripId } from '../common/roundtrip';
 import { nextMainId, on, send } from './bridge';
 import { DEFAULT_SCHEME, extractStrings } from './extract';
 import { KEY_DATA } from './extract/persist';
@@ -106,13 +108,21 @@ export function registerRoundtrip(): void {
 	// by the LS-3, LS-9 and LS-8 handlers; a second registration here would double-answer them.
 
 	// Commands: fire-and-forget; report pass/fail on the progress/error channel, correlated by id.
-	on('apply-pseudoloc', (msg) => report(msg.id, matches('apply-pseudoloc', msg), 'apply-pseudoloc'));
-	on('revert-pseudoloc', (msg) => report(msg.id, matches('revert-pseudoloc', msg), 'revert-pseudoloc'));
-	on('apply-rtl-mirror', (msg) => report(msg.id, matches('apply-rtl-mirror', msg), 'apply-rtl-mirror'));
-	on('revert-rtl-mirror', (msg) => report(msg.id, matches('revert-rtl-mirror', msg), 'revert-rtl-mirror'));
-	on('apply-preview', (msg) => report(msg.id, matches('apply-preview', msg), 'apply-preview'));
-	on('revert-preview', (msg) => {
-		report(msg.id, matches('revert-preview', msg), 'revert-preview');
+	// ONLY for ids the UI driver minted: every one of these types also has a real handler, and
+	// answering a real panel command here raced it with a fake result (see ../common/roundtrip).
+	const command = <T extends UiToMain['type']>(type: T, after?: () => void) => {
+		on(type, (msg) => {
+			if (!isRoundtripId(msg.id)) return;
+			report(msg.id, matches(type, msg), type);
+			after?.();
+		});
+	};
+	command('apply-pseudoloc');
+	command('revert-pseudoloc');
+	command('apply-rtl-mirror');
+	command('revert-rtl-mirror');
+	command('apply-preview');
+	command('revert-preview', () => {
 		// Last command received → echo the MainToUi fixtures for the main→UI conformance check.
 		emitVerbatim();
 		void probeExtraction()

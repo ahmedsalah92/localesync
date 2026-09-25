@@ -14,6 +14,7 @@
 // button in App.tsx under `npm run dev`.
 import type { MainToUi, UiToMain } from '../common/messages';
 import { fixtures } from '../common/messages.fixtures';
+import { ROUNDTRIP_ID_PREFIX } from '../common/roundtrip';
 import { on, request, send } from './bridge';
 
 function deepEqual(a: unknown, b: unknown): boolean {
@@ -88,14 +89,16 @@ export async function runRoundtrip(): Promise<void> {
 		}
 	});
 
-	for (const type of COMMAND_TYPES) {
+	// Ids in the scaffold's own namespace: main's scaffold answers only these, so it can never race
+	// a real panel command's handler with a fake result (see ../common/roundtrip).
+	COMMAND_TYPES.forEach((type, index) => {
 		const fixture = fixtures.find((m) => m.type === type);
-		if (!fixture) continue;
+		if (!fixture) return;
 		const body = { ...fixture } as Record<string, unknown>;
 		delete body.id;
-		const mintedId = send(body as Omit<UiToMain, 'id'>);
+		const mintedId = send(body as Omit<UiToMain, 'id'>, `${ROUNDTRIP_ID_PREFIX}${index}`);
 		pendingCmd.set(mintedId, type);
-	}
+	});
 
 	// request/response correlation for the scan and overflow pairs (extraction: see header).
 	try {

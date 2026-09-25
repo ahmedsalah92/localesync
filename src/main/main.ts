@@ -73,8 +73,9 @@ export default async function () {
 		// run alongside the scaffold's, whose fixture match fails on every real message and answers the
 		// live request id with an `internal` error — every real apply/revert (LS-10/11/12) would reject
 		// while its mutation succeeded. In dev the two still coexist, so roundtrip.ts must keep excluding
-		// every type a real handler owns (scan-request → LS-3, extraction-request → LS-9,
-		// overflow-scan-request/select-node → LS-8).
+		// every request type a real handler owns (scan-request → LS-3, extraction-request → LS-9,
+		// overflow-scan-request/select-node → LS-8), and answers commands only under its own
+		// `roundtrip-` ids — the real LS-10/LS-11 handlers own those types too (src/common/roundtrip.ts).
 		// scripts/check-dist.mjs fails the build if the scaffold or its fixtures reach dist/.
 		registerRoundtrip();
 		registerTraversalCheck();

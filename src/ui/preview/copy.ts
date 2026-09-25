@@ -11,6 +11,23 @@ export const LABELS = {
 	jump: 'Jump to node',
 } as const;
 
+/** The Import modal (574:1411, LS-12 §2.1). The Language field is a design addition (§4). */
+export const IMPORT = {
+	title: 'Import',
+	close: 'Close',
+	file: 'File',
+	noFile: 'No file selected',
+	choose: 'Choose file…',
+	help: 'Format is detected from the file extension — JSON or CSV.',
+	language: 'Language',
+	languagePlaceholder: 'de, fr-FR, pt-BR',
+	invalidLanguage: 'Not a valid language code — try de, fr-FR or pt-BR.',
+	cancel: 'Cancel',
+	import: 'Import',
+	replace: 'Replace',
+	storageFailed: "Couldn't save these translations — LocaleSync's storage is full or unavailable.",
+} as const;
+
 export const STATES = {
 	noLanguages: { headline: 'Nothing to preview yet', body: 'Import translations to preview them in place.' },
 	noKeys: {
@@ -67,4 +84,10 @@ export function unmatchedGroup(n: number): string {
 
 export function skippedGroup(n: number): string {
 	return `${n} ${n === 1 ? 'layer' : 'layers'} skipped`;
+}
+
+/** The replace confirm (§2.1.6): one or more already-stored languages, by label. */
+export function replaceNotice(codes: readonly string[]): string {
+	const one = codes.length === 1;
+	return `${codes.map(languageLabel).join(', ')} ${one ? 'is' : 'are'} already imported. Importing ${one ? 'it' : 'them'} again replaces ${one ? 'it' : 'them'}, including your edits.`;
 }

@@ -60,8 +60,15 @@ export function initialPreviewState(): PreviewState {
 
 export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState {
 	switch (a.kind) {
+		// A failure with no language is the load itself failing (the only failure before an apply);
+		// a later successful answer — its Try Again — settles the panel.
 		case 'languages':
-			return { ...s, languages: [...a.languages], phase: s.phase === 'loading' ? 'idle' : s.phase };
+			return {
+				...s,
+				languages: [...a.languages],
+				phase: s.phase === 'loading' || (s.phase === 'failed' && s.language === null) ? 'idle' : s.phase,
+				errorCode: s.phase === 'failed' && s.language === null ? null : s.errorCode,
+			};
 		case 'apply-started':
 			return {
 				...s,
@@ -158,4 +165,15 @@ export function commitDecision(s: PreviewState): { key: string; value: string | 
 	const current = row.value ?? row.source;
 	if (draft === current) return null;
 	return { key: row.key, value: draft === '' ? null : draft };
+}
+
+/**
+ * The language to re-apply after an import (§2.1.7): the one on the canvas right now, when the
+ * import replaced it. On the canvas means applied — or a failed edit save, which changes nothing
+ * (§2.3), so the preview is still there. Every other failure has already restored the canvas.
+ */
+export function reapplyAfterImport(s: PreviewState, imported: readonly string[]): string | null {
+	if (s.language === null || !imported.includes(s.language)) return null;
+	const onCanvas = s.phase === 'applied' || (s.phase === 'failed' && s.errorCode === 'storage-failed');
+	return onCanvas ? s.language : null;
 }

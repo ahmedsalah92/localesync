@@ -1,7 +1,14 @@
 // src/ui/preview/state.test.ts — the Preview reducer (LS-12 §2.5). Pure: no React, no bridge.
 import { describe, expect, it } from 'vitest';
 import type { PreviewRow } from '../../common/models';
-import { commitDecision, initialPreviewState, previewReducer, selectShell, translatedCount } from './state';
+import {
+	commitDecision,
+	initialPreviewState,
+	previewReducer,
+	reapplyAfterImport,
+	selectShell,
+	translatedCount,
+} from './state';
 import type { PreviewAction, PreviewState } from './state';
 
 const run = (actions: PreviewAction[], from: PreviewState = initialPreviewState()) =>
@@ -87,5 +94,44 @@ describe('editing (LS-12 D6)', () => {
 describe('translatedCount', () => {
 	it('counts rows with a value', () => {
 		expect(translatedCount(rows)).toBe(1);
+	});
+});
+
+describe('reapplyAfterImport (LS-12 §2.1.7)', () => {
+	it('re-applies the previewed language when the import replaced it', () => {
+		expect(reapplyAfterImport(applied(), ['fr', 'de'])).toBe('de');
+	});
+
+	it('leaves the preview alone when the import did not touch its language', () => {
+		expect(reapplyAfterImport(applied(), ['fr'])).toBeNull();
+	});
+
+	it('re-applies nothing when nothing is on the canvas', () => {
+		const idle = run([{ kind: 'languages', languages: ['de'] }]);
+		expect(reapplyAfterImport(idle, ['de'])).toBeNull();
+		const reverted = run([{ kind: 'revert-started' }, { kind: 'reverted' }], applied());
+		expect(reapplyAfterImport(reverted, ['de'])).toBeNull();
+		const restored = run([{ kind: 'failed', code: 'mutation-failed' }], applied());
+		expect(reapplyAfterImport(restored, ['de'])).toBeNull();
+	});
+
+	it('re-applies after a failed edit save — that failure left the preview in place', () => {
+		const unsaved = run([{ kind: 'failed', code: 'storage-failed' }], applied());
+		expect(reapplyAfterImport(unsaved, ['de'])).toBe('de');
+	});
+});
+
+describe('loading failure (LS-12 §2.2)', () => {
+	it('settles once a retried state request answers', () => {
+		const failed = run([{ kind: 'failed', code: 'internal' }]);
+		expect(selectShell(failed)).toBe('operation-failed');
+		const retried = run([{ kind: 'languages', languages: ['de'] }], failed);
+		expect(retried.phase).toBe('idle');
+		expect(selectShell(retried)).toBe('choose-language');
+	});
+
+	it('keeps a failure that belongs to an apply', () => {
+		const noKeys = run([{ kind: 'failed', code: 'no-keys' }], applied());
+		expect(run([{ kind: 'languages', languages: ['de'] }], noKeys).phase).toBe('failed');
 	});
 });

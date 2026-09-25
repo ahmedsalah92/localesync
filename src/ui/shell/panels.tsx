@@ -1,10 +1,8 @@
 import type { ComponentType } from 'react';
 import { ExtractPanel } from '../extract/ExtractPanel';
-import { FooterStub } from './FooterStub';
 import { OverflowPanel } from '../overflow/OverflowPanel';
+import { PreviewPanel } from '../preview/PreviewPanel';
 import { PseudoPanel } from '../pseudo/PseudoPanel';
-import { ResultsList } from './ResultsList';
-import { StateView } from './StateView';
 import { RtlPanel } from '../rtl/RtlPanel';
 
 export type PanelId = 'overflow' | 'extract' | 'preview' | 'pseudo' | 'rtl';
@@ -23,28 +21,11 @@ export interface PanelDef {
 	Panel: ComponentType;
 }
 
-/** The feature body of each panel is owned by its feature issue (LS-6/10/11/12); until that lands,
- * a stub mounts the shell's `first-run` state so the tab has something real to show. It composes
- * the same tree the shell used to build around it — `ResultsList` plus the Pro-stub footer — so
- * the four stub panels look identical before and after the §1.7 restructure. */
-function makeStubPanel(label: string, footer: string | null): ComponentType {
-	return function StubPanel() {
-		return (
-			<>
-				<ResultsList hasFooter={footer !== null}>
-					<StateView state="first-run" headline={label} body="This panel hasn't been wired up yet." />
-				</ResultsList>
-				{footer !== null ? <FooterStub name={footer} /> : null}
-			</>
-		);
-	};
-}
-
 /** Registry order is tab order, left to right. One entry per feature issue. */
 export const PANELS: readonly PanelDef[] = [
 	{ id: 'overflow', label: 'Overflow', Panel: OverflowPanel },
 	{ id: 'extract', label: 'Extract', Panel: ExtractPanel },
-	{ id: 'preview', label: 'Preview', Panel: makeStubPanel('Preview', 'Translate') },
+	{ id: 'preview', label: 'Preview', Panel: PreviewPanel },
 	// No fifth paid pillar — the absence is principled, not an omission (LS-5 §2.2).
 	{ id: 'pseudo', label: 'Pseudo', Panel: PseudoPanel },
 	{ id: 'rtl', label: 'RTL', Panel: RtlPanel },

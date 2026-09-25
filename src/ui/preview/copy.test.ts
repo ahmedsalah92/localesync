@@ -1,6 +1,14 @@
 // src/ui/preview/copy.test.ts — Preview copy (LS-12 §2.1–§2.5).
 import { describe, expect, it } from 'vitest';
-import { STATES, appliedMessage, fallbackVerdict, skippedGroup, summaryCount, unmatchedGroup } from './copy';
+import {
+	STATES,
+	appliedMessage,
+	fallbackVerdict,
+	replaceNotice,
+	skippedGroup,
+	summaryCount,
+	unmatchedGroup,
+} from './copy';
 
 describe('Preview copy', () => {
 	it('names the language the way the design does', () => {
@@ -29,6 +37,15 @@ describe('Preview copy', () => {
 		});
 		expect(STATES.operationFailed.body).toBe(
 			'The preview failed and your canvas was restored. Nothing was left changed.',
+		);
+	});
+
+	it("asks before replacing a stored language, in the spec's words (§2.1.6)", () => {
+		expect(replaceNotice(['fr-FR'])).toBe(
+			'French (fr-FR) is already imported. Importing it again replaces it, including your edits.',
+		);
+		expect(replaceNotice(['de', 'fr-FR'])).toBe(
+			'German (de), French (fr-FR) are already imported. Importing them again replaces them, including your edits.',
 		);
 	});
 });

@@ -386,6 +386,12 @@ bar cannot stall short of its own maximum.
 `figma.currentPage.selection = [node]` then `figma.viewport.scrollAndZoomIntoView([node])`, wrapped
 in try/catch → `node-gone` (a node on another page throws under dynamic-page).
 
+> **Amended by LS-28 (2026-09-25).** Any layer on the canvas is now a valid target, not only a
+> `TextNode`. `node-gone` is emitted only for a deleted node, a page or the document
+> (`src/main/overflow/jump.ts`). Extract, Pseudo and RTL share this handler, and RTL's "icons moved"
+> rows are ellipses and vectors. Under the text-only rule every one of those jumps answered
+> `node-gone`, so nothing happened.
+
 ### Throwaway harness deletion
 
 `src/main/devtools/overflowSpike.ts` is **deleted** when this lands, and its `__dev:run-overflow-spike`

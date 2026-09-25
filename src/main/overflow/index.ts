@@ -14,6 +14,7 @@ import { expandForLanguage, isUnsupportedLanguage } from './expand';
 import type { Measurement } from './measure';
 import { measureOverflow } from './measure';
 import { severityFor } from './verdict';
+import { isJumpTarget } from './jump';
 
 const PROGRESS_EVERY = 25;
 
@@ -204,8 +205,9 @@ export function registerOverflow(): void {
 			};
 			try {
 				const node = await figma.getNodeByIdAsync(msg.nodeId);
-				if (node === null || node.type !== 'TEXT') {
-					nodeGone('it was deleted or is no longer a text node');
+				// Any layer, not only text: RTL's flagged rows are icons (./jump, LS-28).
+				if (!isJumpTarget(node)) {
+					nodeGone('it was deleted');
 					return;
 				}
 				figma.currentPage.selection = [node];

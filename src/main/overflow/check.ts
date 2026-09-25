@@ -26,6 +26,7 @@ import { traverse } from '../traversal';
 import type { TextNodeModel } from '../traversal/model';
 import { isUnsupportedLanguage } from './expand';
 import { measureOverflow, type Measurement } from './measure';
+import { isJumpTarget } from './jump';
 
 const SHORT = 'OK';
 // The 160-character sentence carried over from the LS-7 spike harness.
@@ -243,7 +244,7 @@ export function registerOverflowCheck(): void {
 				send({ type: 'progress', id: nextMainId(), completed: 1, total: 1, note: text });
 			};
 			const target = await figma.getNodeByIdAsync(msg.nodeId);
-			if (target === null || target.type !== 'TEXT') {
+			if (!isJumpTarget(target)) {
 				// The real handler must answer this with a node-gone error — asserted UI-side.
 				note('ls8:select-node-info:expect-node-gone');
 				return;

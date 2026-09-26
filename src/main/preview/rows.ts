@@ -24,7 +24,12 @@ export function planPreview(
 ): { targets: { nodeId: string; value: string }[]; rows: PreviewRow[] } {
 	const targets: { nodeId: string; value: string }[] = [];
 	const rows: PreviewRow[] = owners.map((owner) => {
-		const value = translations[owner.key];
+		// Own-property only (final review fix): `translations[owner.key]` alone resolves an inherited
+		// Object.prototype member for a key like `constructor` or `toString`, which is never a real
+		// translation and must fall back rather than become a "target" written to the canvas.
+		const value = Object.prototype.hasOwnProperty.call(translations, owner.key)
+			? translations[owner.key]
+			: undefined;
 		if (value === undefined || value === '') return { ...owner, value: null };
 		targets.push({ nodeId: owner.nodeId, value });
 		return { ...owner, value };

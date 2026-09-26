@@ -90,6 +90,17 @@ describe('parseCsvTranslations', () => {
 		expect(maps('key,de\n\na,x\n\n')).toEqual([{ language: 'de', entries: [{ key: 'a', value: 'x' }] }]);
 	});
 
+	// Final review fix: a spreadsheet export's blank separator row (`,,`) has cells, unlike a fully
+	// empty line, but every cell is empty — it must be skipped, not treated as a `""` key.
+	it('skips comma-separated blank rows (spreadsheet export separators), leaving the result unaffected', () => {
+		expect(maps('key,de\n,\na,x\n,,')).toEqual([{ language: 'de', entries: [{ key: 'a', value: 'x' }] }]);
+	});
+
+	it('fails a row with a blank key cell that has a translation, naming its line', () => {
+		const result = parseCsvTranslations('key,de\n,Hallo');
+		expect(isParseError(result) && result.error).toBe('Line 2 has a translation but no key.');
+	});
+
 	it.each([
 		['de,fr\nx,y', 'The CSV needs one column named "key".'],
 		['key,KEY\nx,y', 'The CSV needs one column named "key".'],

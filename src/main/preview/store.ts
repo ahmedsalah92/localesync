@@ -20,7 +20,10 @@ export function parseStore(raw: unknown): PreviewStore {
 	const languages: Record<string, Record<string, string>> = {};
 	for (const [language, map] of Object.entries(candidate.languages)) {
 		if (typeof map !== 'object' || map === null) return emptyStore();
-		const entries: Record<string, string> = {};
+		// Object.create(null) (final review fix): a plain `{}` inherits Object.prototype's `__proto__`
+		// accessor, so `entries[key] = value` for a key literally named `__proto__` would silently do
+		// nothing instead of storing the translation.
+		const entries: Record<string, string> = Object.create(null);
 		for (const [key, value] of Object.entries(map)) {
 			if (typeof value !== 'string') return emptyStore();
 			entries[key] = value;
@@ -33,7 +36,8 @@ export function parseStore(raw: unknown): PreviewStore {
 export function mergeImport(store: PreviewStore, maps: readonly PreviewMap[]): PreviewStore {
 	const languages = { ...store.languages };
 	for (const map of maps) {
-		const entries: Record<string, string> = {};
+		// Object.create(null) (final review fix) — see parseStore.
+		const entries: Record<string, string> = Object.create(null);
 		for (const { key, value } of map.entries) if (value !== '') entries[key] = value;
 		languages[map.language] = entries;
 	}
@@ -41,7 +45,9 @@ export function mergeImport(store: PreviewStore, maps: readonly PreviewMap[]): P
 }
 
 export function applyEdit(store: PreviewStore, language: string, key: string, value: string | null): PreviewStore {
-	const entries = { ...(store.languages[language] ?? {}) };
+	// Object.assign onto Object.create(null) (final review fix): a spread (`{ ...source }`) always
+	// produces a plain, Object.prototype-carrying object regardless of `source`'s own prototype.
+	const entries: Record<string, string> = Object.assign(Object.create(null), store.languages[language] ?? {});
 	if (value === null || value === '') delete entries[key];
 	else entries[key] = value;
 	return { v: 1, languages: { ...store.languages, [language]: entries } };

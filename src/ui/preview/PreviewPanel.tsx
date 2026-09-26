@@ -48,6 +48,10 @@ export function PreviewPanel() {
 	// Accumulated from the `nodes-blocked` warning that precedes the terminal progress.
 	const blocked = useRef<BlockedNode[]>([]);
 	const languageRef = useRef<string | null>(null);
+	// The last language an apply was attempted with, kept even once a no-text-nodes/no-keys failure
+	// clears `language` itself (final review fix) — this is what "Try Again" on those two states
+	// re-applies, since `state.language` alone no longer names it after such a failure.
+	const lastAttempted = useRef<string | null>(null);
 	// The languages the in-flight import carries, for the re-apply decision on its progress.
 	const importedLanguages = useRef<string[]>([]);
 	// The latest rendered state, for everything that runs outside a render: the listener, and the
@@ -73,6 +77,7 @@ export function PreviewPanel() {
 		pending.current = 'apply';
 		blocked.current = [];
 		languageRef.current = language;
+		lastAttempted.current = language;
 		runId.current = send<ApplyPreview>({ type: 'apply-preview', language });
 		dispatch({ kind: 'apply-started', language });
 	}, []);
@@ -295,6 +300,13 @@ export function PreviewPanel() {
 			if (state.language !== null) apply(state.language);
 			else refreshLanguages(true);
 		};
+		// Final review fix: a no-text-nodes/no-keys failure clears `state.language` itself (nothing
+		// was previewed), so `retry` above can't re-apply from it — this reads the language the user
+		// actually picked from `lastAttempted` instead, so "Try another page" (the state's own copy)
+		// works in one click rather than only by remounting the tab.
+		const retryLastAttempted = () => {
+			if (lastAttempted.current !== null) apply(lastAttempted.current);
+		};
 		switch (shell) {
 			case 'no-languages':
 				return (
@@ -305,9 +317,21 @@ export function PreviewPanel() {
 					/>
 				);
 			case 'no-keys':
-				return <StateView state="first-run" {...STATES.noKeys} />;
+				return (
+					<StateView
+						state="first-run"
+						{...STATES.noKeys}
+						action={{ label: LABELS.tryAgain, onClick: retryLastAttempted }}
+					/>
+				);
 			case 'no-text-on-page':
-				return <StateView state="first-run" {...STATES.noText} />;
+				return (
+					<StateView
+						state="first-run"
+						{...STATES.noText}
+						action={{ label: LABELS.tryAgain, onClick: retryLastAttempted }}
+					/>
+				);
 			case 'choose-language':
 				return <StateView state="first-run" {...STATES.chooseLanguage} />;
 			case 'operation-failed':

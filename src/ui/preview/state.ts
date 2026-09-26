@@ -104,8 +104,19 @@ export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState 
 		// A failed revert left the preview on the canvas: back to applied, rows and groups kept.
 		case 'revert-failed':
 			return { ...s, phase: 'applied', errorCode: null };
+		// Final review fix: `no-text-nodes`/`no-keys` mean nothing was previewed at all — main
+		// restored first and applied nothing — so the canvas has no language on it either. Clearing
+		// `language` here (not just `errorCode`) makes the dropdown fall back to its placeholder, so
+		// picking the same language again fires a real `onChange` instead of being silently ignored
+		// by the native <select> (which fires no change when the value doesn't change).
 		case 'failed':
-			return { ...s, phase: 'failed', errorCode: a.code, editing: null };
+			return {
+				...s,
+				phase: 'failed',
+				errorCode: a.code,
+				editing: null,
+				language: a.code === 'no-text-nodes' || a.code === 'no-keys' ? null : s.language,
+			};
 		case 'edit-start':
 			return { ...s, editing: { nodeId: a.nodeId, draft: a.value } };
 		case 'edit-change':

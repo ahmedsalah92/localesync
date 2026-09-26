@@ -51,3 +51,23 @@ describe('withoutBlocked', () => {
 		);
 	});
 });
+
+// Final-review fix: a lookup like `translations[owner.key]` resolves an inherited member (e.g.
+// `constructor`, `toString`) off Object.prototype, which is never a real translation.
+describe('planPreview — own-property lookup (final review fix)', () => {
+	it('falls back a key that names an inherited Object.prototype member, instead of treating it as a target', () => {
+		const protoKeyedOwners = [{ nodeId: '1', key: 'constructor', source: 'Source' }];
+		expect(planPreview(protoKeyedOwners, {})).toEqual({
+			targets: [],
+			rows: [{ nodeId: '1', key: 'constructor', source: 'Source', value: null }],
+		});
+	});
+
+	it('still targets an own property named after an inherited member', () => {
+		const protoKeyedOwners = [{ nodeId: '1', key: 'toString', source: 'Source' }];
+		expect(planPreview(protoKeyedOwners, { toString: 'Wert' })).toEqual({
+			targets: [{ nodeId: '1', value: 'Wert' }],
+			rows: [{ nodeId: '1', key: 'toString', source: 'Source', value: 'Wert' }],
+		});
+	});
+});

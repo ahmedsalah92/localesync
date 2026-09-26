@@ -52,6 +52,23 @@ describe('selectShell (LS-12 §2.5)', () => {
 		expect(selectShell(run([{ kind: 'failed', code }], applied()))).toBe(shell);
 	});
 
+	// Final review fix: on an empty page or an unextracted page, the dropdown must not keep showing
+	// the picked language — nothing was actually previewed (main restored first, then applied
+	// nothing), and a native <select> fires no `onChange` when the same value is picked again, which
+	// otherwise leaves the user stuck until they remount the tab.
+	it.each(['no-text-nodes', 'no-keys'] as const)('clears the applied language on a %s failure', (code) => {
+		const failed = run([{ kind: 'failed', code }], applied());
+		expect(failed.language).toBeNull();
+		expect(selectShell(failed)).toBe(code === 'no-text-nodes' ? 'no-text-on-page' : 'no-keys');
+	});
+
+	it.each(['storage-failed', 'mutation-failed', 'internal'] as const)(
+		'leaves the applied language alone on a %s failure',
+		(code) => {
+			expect(run([{ kind: 'failed', code }], applied()).language).toBe('de');
+		},
+	);
+
 	it('returns to the chooser after a revert, with the rows cleared', () => {
 		const reverted = run([{ kind: 'revert-started' }, { kind: 'reverted' }], applied());
 		expect(selectShell(reverted)).toBe('choose-language');
@@ -132,8 +149,11 @@ describe('loading failure (LS-12 §2.2)', () => {
 	});
 
 	it('keeps a failure that belongs to an apply', () => {
-		const noKeys = run([{ kind: 'failed', code: 'no-keys' }], applied());
-		expect(run([{ kind: 'languages', languages: ['de'] }], noKeys).phase).toBe('failed');
+		// mutation-failed, not no-keys/no-text-nodes (final review fix): those two now clear
+		// `language`, which is exactly what marks "the load itself failing" below — this test is
+		// about a failure that keeps its language, so it must use a code that still does.
+		const failed = run([{ kind: 'failed', code: 'mutation-failed' }], applied());
+		expect(run([{ kind: 'languages', languages: ['de'] }], failed).phase).toBe('failed');
 	});
 });
 

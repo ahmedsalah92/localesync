@@ -110,9 +110,17 @@ export function parseCsvTranslations(text: string): { maps: PreviewMap[] } | Par
 	const maps: PreviewMap[] = columns.map((c) => ({ language: c.language, entries: [] }));
 	const seen = new Set<string>();
 	for (const row of body) {
+		// A spreadsheet export's blank separator row (`,,`) has cells, unlike a fully empty line
+		// (already dropped by `records`), but every cell is empty. Skip it before the cell-count
+		// check below, since such a row can have more commas than the header without being a real,
+		// too-long record (final review fix).
+		if (row.cells.every((cell) => cell === '')) continue;
 		if (row.cells.length > header.cells.length)
 			return { error: `Line ${row.line} has more cells than the header.` };
 		const key = row.cells[keyColumn] ?? '';
+		// A blank key cell with a non-empty translation cell is not a separator row — it's a real,
+		// malformed record (final review fix).
+		if (key === '') return { error: `Line ${row.line} has a translation but no key.` };
 		if (seen.has(key)) return { error: `Key "${key}" appears more than once.` };
 		seen.add(key);
 		columns.forEach((column, i) => {

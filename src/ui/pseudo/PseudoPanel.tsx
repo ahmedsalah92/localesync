@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { ApplyPseudoLoc, ErrorCode, RevertPseudoLoc, SelectNode } from '../../common/messages';
 import type { AccentStyle, BoundaryMarker } from '../../common/models';
 import { on, requestWithId, send } from '../bridge';
+import { expansionOf, track } from '../telemetry';
 import { transform } from '../../common/pseudoloc';
 import { ControlBar } from '../shell/bands';
 import { ResultsList } from '../shell/ResultsList';
@@ -101,6 +102,8 @@ export function PseudoPanel() {
 				// (LS-34), which the shared listener above still handles.
 				watchApply({ onError: (h) => on('error', h), onProgress: (h) => on('progress', h) }, id, (blocked) => {
 					dispatch({ kind: 'applied', entries: result.entries, blocked });
+					const expansion = expansionOf(state.options.expansionPct);
+					if (expansion !== null) track({ name: 'pseudoloc_applied', expansion }); // LS-13 §2.2
 					setApplied({
 						kind: 'applied',
 						message: appliedMessage(state.options.expansionPct, blocked.length),

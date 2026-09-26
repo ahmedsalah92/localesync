@@ -43,3 +43,9 @@ export function markFirstScan(kind: 'extract' | 'overflow', deps: { sink?: Sink;
 	track({ name: 'first_scan', kind }, deps.sink);
 	deps.mark();
 }
+
+/** `PseudoLocOptions.expansionPct` is a plain number; the event only carries the three Phase 1
+ *  steps. Anything else is dropped (null), never rounded into a bucket it did not choose. */
+export function expansionOf(pct: number): 30 | 40 | 50 | null {
+	return pct === 30 || pct === 40 || pct === 50 ? pct : null;
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState, type ReactNode } 
 import type { ApplyPreview, PreviewEdit, PreviewImport, RevertPreview, SelectNode } from '../../common/messages';
 import type { BlockedNode, PreviewMap } from '../../common/models';
 import { on, request, send } from '../bridge';
+import { track } from '../telemetry';
 import { ControlBar, SummaryBar } from '../shell/bands';
 import { ProStub } from '../shell/ProStub';
 import { ChevronRightIcon } from '../shell/icons/ChevronRightIcon';
@@ -57,6 +58,7 @@ export function PreviewPanel() {
 	// clears `language` itself (final review fix) — this is what "Try Again" on those two states
 	// re-applies, since `state.language` alone no longer names it after such a failure.
 	const lastAttempted = useRef<string | null>(null);
+	const userApply = useRef(false);
 	// The languages the in-flight import carries, for the re-apply decision on its progress.
 	const importedLanguages = useRef<string[]>([]);
 	// The latest rendered state, for everything that runs outside a render: the listener, and the
@@ -87,7 +89,10 @@ export function PreviewPanel() {
 	}, []);
 
 	const apply = useCallback(
-		(language: string) => {
+		// `user`: the person picked this language (the dropdown, Try Again). Automatic re-applies — after
+		// an import, after a failed edit — leave it false, so `preview_used` never counts them (LS-13 §2.2).
+		(language: string, user = false) => {
+			userApply.current = user;
 			pending.current = 'apply';
 			blocked.current = [];
 			languageRef.current = language;
@@ -140,6 +145,8 @@ export function PreviewPanel() {
 				return;
 			}
 			if (op === 'apply' || op === 'edit') {
+				if (op === 'apply' && userApply.current) track({ name: 'preview_used' });
+				userApply.current = false;
 				dispatch({ kind: 'applied', blocked: blocked.current });
 				const language = languageRef.current;
 				if (language !== null)
@@ -255,7 +262,7 @@ export function PreviewPanel() {
 						disabled={busy || importBusy}
 						fill
 						onChange={(value) => {
-							if (value !== '' && value !== state.language) apply(value);
+							if (value !== '' && value !== state.language) apply(value, true);
 						}}
 					/>
 				</ControlBar>
@@ -324,7 +331,7 @@ export function PreviewPanel() {
 
 	function renderState(): ReactNode {
 		const retry = () => {
-			if (state.language !== null) apply(state.language);
+			if (state.language !== null) apply(state.language, true);
 			else {
 				// The busy band while the state request is in flight, not the failure it retries.
 				dispatch({ kind: 'loading' });
@@ -336,7 +343,7 @@ export function PreviewPanel() {
 		// actually picked from `lastAttempted` instead, so "Try another page" (the state's own copy)
 		// works in one click rather than only by remounting the tab.
 		const retryLastAttempted = () => {
-			if (lastAttempted.current !== null) apply(lastAttempted.current);
+			if (lastAttempted.current !== null) apply(lastAttempted.current, true);
 		};
 		switch (shell) {
 			case 'no-languages':

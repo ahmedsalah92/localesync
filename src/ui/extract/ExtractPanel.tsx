@@ -12,7 +12,8 @@ import { Button } from '../shell/primitives/Button';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { LABELS, SCANNING_START, SCOPES, STATES, rowMeta, scanningCount, summaryCount } from './copy';
 import { driftedCount, extractReducer, initialExtractState, occurrenceCounts, type ExtractPhase } from './state';
-import type { ErrorCode, ScanScope, SelectNode } from '../../common/messages';
+import type { ErrorCode, ScanScope, SelectNode, TelemetryMark } from '../../common/messages';
+import { markFirstScan } from '../telemetry';
 
 /**
  * The Extract tab: every eligible text node in scope as a keyed row (LS-9).
@@ -60,6 +61,9 @@ export function ExtractPanel() {
 				if (scanId.current !== id) return;
 				// `blocked` reaches state intact; rendering it waits on DES-2 copy.
 				dispatch({ kind: 'result', entries: result.entries, blocked: result.blocked });
+				markFirstScan('extract', {
+					mark: () => send<TelemetryMark>({ type: 'telemetry-mark', flag: 'first-scan' }),
+				}); // LS-13 §2.2
 			},
 			(err: unknown) => {
 				if (scanId.current !== id) return;

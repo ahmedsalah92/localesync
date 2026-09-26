@@ -22,7 +22,8 @@ import {
 	summaryCount,
 } from './copy';
 import { foundCount, initialOverflowState, overflowReducer, visibleVerdicts, type ScanPhase } from './state';
-import type { ErrorCode, OverflowScanCancel, ScanScope, SelectNode } from '../../common/messages';
+import type { ErrorCode, OverflowScanCancel, ScanScope, SelectNode, TelemetryMark } from '../../common/messages';
+import { markFirstScan, track } from '../telemetry';
 import type { OverflowFilter, OverflowSort } from '../../common/overflow';
 import type { OverflowVerdict } from '../../common/models';
 
@@ -104,6 +105,13 @@ export function OverflowPanel() {
 			(result) => {
 				if (scanId.current !== id) return; // a newer scan has taken over
 				dispatch({ kind: 'result', verdicts: result.verdicts, stopped: result.stopped === true });
+				// LS-13 §2.2: a stopped scan did not complete; `state.scope` is the scope this scan started with.
+				if (result.stopped !== true) {
+					track({ name: 'overflow_scan_run', scope: state.scope });
+					markFirstScan('overflow', {
+						mark: () => send<TelemetryMark>({ type: 'telemetry-mark', flag: 'first-scan' }),
+					});
+				}
 			},
 			(err: unknown) => {
 				if (scanId.current !== id) return;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { ApplyRtlMirror, RevertRtlMirror, ScanScope, SelectNode } from '../../common/messages';
 import type { BlockedNode, FlaggedNode } from '../../common/models';
 import { on, send } from '../bridge';
+import { track } from '../telemetry';
 import { ControlBar, SummaryBar } from '../shell/bands';
 import { ProStub } from '../shell/ProStub';
 import { ResultsList } from '../shell/ResultsList';
@@ -54,13 +55,17 @@ export function RtlPanel() {
 	// Read at send time rather than closed over, for the same reason the listener uses refs.
 	const scopeRef = useRef<ScanScope>(state.scope);
 	scopeRef.current = state.scope;
+	// The scope the in-flight apply was sent with, for `rtl_applied` (LS-13): the dropdown may change
+	// before its progress arrives.
+	const appliedScope = useRef<ScanScope>(state.scope);
 
 	const onToggle = useCallback((checked: boolean) => {
 		if (checked) {
 			pending.current = 'apply';
 			flagged.current = [];
 			blocked.current = [];
-			runId.current = send<ApplyRtlMirror>({ type: 'apply-rtl-mirror', scope: scopeRef.current });
+			appliedScope.current = scopeRef.current;
+			runId.current = send<ApplyRtlMirror>({ type: 'apply-rtl-mirror', scope: appliedScope.current });
 			dispatch({ kind: 'apply-started' });
 		} else {
 			pending.current = 'revert';
@@ -93,6 +98,7 @@ export function RtlPanel() {
 			pending.current = null;
 			if (action === null) return; // a progress we were not waiting on
 			dispatch(action);
+			if (wasApply) track({ name: 'rtl_applied', scope: appliedScope.current }); // LS-13 §2.2
 			setAppliedRef.current(
 				wasApply
 					? {

@@ -4,6 +4,7 @@ import { CloseIcon } from '../shell/icons/CloseIcon';
 import { ModalNotice } from '../shell/ModalNotice';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { Switch } from '../shell/primitives/Switch';
+import { track } from '../telemetry';
 import { useModalFocus } from '../shell/useModalFocus';
 import { FORMATS, LABELS, omittedNotice, remappedNotice } from './copy';
 import { downloadExport, serialize } from './index';
@@ -35,6 +36,7 @@ export function ExportModal(props: { entries: readonly ExtractedString[]; onClos
 	function onDownload() {
 		const result = serialize(props.entries, { format, dedup });
 		downloadExport(result);
+		track({ name: 'export_performed', format }); // LS-13 §2.2
 		const next: string[] = [];
 		if (result.omitted.length > 0) next.push(omittedNotice(result.omitted.length));
 		const remapped = result.keyMap.filter((entry) => entry.reason === 'android-remap-collision');

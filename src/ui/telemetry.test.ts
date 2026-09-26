@@ -1,6 +1,6 @@
 // src/ui/telemetry.test.ts — the activation emitter (LS-13 §1.4). Pure; no bridge.
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { firstScanAction, markFirstScan, setFirstScanDone, track, type TelemetryEvent } from './telemetry';
+import { expansionOf, firstScanAction, markFirstScan, setFirstScanDone, track, type TelemetryEvent } from './telemetry';
 
 describe('track', () => {
 	it('hands the event to the sink exactly once', () => {
@@ -44,5 +44,15 @@ describe('first_scan — once, ever', () => {
 		const sink = vi.fn();
 		markFirstScan('extract', { sink, mark: vi.fn() });
 		expect(sink).not.toHaveBeenCalled();
+	});
+});
+
+describe('expansionOf — the pseudoloc_applied property stays a closed literal', () => {
+	it.each([30, 40, 50] as const)('passes %i through', (pct) => {
+		expect(expansionOf(pct)).toBe(pct);
+	});
+
+	it.each([0, 35, 100, -30])('drops %i rather than inventing a bucket', (pct) => {
+		expect(expansionOf(pct)).toBeNull();
 	});
 });

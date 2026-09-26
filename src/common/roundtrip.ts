@@ -43,6 +43,8 @@ const PROBED_COMMANDS: Record<CommandType, boolean> = {
 	'select-node': false, // real LS-8 handler: answers with a real `node-gone` or nothing
 	'overflow-scan-cancel': false, // outcome is a scan's `stopped: true` result, not a reply
 	'resize-window': false, // resizes the real plugin window; no reply at all
+	'open-waitlist': false, // opens a real browser tab; never probe
+	'telemetry-mark': false, // writes the user's clientStorage
 };
 
 /** The commands the driver sends and main's scaffold answers, in send order. */

@@ -21,6 +21,9 @@ const UI_TO_MAIN = [
 	'select-node',
 	'overflow-scan-cancel',
 	'resize-window',
+	'open-waitlist',
+	'telemetry-mark',
+	'telemetry-state-request',
 ] as const;
 const MAIN_TO_UI = [
 	'scan-result',
@@ -32,6 +35,7 @@ const MAIN_TO_UI = [
 	'rtl-flagged',
 	'preview-state',
 	'preview-result',
+	'telemetry-state',
 ] as const;
 const ALL_TYPES = [...UI_TO_MAIN, ...MAIN_TO_UI];
 

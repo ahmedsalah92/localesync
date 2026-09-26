@@ -9,6 +9,7 @@ import type {
 	PreviewMap,
 	PreviewRow,
 } from './models';
+import type { ProPillar } from './pro';
 
 export type ScanScope = 'page' | 'selection';
 
@@ -79,6 +80,17 @@ export interface ResizeWindow extends Envelope<'resize-window'> {
 	width: number;
 	height: number;
 }
+// LS-13 §1.2. Command: main opens the waitlist in the browser, then answers `progress` (or
+// `internal` if openExternal throws). The plugin itself sends nothing anywhere.
+export interface OpenWaitlist extends Envelope<'open-waitlist'> {
+	pillar: ProPillar;
+}
+// LS-13 §1.2. Command: main persists the first-run flag in clientStorage; best-effort, answers `progress`.
+export interface TelemetryMark extends Envelope<'telemetry-mark'> {
+	flag: 'first-scan';
+}
+// LS-13 §1.2. Request, once per launch; answered by `telemetry-state`.
+export type TelemetryStateRequest = Envelope<'telemetry-state-request'>;
 
 export type UiToMain =
 	| ScanRequest
@@ -95,7 +107,10 @@ export type UiToMain =
 	| PreviewStateRequest
 	| SelectNode
 	| OverflowScanCancel
-	| ResizeWindow;
+	| ResizeWindow
+	| OpenWaitlist
+	| TelemetryMark
+	| TelemetryStateRequest;
 
 // ── main → UI ────────────────────────────────────────────────────────────────
 export interface ScanResult extends Envelope<'scan-result'> {
@@ -158,6 +173,11 @@ export interface PreviewResult extends Envelope<'preview-result'> {
 	rows: PreviewRow[]; // every non-blocked key-owning text layer on the page, in document order
 	unmatched: string[]; // stored keys of this language that no layer owns, sorted
 }
+/** First-run flags for the install / first_scan events (LS-13 §1.2). */
+export interface TelemetryState extends Envelope<'telemetry-state'> {
+	firstLaunch: boolean; // true exactly once: this answer is what marked the plugin installed
+	firstScanDone: boolean;
+}
 
 export type MainToUi =
 	| ScanResult
@@ -168,7 +188,8 @@ export type MainToUi =
 	| ErrorMessage
 	| RtlFlagged
 	| PreviewState
-	| PreviewResult;
+	| PreviewResult
+	| TelemetryState;
 
 export type AnyMessage = UiToMain | MainToUi;
 
@@ -179,6 +200,7 @@ export interface RequestResponse {
 	'extraction-request': ExtractionResult;
 	'overflow-scan-request': OverflowScanResult;
 	'preview-state-request': PreviewState;
+	'telemetry-state-request': TelemetryState;
 }
 
 /**
@@ -194,6 +216,7 @@ export const RESPONSE_TYPE: { [T in keyof RequestResponse]: RequestResponse[T]['
 	'extraction-request': 'extraction-result',
 	'overflow-scan-request': 'overflow-scan-result',
 	'preview-state-request': 'preview-state',
+	'telemetry-state-request': 'telemetry-state',
 };
 
 /**
@@ -220,6 +243,9 @@ const UI_TO_MAIN_TYPES: Record<UiToMain['type'], true> = {
 	'select-node': true,
 	'overflow-scan-cancel': true,
 	'resize-window': true,
+	'open-waitlist': true,
+	'telemetry-mark': true,
+	'telemetry-state-request': true,
 };
 
 const MAIN_TO_UI_TYPES: Record<MainToUi['type'], true> = {
@@ -232,6 +258,7 @@ const MAIN_TO_UI_TYPES: Record<MainToUi['type'], true> = {
 	'rtl-flagged': true,
 	'preview-state': true,
 	'preview-result': true,
+	'telemetry-state': true,
 };
 
 /**

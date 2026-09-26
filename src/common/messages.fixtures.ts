@@ -1,13 +1,13 @@
 // src/common/messages.fixtures.ts
 //
-// Exactly one canonical value per message type (all 24), each with a distinct `id`. The single
+// Exactly one canonical value per message type (all 28), each with a distinct `id`. The single
 // source of truth for "one of every type," shared by the pure unit tests (messages.test.ts) and
 // the in-Figma round-trip command (__test:roundtrip). Adding a message type without adding a
 // fixture here fails the coverage assertion in messages.test.ts.
 import type { AnyMessage } from './messages';
 
 export const fixtures: readonly AnyMessage[] = [
-	// ── UI → main (15) ──
+	// ── UI → main (18) ──
 	{ type: 'scan-request', id: 'fx-scan-request', scope: 'page' },
 	{ type: 'extraction-request', id: 'fx-extraction-request', scope: 'selection' },
 	{ type: 'overflow-scan-request', id: 'fx-overflow-scan-request', scope: 'page', targetLanguages: ['de'] },
@@ -32,8 +32,11 @@ export const fixtures: readonly AnyMessage[] = [
 	{ type: 'select-node', id: 'fx-select-node', nodeId: '1:2' },
 	{ type: 'overflow-scan-cancel', id: 'fx-overflow-scan-cancel' },
 	{ type: 'resize-window', id: 'fx-resize-window', width: 400, height: 680 },
+	{ type: 'open-waitlist', id: 'fx-open-waitlist', pillar: 'matrix' },
+	{ type: 'telemetry-mark', id: 'fx-telemetry-mark', flag: 'first-scan' },
+	{ type: 'telemetry-state-request', id: 'fx-telemetry-state-request' },
 
-	// ── main → UI (9) ──
+	// ── main → UI (10) ──
 	{
 		type: 'scan-result',
 		id: 'fx-scan-result',
@@ -114,6 +117,7 @@ export const fixtures: readonly AnyMessage[] = [
 		flagged: [{ nodeId: '3:4', name: 'chevron', reason: 'moved-vector' }],
 	},
 	{ type: 'preview-state', id: 'fx-preview-state', languages: ['de', 'fr-FR'] },
+	{ type: 'telemetry-state', id: 'fx-telemetry-state', firstLaunch: false, firstScanDone: true },
 	{
 		type: 'preview-result',
 		id: 'fx-preview-result',

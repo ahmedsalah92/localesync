@@ -105,8 +105,13 @@ export function AppliedProvider(props: { children: React.ReactNode }): JSX.Eleme
 ```
 
 The union encodes the canvas rule as a compile-time fact: `Type=Restored` carries no action, so
-`restored` **structurally cannot** hold an `onRevert`. Applied state is plugin-wide, not per-tab —
-it survives tab switches, which is why it is context rather than props.
+`restored` **structurally cannot** hold an `onRevert`. Applied state is per feature, not per tab.
+It survives tab switches, which is why it is context rather than props, and each of Preview,
+Pseudo-loc and RTL holds its own row (amended by LS-34, 2026-09-26: `docs/specs/LS-34.md`).
+
+**Amended by LS-34:** the context is an `AppliedMap` keyed by `AppliedFeature`;
+`useApplied(feature)` is scoped to one row; `AppliedBanner` stacks one 40px row per applied feature
+in tab order.
 
 ### 1.5 Bands
 

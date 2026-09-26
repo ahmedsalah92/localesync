@@ -537,6 +537,10 @@ Copy and the `openExternal` wiring remain LS-13's.
 
 ## 🔲 To be done
 
+- **LS-34 — stacked applied banner.** Draw the banner with two stacked 40px rows, e.g.
+  `Preview: French (fr-FR) · Revert` above `Pseudo-loc applied · Revert`, on a Preview shell. Rows
+  are in tab order (Preview, Pseudo-loc, RTL), at most three.
+
 **LS-24's five supporting-surface deliverables** — Export sub-surface, Preview, Pseudo-loc, RTL Mirror, and the state block + copy table — **are complete**, recorded under *Completed* above, alongside LS-19 (DES-1)'s overflow anatomy, control cluster and apply/revert pattern.
 
 **Phase-1 design as a whole is not.** Still outstanding: **LS-16** (Community Listing) is in progress; the **middle severity-tier naming** (see the bullet below); the **UI3 component-instance swap** is pending; and the **brand error-color decision** is undecided.

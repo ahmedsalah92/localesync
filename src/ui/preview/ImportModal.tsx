@@ -62,11 +62,9 @@ export function ImportModal(props: {
 
 	async function onImportClick(): Promise<void> {
 		if (file === null || !enabled) return;
-		let text: string;
-		try {
-			text = await file.text();
-		} catch {
-			setParseError(IMPORT.unreadable);
+		const text = await readImportFile(file);
+		if (isParseError(text)) {
+			setParseError(text.error);
 			return;
 		}
 		const parsed: { maps: PreviewMap[] } | ParseError =
@@ -268,6 +266,15 @@ export function ImportModal(props: {
 			</div>
 		</div>
 	);
+}
+
+/** The chosen file's text, or the unreadable copy when reading it fails (moved, locked, removed). */
+export async function readImportFile(file: { text: () => Promise<string> }): Promise<string | ParseError> {
+	try {
+		return await file.text();
+	} catch {
+		return { error: IMPORT.unreadable };
+	}
 }
 
 /**

@@ -75,3 +75,21 @@ describe('importReadiness', () => {
 		expect(importReadiness('a.json', 'de', true).enabled).toBe(false);
 	});
 });
+
+describe('readImportFile', () => {
+	let readImportFile: typeof import('./ImportModal').readImportFile;
+	beforeAll(async () => {
+		({ readImportFile } = await import('./ImportModal'));
+	});
+
+	it('returns the file text', async () => {
+		expect(await readImportFile({ text: () => Promise.resolve('{"a":"b"}') })).toBe('{"a":"b"}');
+	});
+
+	// A file removed or locked between choosing and Import rejects `text()` (§2.1.7's unreadable path).
+	it('reports an unreadable file as a parse error with the unreadable copy', async () => {
+		expect(await readImportFile({ text: () => Promise.reject(new Error('NotReadableError')) })).toEqual({
+			error: "This file couldn't be read.",
+		});
+	});
+});

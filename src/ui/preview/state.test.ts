@@ -110,6 +110,18 @@ describe('editing (LS-12 D6)', () => {
 	});
 });
 
+describe('commitDecision — the edited row is gone', () => {
+	// A re-apply (another edit's failure, an import's replace) can land while an editor is open and
+	// return rows without the one being edited; there is nothing to send for it.
+	it('returns null when the edited row was removed mid-edit', () => {
+		const editing = run([{ kind: 'edit-start', nodeId: '1', value: 'Ä!' }], applied());
+		expect(commitDecision(editing)).not.toBeNull();
+		const removed = run([{ kind: 'result', language: 'de', rows: [rows[1]!], unmatched: [] }], editing);
+		expect(removed.editing).not.toBeNull();
+		expect(commitDecision(removed)).toBeNull();
+	});
+});
+
 describe('translatedCount', () => {
 	it('counts rows with a value', () => {
 		expect(translatedCount(rows)).toBe(1);

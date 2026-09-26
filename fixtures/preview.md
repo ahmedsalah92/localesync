@@ -47,8 +47,9 @@ values, transcribed in `check.ts` under a `// from fixtures/preview/*` comment. 
    stamped copy of `title` itself (`clone()` carries plugin data) and removes it at the end, so no
    Cmd-D copy is needed; one you made after step 3 is checked too.
 6. **Cmd-Z by hand** (the `ls12:MANUAL` line): in the Preview panel import the files, pick `de`,
-   then press Cmd-Z **once**. The whole preview should revert together. Revert, and clear nothing
-   else — the check restores the store it found, but a by-hand import is yours to keep or re-import.
+   then press Cmd-Z **once**. The whole preview should revert together. Then press Revert to leave
+   the canvas at source. The imported languages stay in the store: the check puts back the store it
+   found, but a by-hand import is yours to keep or re-import.
 
 ## What a good run looks like
 

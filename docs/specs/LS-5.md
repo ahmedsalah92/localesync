@@ -93,16 +93,27 @@ feature issue edits `App.tsx`.
 ```typescript
 // src/ui/shell/applied.tsx
 export type AppliedState =
-  | { kind: 'applied'; message: string; onRevert: () => void }
+  | { kind: 'applied'; message: string; onRevert: () => void; busy?: boolean }
   | { kind: 'restored'; message: string };
 
-export function useApplied(): {
+export type AppliedFeature = 'preview' | 'pseudo' | 'rtl';
+export type AppliedMap = Readonly<Record<AppliedFeature, AppliedState | null>>;
+
+export function useApplied(feature: AppliedFeature): {
   applied: AppliedState | null;
-  setApplied: (next: AppliedState | null) => void;
+  setApplied: (next: AppliedState | null) => void; // stable; touches only `feature`'s row
 };
 
-export function AppliedProvider(props: { children: React.ReactNode }): JSX.Element;
+export function useAppliedRows(): { feature: AppliedFeature; state: AppliedState }[]; // tab order
+
+export function AppliedProvider(props: {
+  children: React.ReactNode;
+  initial?: Partial<Record<AppliedFeature, AppliedState | null>>; // render tests only
+}): JSX.Element;
 ```
+
+`busy` (LS-34) renders that row's Revert disabled while its feature has a command in flight —
+Preview sets it during an edit or an apply.
 
 The union encodes the canvas rule as a compile-time fact: `Type=Restored` carries no action, so
 `restored` **structurally cannot** hold an `onRevert`. Applied state is per feature, not per tab.

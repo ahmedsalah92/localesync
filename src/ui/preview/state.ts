@@ -62,8 +62,9 @@ export function initialPreviewState(): PreviewState {
 
 export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState {
 	switch (a.kind) {
-		// A failure with no language is the load itself failing (the only failure before an apply);
-		// a later successful answer — its Try Again — settles the panel.
+		// A failure with no language is the load failing — or an apply's no-text-nodes/no-keys, which
+		// clear `language` too (see 'failed'). Either way nothing is on the canvas, so a later
+		// successful answer — the load's Try Again, or a post-import refresh — settles the panel.
 		case 'languages':
 			return {
 				...s,

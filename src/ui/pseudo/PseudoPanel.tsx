@@ -11,13 +11,7 @@ import { useApplied } from '../shell/applied';
 import { Button } from '../shell/primitives/Button';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { ACCENTS, EXPANSIONS, LABELS, MARKERS, STATES, appliedMessage, fontsUnavailable } from './copy';
-import {
-	initialPseudoState,
-	isBusy,
-	missingFontCount,
-	pseudoReducer,
-	type PseudoState,
-} from './state';
+import { initialPseudoState, isBusy, missingFontCount, pseudoReducer, type PseudoState } from './state';
 
 /**
  * The Pseudo-loc tab: apply a padded/accented/bracketed transform to the canvas and revert it
@@ -33,7 +27,7 @@ import {
  */
 export function PseudoPanel() {
 	const [state, dispatch] = useReducer(pseudoReducer, undefined, initialPseudoState);
-	const { setApplied } = useApplied();
+	const { setApplied } = useApplied('pseudo');
 	// The command in flight — also the correlation id its progress/error arrive under.
 	const runId = useRef<string | null>(null);
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for an apply failure.
@@ -78,7 +72,11 @@ export function PseudoPanel() {
 		const extraction = requestWithId('extraction-request', { scope: 'selection' });
 		extraction.response.then(
 			(result) => {
-				const id = send<ApplyPseudoLoc>({ type: 'apply-pseudoloc', scope: 'selection', options: state.options });
+				const id = send<ApplyPseudoLoc>({
+					type: 'apply-pseudoloc',
+					scope: 'selection',
+					options: state.options,
+				});
 				runId.current = id;
 
 				const blocked: typeof result.blocked = [];
@@ -91,10 +89,10 @@ export function PseudoPanel() {
 					offDone();
 					dispatch({ kind: 'applied', entries: result.entries, blocked });
 					setApplied({
-							kind: 'applied',
-							message: appliedMessage(state.options.expansionPct, blocked.length),
-							onRevert,
-						});
+						kind: 'applied',
+						message: appliedMessage(state.options.expansionPct, blocked.length),
+						onRevert,
+					});
 				});
 			},
 			(err: unknown) => dispatch({ kind: 'failed', code: errorCodeOf(err) }),

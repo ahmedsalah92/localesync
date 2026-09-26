@@ -36,7 +36,7 @@ import {
  */
 export function RtlPanel() {
 	const [state, dispatch] = useReducer(rtlReducer, undefined, initialRtlState);
-	const { setApplied } = useApplied();
+	const { setApplied } = useApplied('rtl');
 	// The command in flight — also the correlation id its progress/error arrive under.
 	const runId = useRef<string | null>(null);
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for a mirror failure.

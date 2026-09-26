@@ -39,7 +39,7 @@ export function PreviewPanel() {
 	const [state, dispatch] = useReducer(previewReducer, undefined, initialPreviewState);
 	const [importing, setImporting] = useState(false);
 	const [importError, setImportError] = useState<string | null>(null);
-	const { setApplied } = useApplied();
+	const { setApplied } = useApplied('preview');
 	// The command in flight — also the correlation id its result/progress/error arrive under.
 	const runId = useRef<string | null>(null);
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for a preview failure.

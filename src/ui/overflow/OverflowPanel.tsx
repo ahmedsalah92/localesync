@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { on, request, requestWithId, send } from '../bridge';
 import { ControlBar, SummaryBar } from '../shell/bands';
-import { FooterStub } from '../shell/FooterStub';
+import { ProStub } from '../shell/ProStub';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
 import { StateView, type ShellState } from '../shell/StateView';
@@ -183,7 +183,7 @@ export function OverflowPanel() {
 						))}
 			</ResultsList>
 
-			{hasFooter ? <FooterStub name={LABELS.footer} /> : null}
+			{hasFooter ? <ProStub pillar="matrix" /> : null}
 		</>
 	);
 
@@ -314,7 +314,11 @@ function resolveState(
 			// nodes ride the verdict array as `unmeasurable`/`missing-font` and show as ordinary rows,
 			// which is the LS-8.1 contract ("unmeasurable is not blocked") and more informative than a
 			// banner that would hide the rows behind it.
-			if (verdicts.every((verdict) => verdict.reason === 'missing-font' || verdict.reason === 'mixed-font-missing'))
+			if (
+				verdicts.every(
+					(verdict) => verdict.reason === 'missing-font' || verdict.reason === 'mixed-font-missing',
+				)
+			)
 				return 'fonts-unavailable';
 			if (rows.length === 0) return 'no-issues';
 			return null;

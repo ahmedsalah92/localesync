@@ -72,7 +72,6 @@ export const LABELS = {
 	stop: 'Stop',
 	jump: 'Jump to node',
 	tryAgain: 'Try Again',
-	footer: 'Matrix',
 } as const;
 
 /**

@@ -4,7 +4,7 @@ import { ExportModal } from '../export/ExportModal';
 import { LABELS as EXPORT_LABELS } from '../export/copy';
 import { ControlBar, SummaryBar } from '../shell/bands';
 import { ChevronRightIcon } from '../shell/icons/ChevronRightIcon';
-import { FooterStub } from '../shell/FooterStub';
+import { ProStub } from '../shell/ProStub';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
 import { StateView, type ShellState } from '../shell/StateView';
@@ -119,7 +119,7 @@ export function ExtractPanel() {
 						))}
 			</ResultsList>
 
-			{hasFooter ? <FooterStub name={LABELS.footer} /> : null}
+			{hasFooter ? <ProStub pillar="report" /> : null}
 
 			{exportOpen ? <ExportModal entries={state.entries} onClose={() => setExportOpen(false)} /> : null}
 		</>

@@ -3,7 +3,7 @@ import type { ApplyPreview, PreviewEdit, PreviewImport, RevertPreview, SelectNod
 import type { BlockedNode, PreviewMap } from '../../common/models';
 import { on, request, send } from '../bridge';
 import { ControlBar, SummaryBar } from '../shell/bands';
-import { FooterStub } from '../shell/FooterStub';
+import { ProStub } from '../shell/ProStub';
 import { ChevronRightIcon } from '../shell/icons/ChevronRightIcon';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
@@ -304,7 +304,7 @@ export function PreviewPanel() {
 				{shell === 'busy' ? null : shell !== null ? renderState() : renderRows()}
 			</ResultsList>
 
-			<FooterStub name="Translate" />
+			<ProStub pillar="translate" />
 
 			{importing ? (
 				<ImportModal

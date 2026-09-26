@@ -3,6 +3,7 @@ import type { ApplyRtlMirror, RevertRtlMirror, ScanScope, SelectNode } from '../
 import type { BlockedNode, FlaggedNode } from '../../common/models';
 import { on, send } from '../bridge';
 import { ControlBar, SummaryBar } from '../shell/bands';
+import { ProStub } from '../shell/ProStub';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
 import { StateView } from '../shell/StateView';
@@ -208,7 +209,7 @@ export function RtlPanel() {
 					}
 				/>
 			) : (
-				<ResultsList hasFooter={false}>
+				<ResultsList hasFooter>
 					{rows.map((row) => {
 						const trailing = row.trailing;
 						const shared = {
@@ -251,6 +252,8 @@ export function RtlPanel() {
 					})}
 				</ResultsList>
 			)}
+			{/* LS-13: the Sync pillar's waitlist stub, in every state (canvas 351:1411). */}
+			<ProStub pillar="sync" />
 		</>
 	);
 }

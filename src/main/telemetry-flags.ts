@@ -12,3 +12,11 @@ export function parseTelemetryFlags(raw: unknown): TelemetryFlags {
 	const { installed, firstScanDone } = raw as Record<string, unknown>;
 	return { installed: installed === true, firstScanDone: firstScanDone === true };
 }
+
+/** What the launch-time state request answers, and the flags to save (null: nothing to save).
+ *  `install` fires exactly once: the launch that finds `installed` false is the one that sets it. */
+export function launchState(flags: TelemetryFlags): { firstLaunch: boolean; write: TelemetryFlags | null } {
+	return flags.installed
+		? { firstLaunch: false, write: null }
+		: { firstLaunch: true, write: { ...flags, installed: true } };
+}

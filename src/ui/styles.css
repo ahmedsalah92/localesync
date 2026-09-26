@@ -110,6 +110,7 @@ i18n-text {
 	--ls-border-selected: var(--figma-color-border-selected);
 	--ls-border-selected-strong: var(--figma-color-border-selected-strong);
 	--ls-border-neutral: var(--figma-color-border-strong);
+	--ls-border-brand: var(--figma-color-border-brand);
 }
 
 /*

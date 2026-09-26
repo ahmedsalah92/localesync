@@ -4,7 +4,7 @@
 // must handle. The one real failure — openExternal throwing — answers `internal`.
 import { waitlistUrl } from '../common/pro';
 import { on, respond, send } from './bridge';
-import { TELEMETRY_KEY, parseTelemetryFlags, type TelemetryFlags } from './telemetry-flags';
+import { TELEMETRY_KEY, launchState, parseTelemetryFlags, type TelemetryFlags } from './telemetry-flags';
 
 async function readFlags(): Promise<TelemetryFlags> {
 	try {
@@ -28,10 +28,11 @@ export function registerTelemetry(): void {
 	on('telemetry-state-request', (msg) => {
 		void (async () => {
 			const flags = await readFlags();
-			if (!flags.installed) await writeFlags({ ...flags, installed: true });
+			const { firstLaunch, write } = launchState(flags);
+			if (write !== null) await writeFlags(write);
 			respond<'telemetry-state-request'>(msg.id, {
 				type: 'telemetry-state',
-				firstLaunch: !flags.installed,
+				firstLaunch,
 				firstScanDone: flags.firstScanDone,
 			});
 		})();

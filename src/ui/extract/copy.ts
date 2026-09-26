@@ -17,7 +17,6 @@ export const LABELS = {
 	scan: 'Scan',
 	jump: 'Jump to node',
 	tryAgain: 'Try Again',
-	footer: 'Report', // LS-13 paid-intent stub — preserved, not a placeholder (LS-9 §1.4)
 } as const;
 
 /**

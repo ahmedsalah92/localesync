@@ -28,6 +28,17 @@ describe('AppliedBanner', () => {
 		expect(html.match(/>Revert</g)).toHaveLength(2);
 	});
 
+	// Reverting mid-edit would race the edit's own apply (LS-34).
+	it("disables a row's Revert while its feature is busy, and only that row's", () => {
+		const html = render({
+			preview: { kind: 'applied', message: 'Preview: German (de)', onRevert: () => {}, busy: true },
+			pseudo: on('Pseudo-loc applied'),
+		});
+		expect(html.match(/<button[^>]*disabled=""[^>]*>Revert</g)).toHaveLength(1);
+		expect(html.match(/>Revert</g)).toHaveLength(2);
+		expect(render({ preview: on('Preview: German (de)') })).not.toContain('disabled');
+	});
+
 	it('renders no Revert for a restored entry', () => {
 		const html = render({ rtl: { kind: 'restored', message: 'Restored your canvas.' } });
 		expect(html).toContain('Restored your canvas.');

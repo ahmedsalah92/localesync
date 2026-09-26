@@ -6,8 +6,8 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
  * compile-time fact instead of a runtime check.
  */
 export type AppliedState =
-	| { kind: 'applied'; message: string; onRevert: () => void }
-	| { kind: 'restored'; message: string };
+	/** `busy` disables this row's Revert while the feature has its own command in flight (LS-34). */
+	{ kind: 'applied'; message: string; onRevert: () => void; busy?: boolean } | { kind: 'restored'; message: string };
 
 /** The features that can hold an applied row (LS-34). Applied state is per feature, not per tab:
  *  it survives tab switches, and one feature's row can never overwrite or clear another's. */
@@ -21,6 +21,12 @@ const EMPTY: AppliedMap = { preview: null, pseudo: null, rtl: null };
 
 export function withApplied(map: AppliedMap, feature: AppliedFeature, next: AppliedState | null): AppliedMap {
 	return { ...map, [feature]: next };
+}
+
+/** The same row with its Revert held (or released) — never creates a row, and a restored row has
+ *  no Revert to hold. */
+export function withBusy(state: AppliedState | null, busy: boolean): AppliedState | null {
+	return state === null || state.kind !== 'applied' ? state : { ...state, busy };
 }
 
 export function bannerRows(map: AppliedMap): { feature: AppliedFeature; state: AppliedState }[] {

@@ -30,6 +30,7 @@ export interface PreviewState {
 
 export type PreviewAction =
 	| { kind: 'languages'; languages: string[] }
+	| { kind: 'loading' }
 	| { kind: 'apply-started'; language: string }
 	| { kind: 'edit-sent' }
 	| { kind: 'result'; language: string; rows: PreviewRow[]; unmatched: string[] }
@@ -70,6 +71,9 @@ export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState 
 				phase: s.phase === 'loading' || (s.phase === 'failed' && s.language === null) ? 'idle' : s.phase,
 				errorCode: s.phase === 'failed' && s.language === null ? null : s.errorCode,
 			};
+		// Try Again on a failed load: the busy band while the state request is in flight (LS-34).
+		case 'loading':
+			return { ...s, phase: 'loading', errorCode: null };
 		case 'apply-started':
 			return {
 				...s,

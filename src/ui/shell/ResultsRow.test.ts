@@ -95,6 +95,12 @@ describe('ResultsRow trailing slot and depth (LS-28 §1.3)', () => {
 		expect(html).toContain('data-editable="true"');
 	});
 
+	it('announces an editable row as a button with its edit label', () => {
+		const html = render({ ...base, onEdit: () => {}, editLabel: 'Edit translation' });
+		expect(html).toContain('role="button"');
+		expect(html).toContain('aria-label="Edit translation"');
+	});
+
 	it('replaces the primary line with the editor when one is given', () => {
 		const html = render({ ...base, editor: createElement('input', { value: 'Hallo', readOnly: true }) });
 		expect(html).toContain('<input');

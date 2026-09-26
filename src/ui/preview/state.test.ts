@@ -149,6 +149,18 @@ describe('loading failure (LS-12 §2.2)', () => {
 		expect(selectShell(retried)).toBe('choose-language');
 	});
 
+	// Try Again on a failed load shows the busy band while the state request is in flight, not the
+	// failure it is retrying (LS-34).
+	it('goes back to loading on a retry, then settles', () => {
+		const failed = run([{ kind: 'failed', code: 'internal' }]);
+		const retrying = run([{ kind: 'loading' }], failed);
+		expect(retrying.phase).toBe('loading');
+		expect(retrying.errorCode).toBeNull();
+		expect(selectShell(retrying)).toBe('busy');
+		expect(selectShell(run([{ kind: 'languages', languages: ['de'] }], retrying))).toBe('choose-language');
+		expect(selectShell(run([{ kind: 'failed', code: 'internal' }], retrying))).toBe('operation-failed');
+	});
+
 	it('keeps a failure that belongs to an apply', () => {
 		// mutation-failed, not no-keys/no-text-nodes (final review fix): those two now clear
 		// `language`, which is exactly what marks "the load itself failing" below — this test is

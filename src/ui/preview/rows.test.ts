@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialPreviewState, previewReducer } from './state';
 import type { PreviewAction, PreviewState } from './state';
-import { previewRows } from './rows';
+import { languageOptions, previewRows } from './rows';
 
 const run = (actions: PreviewAction[]): PreviewState => actions.reduce(previewReducer, initialPreviewState());
 const state = (extra: PreviewAction[] = []) =>
@@ -59,5 +59,17 @@ describe('previewRows', () => {
 			nodeId: '8',
 			primary: 'Unnamed layer',
 		});
+	});
+});
+
+describe('languageOptions (LS-34)', () => {
+	it('lists the placeholder first, then each stored language by label', () => {
+		expect(languageOptions(['de', 'fr-FR'], null).map((o) => o.value)).toEqual(['', 'de', 'fr-FR']);
+		expect(languageOptions(['de'], null)[0]).toMatchObject({ label: 'Choose a language', disabled: false });
+	});
+
+	// "Choose a language" is not a way back: Revert is. Selecting it did nothing, silently.
+	it('disables the placeholder while a language is applied', () => {
+		expect(languageOptions(['de'], 'de')[0]?.disabled).toBe(true);
 	});
 });

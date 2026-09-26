@@ -41,12 +41,13 @@ export function AppliedBanner() {
 						<button
 							type="button"
 							onClick={state.onRevert}
+							disabled={state.busy === true}
 							style={{
 								fontSize: 'var(--ls-text-size)',
 								lineHeight: 'var(--ls-text-line)',
 								letterSpacing: 'var(--ls-text-tracking)',
 								fontWeight: 'var(--ls-text-weight-strong)',
-								color: 'var(--ls-text-brand)',
+								color: state.busy === true ? 'var(--ls-text-tertiary)' : 'var(--ls-text-brand)',
 							}}
 						>
 							Revert

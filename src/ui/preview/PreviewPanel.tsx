@@ -8,12 +8,11 @@ import { ChevronRightIcon } from '../shell/icons/ChevronRightIcon';
 import { ResultsList } from '../shell/ResultsList';
 import { ResultsRow } from '../shell/ResultsRow';
 import { StateView } from '../shell/StateView';
-import { useApplied } from '../shell/applied';
+import { useApplied, withBusy } from '../shell/applied';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { IMPORT, LABELS, STATES, appliedMessage, busyLabel, summaryCount } from './copy';
 import { ImportModal } from './ImportModal';
-import { languageLabel } from './locale';
-import { previewRows } from './rows';
+import { languageOptions, previewRows } from './rows';
 import {
 	commitDecision,
 	initialPreviewState,
@@ -42,7 +41,7 @@ export function PreviewPanel() {
 	const [importError, setImportError] = useState<string | null>(null);
 	// Sent `preview-import`, no progress or error back yet: the modal's primary stays disabled.
 	const [importBusy, setImportBusy] = useState(false);
-	const { setApplied } = useApplied('preview');
+	const { applied, setApplied } = useApplied('preview');
 	// The command in flight — also the correlation id its result/progress/error arrive under.
 	const runId = useRef<string | null>(null);
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for a preview failure.
@@ -66,6 +65,14 @@ export function PreviewPanel() {
 	stateRef.current = state;
 	const setAppliedRef = useRef(setApplied);
 	setAppliedRef.current = setApplied;
+	const appliedRef = useRef(applied);
+	appliedRef.current = applied;
+	// Holds (or releases) the banner's Revert while an edit or apply is in flight (LS-34); a Revert
+	// racing them would restore under a command still writing. Never creates a banner row.
+	const setBannerBusy = useCallback((busy: boolean) => {
+		const current = appliedRef.current;
+		if (current !== null) setAppliedRef.current(withBusy(current, busy));
+	}, []);
 
 	// `fatal` only for the mount load and its retry: a failed refresh after an import must not
 	// replace a live preview with "Couldn't complete … your canvas was restored".
@@ -79,14 +86,18 @@ export function PreviewPanel() {
 		);
 	}, []);
 
-	const apply = useCallback((language: string) => {
-		pending.current = 'apply';
-		blocked.current = [];
-		languageRef.current = language;
-		lastAttempted.current = language;
-		runId.current = send<ApplyPreview>({ type: 'apply-preview', language });
-		dispatch({ kind: 'apply-started', language });
-	}, []);
+	const apply = useCallback(
+		(language: string) => {
+			pending.current = 'apply';
+			blocked.current = [];
+			languageRef.current = language;
+			lastAttempted.current = language;
+			runId.current = send<ApplyPreview>({ type: 'apply-preview', language });
+			dispatch({ kind: 'apply-started', language });
+			setBannerBusy(true);
+		},
+		[setBannerBusy],
+	);
 
 	const revert = useCallback(() => {
 		pending.current = 'revert';
@@ -174,13 +185,14 @@ export function PreviewPanel() {
 			dispatch({ kind: 'failed', code: msg.code });
 			// A failed edit save changes nothing, so the preview — and its banner — are still there.
 			if (msg.code !== 'storage-failed') setAppliedRef.current(null);
+			else setBannerBusy(false);
 		});
 		return () => {
 			offResult();
 			offProgress();
 			offError();
 		};
-	}, [refreshLanguages, apply]);
+	}, [refreshLanguages, apply, setBannerBusy]);
 
 	const onImport = useCallback((maps: PreviewMap[]) => {
 		setImportError(null);
@@ -206,7 +218,8 @@ export function PreviewPanel() {
 		blocked.current = [];
 		runId.current = send<PreviewEdit>({ type: 'preview-edit', language, key: decision.key, value: decision.value });
 		dispatch({ kind: 'edit-sent' });
-	}, []);
+		setBannerBusy(true);
+	}, [setBannerBusy]);
 
 	// One editor at a time: starting a second commits the first (D6). Starting the open one again —
 	// a double-click inside its own field — is nothing.
@@ -227,10 +240,6 @@ export function PreviewPanel() {
 	const shell = selectShell(state);
 	const busy = isBusy(state.phase);
 	const rows = previewRows(state);
-	const languageOptions = [
-		{ value: '', label: LABELS.chooseLanguage },
-		...state.languages.map((code) => ({ value: code, label: languageLabel(code) })),
-	];
 
 	return (
 		<>
@@ -241,7 +250,7 @@ export function PreviewPanel() {
 						prefixLabel={false}
 						ariaLabel={LABELS.language}
 						value={state.language ?? ''}
-						options={languageOptions}
+						options={languageOptions(state.languages, state.language)}
 						// Also held while an import saves: an apply racing it could read the old map.
 						disabled={busy || importBusy}
 						fill
@@ -316,7 +325,11 @@ export function PreviewPanel() {
 	function renderState(): ReactNode {
 		const retry = () => {
 			if (state.language !== null) apply(state.language);
-			else refreshLanguages(true);
+			else {
+				// The busy band while the state request is in flight, not the failure it retries.
+				dispatch({ kind: 'loading' });
+				refreshLanguages(true);
+			}
 		};
 		// Final review fix: a no-text-nodes/no-keys failure clears `state.language` itself (nothing
 		// was previewed), so `retry` above can't re-apply from it — this reads the language the user
@@ -389,6 +402,7 @@ export function PreviewPanel() {
 							onJump={() => onJump(model.nodeId)}
 							jumpLabel={LABELS.jump}
 							onEdit={() => startEdit(model.nodeId, model.primary)}
+							editLabel={LABELS.edit}
 							editor={model.editing ? renderEditor(model.key) : undefined}
 						/>
 					);

@@ -9,6 +9,7 @@ export const LABELS = {
 	import: 'Import',
 	tryAgain: 'Try Again',
 	jump: 'Jump to node',
+	edit: 'Edit translation',
 } as const;
 
 /** The Import modal (574:1411, LS-12 §2.1). The Language field is a design addition (§4). */

@@ -1,7 +1,17 @@
 // src/ui/preview/rows.ts — the Preview state as the flat list of rows the panel renders (LS-12 §2.4).
 // Pure, apart from the panel, for the same reason as src/ui/rtl/rows.ts.
+import type { DropdownOption } from '../shell/primitives/Dropdown';
 import type { RowTone } from '../shell/ResultsRow';
-import { EDITING_VERDICT, SKIPPED_REASON, UNNAMED_LAYER, fallbackVerdict, skippedGroup, unmatchedGroup } from './copy';
+import { languageLabel } from './locale';
+import {
+	EDITING_VERDICT,
+	LABELS,
+	SKIPPED_REASON,
+	UNNAMED_LAYER,
+	fallbackVerdict,
+	skippedGroup,
+	unmatchedGroup,
+} from './copy';
 import { SKIPPED_ORDER, type GroupKey, type PreviewState } from './state';
 
 export type PreviewRowModel =
@@ -82,4 +92,16 @@ export function previewRows(s: PreviewState): PreviewRowModel[] {
 				});
 	}
 	return out;
+}
+
+/**
+ * The Language dropdown's options: the placeholder, then every stored language. The placeholder is
+ * disabled while a language is applied (LS-34) — Revert is the way back, and picking "Choose a
+ * language" did nothing.
+ */
+export function languageOptions(languages: readonly string[], applied: string | null): DropdownOption[] {
+	return [
+		{ value: '', label: LABELS.chooseLanguage, disabled: applied !== null },
+		...languages.map((code) => ({ value: code, label: languageLabel(code) })),
+	];
 }

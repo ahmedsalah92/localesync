@@ -72,6 +72,8 @@ export function ResultsRow(
 		editor?: ReactNode;
 		/** Double-click, or Enter on the focused row, starts an edit (LS-12 D6). Never on a disclosure row. */
 		onEdit?: () => void;
+		/** Accessible name of an editable row (`onEdit`), which is announced as a button. */
+		editLabel?: string;
 	} & RowTrailing,
 ) {
 	const tokens = toneToken(props.tone);
@@ -97,6 +99,8 @@ export function ResultsRow(
 		onEdit === undefined
 			? {}
 			: {
+					role: 'button',
+					'aria-label': props.editLabel,
 					tabIndex: 0,
 					'data-editable': 'true',
 					onDoubleClick: onEdit,

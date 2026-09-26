@@ -1,6 +1,14 @@
 // src/ui/telemetry.test.ts — the activation emitter (LS-13 §1.4). Pure; no bridge.
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { expansionOf, firstScanAction, markFirstScan, setFirstScanDone, track, type TelemetryEvent } from './telemetry';
+import {
+	claimLaunch,
+	expansionOf,
+	firstScanAction,
+	markFirstScan,
+	setFirstScanDone,
+	track,
+	type TelemetryEvent,
+} from './telemetry';
 
 describe('track', () => {
 	it('hands the event to the sink exactly once', () => {
@@ -54,5 +62,14 @@ describe('expansionOf — the pseudoloc_applied property stays a closed literal'
 
 	it.each([0, 35, 100, -30])('drops %i rather than inventing a bucket', (pct) => {
 		expect(expansionOf(pct)).toBeNull();
+	});
+});
+
+// LS-13 final review: StrictMode runs the shell's mount effect twice in dev, and two state requests
+// racing on a fresh store both answered firstLaunch — install logged twice.
+describe('claimLaunch — one launch request per iframe', () => {
+	it('is true once, then false', () => {
+		expect(claimLaunch()).toBe(true);
+		expect(claimLaunch()).toBe(false);
 	});
 });

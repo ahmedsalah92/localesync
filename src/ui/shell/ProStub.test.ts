@@ -33,6 +33,12 @@ describe('ProStub', () => {
 		},
 	);
 
+	// LS-13 final review: inside a row flex band the Tooltip's inline-flex span shrank to its content,
+	// so the button's 100% width, space-between and top border covered only the label.
+	it('stretches the tooltip anchor across the band', () => {
+		expect(render('matrix')).toMatch(/<span style="[^"]*flex:1/);
+	});
+
 	it('binds colour through tokens only', () => {
 		expect(render('sync')).not.toMatch(/#[0-9a-f]{3,6}\b/i);
 	});

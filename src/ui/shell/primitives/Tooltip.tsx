@@ -8,12 +8,20 @@ import { useState, type ReactNode } from 'react';
  * those happens to match the canvas values exactly, so no new token was needed for them.
  * `wide` opts sentence-length labels into wrapping without changing the compact icon tooltip.
  */
-export function Tooltip(props: { label: string; children: ReactNode; wide?: boolean }) {
+export function Tooltip(props: {
+	label: string;
+	children: ReactNode;
+	wide?: boolean;
+	/** `top` for an anchor at the bottom edge of the window, e.g. a footer band (LS-13). */
+	placement?: 'top' | 'bottom';
+	/** Stretch the anchor across a row flex parent instead of shrinking to its content (LS-13). */
+	fill?: boolean;
+}) {
 	const [visible, setVisible] = useState(false);
 
 	return (
 		<span
-			style={{ position: 'relative', display: 'inline-flex' }}
+			style={{ position: 'relative', display: 'inline-flex', ...(props.fill ? { flex: 1 } : {}) }}
 			onMouseEnter={() => setVisible(true)}
 			onMouseLeave={() => setVisible(false)}
 			onFocus={() => setVisible(true)}
@@ -26,8 +34,7 @@ export function Tooltip(props: { label: string; children: ReactNode; wide?: bool
 					style={{
 						position: 'absolute',
 						right: '0%',
-						top: '100%',
-						marginTop: 'var(--spacer-1)',
+						...tooltipPlacement(props.placement ?? 'bottom'),
 						padding: `var(--spacer-1) var(--spacer-2)`,
 						borderRadius: 'var(--radius-medium)',
 						backgroundColor: 'var(--ls-bg-tooltip)',
@@ -53,4 +60,11 @@ export function Tooltip(props: { label: string; children: ReactNode; wide?: bool
 			) : null}
 		</span>
 	);
+}
+
+/** Where the tooltip sits relative to its anchor. Pure, for the test. */
+export function tooltipPlacement(placement: 'top' | 'bottom') {
+	return placement === 'top'
+		? { bottom: '100%', marginBottom: 'var(--spacer-1)' }
+		: { top: '100%', marginTop: 'var(--spacer-1)' };
 }

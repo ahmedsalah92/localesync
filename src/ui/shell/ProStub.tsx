@@ -28,7 +28,7 @@ export function ProStub(props: { pillar: ProPillar; onOpen?: (pillar: ProPillar)
 
 	return (
 		<div style={{ height: BAND_HEIGHT, flexShrink: 0, display: 'flex' }}>
-			<Tooltip label={PRO_TOOLTIP} wide>
+			<Tooltip label={PRO_TOOLTIP} wide placement="top" fill>
 				<button
 					type="button"
 					aria-label={`${label} — ${PRO_TOOLTIP}`}

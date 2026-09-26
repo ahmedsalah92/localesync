@@ -4,13 +4,15 @@
 // must handle. The one real failure — openExternal throwing — answers `internal`.
 import { waitlistUrl } from '../common/pro';
 import { on, respond, send } from './bridge';
-import { TELEMETRY_KEY, launchState, parseTelemetryFlags, type TelemetryFlags } from './telemetry-flags';
+import { TELEMETRY_KEY, launchState, markState, parseTelemetryFlags, type TelemetryFlags } from './telemetry-flags';
 
-async function readFlags(): Promise<TelemetryFlags> {
+/** Null when the store cannot be read — distinct from "nothing stored", which parses as a fresh
+ *  user. Treating a failed read as fresh would overwrite the real flags (LS-13 final review). */
+async function readFlags(): Promise<TelemetryFlags | null> {
 	try {
 		return parseTelemetryFlags(await figma.clientStorage.getAsync(TELEMETRY_KEY));
 	} catch {
-		return { installed: false, firstScanDone: false };
+		return null;
 	}
 }
 
@@ -27,21 +29,20 @@ async function writeFlags(flags: TelemetryFlags): Promise<void> {
 export function registerTelemetry(): void {
 	on('telemetry-state-request', (msg) => {
 		void (async () => {
-			const flags = await readFlags();
-			const { firstLaunch, write } = launchState(flags);
+			const { firstLaunch, firstScanDone, write } = launchState(await readFlags());
 			if (write !== null) await writeFlags(write);
 			respond<'telemetry-state-request'>(msg.id, {
 				type: 'telemetry-state',
 				firstLaunch,
-				firstScanDone: flags.firstScanDone,
+				firstScanDone,
 			});
 		})();
 	});
 
 	on('telemetry-mark', (msg) => {
 		void (async () => {
-			const flags = await readFlags();
-			await writeFlags({ ...flags, firstScanDone: true });
+			const write = markState(await readFlags());
+			if (write !== null) await writeFlags(write);
 			send({ type: 'progress', id: msg.id, completed: 1, total: 1 });
 		})();
 	});

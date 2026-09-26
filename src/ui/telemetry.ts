@@ -24,6 +24,16 @@ export function track(event: TelemetryEvent, sink: Sink = SINK): void {
 	sink(event);
 }
 
+let launched = false;
+
+/** True once per iframe. The shell's mount effect runs twice under dev StrictMode, and two state
+ *  requests racing on a fresh store would both answer firstLaunch (LS-13 final review). */
+export function claimLaunch(): boolean {
+	if (launched) return false;
+	launched = true;
+	return true;
+}
+
 // Until the launch-time state answers, assume done: never a false first_scan.
 let firstScanDone = true;
 

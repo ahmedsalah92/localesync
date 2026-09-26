@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { request } from '../bridge';
-import { setFirstScanDone, track } from '../telemetry';
+import { claimLaunch, setFirstScanDone, track } from '../telemetry';
 import { AppliedBanner } from './AppliedBanner';
 import { AppliedProvider } from './applied';
 import { DevHarness } from '../devtools/DevHarness';
@@ -16,6 +16,7 @@ function ShellBody(props: { panels: readonly PanelDef[]; initialPanel?: PanelId 
 	// LS-13 §2.4: once per launch — the shell and every panel mount once (LS-34). Best-effort: a
 	// failure leaves first_scan suppressed and never blocks the plugin.
 	useEffect(() => {
+		if (!claimLaunch()) return;
 		request('telemetry-state-request', {}).then(
 			(state) => {
 				setFirstScanDone(state.firstScanDone);

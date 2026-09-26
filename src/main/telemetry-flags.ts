@@ -13,10 +13,23 @@ export function parseTelemetryFlags(raw: unknown): TelemetryFlags {
 	return { installed: installed === true, firstScanDone: firstScanDone === true };
 }
 
-/** What the launch-time state request answers, and the flags to save (null: nothing to save).
- *  `install` fires exactly once: the launch that finds `installed` false is the one that sets it. */
-export function launchState(flags: TelemetryFlags): { firstLaunch: boolean; write: TelemetryFlags | null } {
-	return flags.installed
-		? { firstLaunch: false, write: null }
-		: { firstLaunch: true, write: { ...flags, installed: true } };
+/**
+ * What the launch-time state request answers, and the flags to save (null: nothing to save).
+ * `install` fires exactly once: the launch that finds `installed` false is the one that sets it.
+ * `null` flags mean the store could not be read: answer "not first, already scanned" and write
+ * nothing, so an unreadable store suppresses both events rather than resetting them (LS-13 review).
+ */
+export function launchState(flags: TelemetryFlags | null): {
+	firstLaunch: boolean;
+	firstScanDone: boolean;
+	write: TelemetryFlags | null;
+} {
+	if (flags === null) return { firstLaunch: false, firstScanDone: true, write: null };
+	if (flags.installed) return { firstLaunch: false, firstScanDone: flags.firstScanDone, write: null };
+	return { firstLaunch: true, firstScanDone: flags.firstScanDone, write: { ...flags, installed: true } };
+}
+
+/** The flags `telemetry-mark` saves — only over flags it could read (null: write nothing). */
+export function markState(flags: TelemetryFlags | null): TelemetryFlags | null {
+	return flags === null ? null : { ...flags, firstScanDone: true };
 }

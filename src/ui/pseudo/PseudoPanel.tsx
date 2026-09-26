@@ -10,6 +10,7 @@ import { StateView, type ShellState } from '../shell/StateView';
 import { useApplied } from '../shell/applied';
 import { Button } from '../shell/primitives/Button';
 import { Dropdown } from '../shell/primitives/Dropdown';
+import { watchApply } from './watchApply';
 import { ACCENTS, EXPANSIONS, LABELS, MARKERS, STATES, appliedMessage, fontsUnavailable } from './copy';
 import {
 	clearsBanner,
@@ -96,14 +97,9 @@ export function PseudoPanel() {
 				runId.current = id;
 				pendingOp.current = 'apply';
 
-				const blocked: typeof result.blocked = [];
-				const offWarning = on('error', (msg) => {
-					if (msg.id === id && msg.severity === 'warning' && msg.blocked) blocked.push(...msg.blocked);
-				});
-				const offDone = on('progress', (msg) => {
-					if (msg.id !== id) return;
-					offWarning();
-					offDone();
+				// This apply's own listeners: removed on its terminal progress AND on its hard error
+				// (LS-34), which the shared listener above still handles.
+				watchApply({ onError: (h) => on('error', h), onProgress: (h) => on('progress', h) }, id, (blocked) => {
 					dispatch({ kind: 'applied', entries: result.entries, blocked });
 					setApplied({
 						kind: 'applied',

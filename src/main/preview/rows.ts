@@ -49,3 +49,18 @@ export function withoutBlocked(rows: readonly PreviewRow[], blocked: readonly Bl
 	const skipped = new Set(blocked.map((entry) => entry.nodeId));
 	return rows.filter((row) => !skipped.has(row.nodeId));
 }
+
+/**
+ * Owners Preview may write, and owners another feature has already changed (LS-34). Called after
+ * Preview's own restore, so any snapshot still owned by the layer is Pseudo-loc's or RTL's: that
+ * layer's text is theirs, not the source, so it is reported as skipped rather than shown as a row.
+ */
+export function partitionOwners(
+	owners: readonly Owner[],
+	foreignIds: ReadonlySet<string>,
+): { mine: Owner[]; foreign: Owner[] } {
+	return {
+		mine: owners.filter((owner) => !foreignIds.has(owner.nodeId)),
+		foreign: owners.filter((owner) => foreignIds.has(owner.nodeId)),
+	};
+}

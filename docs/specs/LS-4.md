@@ -232,6 +232,13 @@ This is read-only reporting. Eligibility, capture, mutation and restore are unch
 `restoreIds` produces no `BlockedNode`. The field is optional, so older producers and fixtures stay
 valid. Rationale: `docs/specs/LS-28.md` §1.2.
 
+**Amendment (LS-34, 2026-09-26): read-only snapshot ownership.** `plan.ts` gains the pure
+`ownerOp(raw, nodeId)`, and `index.ts` exports `snapshotOp(node)`. Together they return the op of a
+node's own snapshot. An instance's inherited copy, whose recorded `nodeId` is its main component's
+(LS-11 §2.11), and a corrupt payload both read as `null`. The helpers only read: capture, mutation,
+restore and the manifest are unchanged. Preview uses them so that its edits never touch another
+feature's snapshot.
+
 ## 3. Concrete Acceptance
 
 ### Fixture — `fixtures/snapshot-restore.fig` (FIX-1)

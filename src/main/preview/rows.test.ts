@@ -1,6 +1,6 @@
 // src/main/preview/rows.test.ts — pure unit tests (no `figma`).
 import { describe, expect, it } from 'vitest';
-import { ownersOf, planPreview, unmatchedKeys, withoutBlocked } from './rows';
+import { ownersOf, planPreview, unmatchedKeys, withoutBlocked, partitionOwners } from './rows';
 
 const stamp = (k: string, n: string) => ({ k, n, s: 'dot' as const, t: 1 });
 
@@ -69,5 +69,26 @@ describe('planPreview — own-property lookup (final review fix)', () => {
 			targets: [{ nodeId: '1', value: 'Wert' }],
 			rows: [{ nodeId: '1', key: 'toString', source: 'Source', value: 'Wert' }],
 		});
+	});
+});
+
+// LS-34: a key-owning layer that still carries ANOTHER feature's snapshot after Preview's own
+// restore is reported as skipped (already-mutated), never as a row — its text is that feature's,
+// not the source.
+describe('partitionOwners', () => {
+	const all = [
+		{ nodeId: '1', key: 'a', source: 'A' },
+		{ nodeId: '2', key: 'b', source: 'B~pseudo~' },
+		{ nodeId: '3', key: 'c', source: 'C' },
+	];
+
+	it('splits off owners whose layer another feature has changed, keeping document order', () => {
+		const { mine, foreign } = partitionOwners(all, new Set(['2']));
+		expect(mine.map((o) => o.nodeId)).toEqual(['1', '3']);
+		expect(foreign.map((o) => o.nodeId)).toEqual(['2']);
+	});
+
+	it('keeps everything when no layer is foreign', () => {
+		expect(partitionOwners(all, new Set()).foreign).toEqual([]);
 	});
 });

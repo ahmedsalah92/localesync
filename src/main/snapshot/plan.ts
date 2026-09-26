@@ -178,3 +178,27 @@ export function planRestore(snapshot: NodeSnapshot, opts: { inInstance?: boolean
 		? planLayoutRestore(snapshot as LayoutSnapshot)
 		: planTextRestore(snapshot as TextNodeSnapshot, opts);
 }
+
+const OPS: readonly MutationOp[] = ['pseudoloc', 'rtl-mirror', 'preview'];
+
+/**
+ * The op that owns the snapshot stored on node `nodeId`, or null. Pure; read-only (LS-34).
+ *
+ * A snapshot belongs to a node only when its recorded `nodeId` is that node's own: an instance
+ * inherits a verbatim copy of its main component's plugin data, main component's nodeId included (LS-11
+ * §2.11), and that copy says nothing about the instance. Absent, corrupt or unknown-op payloads read
+ * as null — this is advisory ownership, never a reason to throw.
+ */
+export function ownerOp(raw: string, nodeId: string): MutationOp | null {
+	if (raw === '') return null;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return null;
+	}
+	if (typeof parsed !== 'object' || parsed === null) return null;
+	const { op, nodeId: owner } = parsed as { op?: unknown; nodeId?: unknown };
+	if (owner !== nodeId) return null;
+	return OPS.includes(op as MutationOp) ? (op as MutationOp) : null;
+}

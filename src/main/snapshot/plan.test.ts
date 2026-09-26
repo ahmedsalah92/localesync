@@ -9,6 +9,7 @@ import {
 	mutationBlockReason,
 	planLayoutRestore,
 	planRestore,
+	ownerOp,
 	removeFromManifest,
 	serializeSnapshot,
 } from './plan';
@@ -381,5 +382,24 @@ describe('planRestore dispatch and backward compatibility', () => {
 	it('round-trips a layout snapshot through serialize/deserialize', () => {
 		const snapshot = layoutSnapshot({ childOrder: ['a', 'b'], paddingLeft: 3, paddingRight: 9 });
 		expect(deserializeSnapshot(serializeSnapshot(snapshot))).toEqual(snapshot);
+	});
+});
+
+// LS-34: which op owns the snapshot on THIS node. Instances inherit a copy of their main
+// component's plugin data, carrying the main component's nodeId (LS-11 §2.11) — that copy is not
+// this node's snapshot and must read as null.
+describe('ownerOp — the op of a node’s own snapshot', () => {
+	const snap = (op: string, nodeId: string) => JSON.stringify({ schemaVersion: 1, nodeId, op, characters: 'x' });
+
+	it.each(['preview', 'pseudoloc', 'rtl-mirror'])('returns %s for the node’s own snapshot', (op) => {
+		expect(ownerOp(snap(op, '1:2'), '1:2')).toBe(op);
+	});
+
+	it('ignores a copy inherited from another node', () => {
+		expect(ownerOp(snap('preview', '9:9'), '1:2')).toBeNull();
+	});
+
+	it.each(['', 'not json', '{"nodeId":"1:2"}', '{"nodeId":"1:2","op":"bogus"}'])('reads %j as no owner', (raw) => {
+		expect(ownerOp(raw, '1:2')).toBeNull();
 	});
 });

@@ -19,6 +19,7 @@ import {
 	isRecognizedSchema,
 	mergeManifest,
 	mutationBlockReason,
+	ownerOp,
 	planRestore,
 	removeFromManifest,
 	serializeSnapshot,
@@ -198,6 +199,12 @@ function captureSnapshot(node: SceneNode, op: MutationOp, capturedAt: number): N
 	return node.type === 'TEXT'
 		? captureTextSnapshot(node, op, capturedAt)
 		: captureLayoutSnapshot(node, op, capturedAt);
+}
+
+/** The op that owns THIS node's snapshot, or null — inherited instance copies and corrupt payloads
+ *  read as null (./plan `ownerOp`). Read-only; never captures, mutates or restores (LS-34). */
+export function snapshotOp(node: SceneNode): MutationOp | null {
+	return ownerOp(node.getPluginData(SNAPSHOT_KEY), node.id);
 }
 
 function readSnapshot(node: SceneNode): NodeSnapshot | null {

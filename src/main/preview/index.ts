@@ -8,10 +8,10 @@ import type { ErrorCode } from '../../common/messages';
 import type { BlockedNode, PreviewRow } from '../../common/models';
 import { on, respond, send } from '../bridge';
 import { readStoredKey } from '../extract/persist';
-import { SNAPSHOT_KEY, ensureFontsLoaded, restoreByOp, restoreNode, withSnapshot, type BatchResult } from '../snapshot';
+import { ensureFontsLoaded, restoreByOp, restoreNode, snapshotOp, withSnapshot, type BatchResult } from '../snapshot';
 import { collectTextNodes } from '../traversal';
 import { loadStore, saveStore } from './persist';
-import { ownersOf, planPreview, unmatchedKeys, withoutBlocked, type Owner } from './rows';
+import { ownersOf, partitionOwners, planPreview, unmatchedKeys, withoutBlocked, type Owner } from './rows';
 import { applyEdit, languagesOf, mergeImport, translationsFor } from './store';
 
 const OP = 'preview' as const;
@@ -53,7 +53,20 @@ export async function applyPreview(language: string): Promise<PreviewOutcome> {
 	);
 	if (owners.length === 0) return { kind: 'error', code: 'no-keys', message: 'No extracted strings on this page.' };
 
-	const { targets } = planPreview(owners, translationsFor(await loadStore(), language));
+	// After Preview's own restore, a layer still owning a snapshot belongs to Pseudo-loc or RTL: its
+	// text is theirs, not the source, so it is reported as skipped, never shown or written (LS-34).
+	const byId = new Map(nodes.map((node) => [node.id, node]));
+	const { mine, foreign } = partitionOwners(
+		owners,
+		new Set(owners.filter((owner) => snapshotOp(byId.get(owner.nodeId) as TextNode) !== null).map((o) => o.nodeId)),
+	);
+	const foreignBlocked: BlockedNode[] = foreign.map((owner) => ({
+		nodeId: owner.nodeId,
+		reason: 'already-mutated',
+		name: byId.get(owner.nodeId)?.name,
+	}));
+
+	const { targets } = planPreview(mine, translationsFor(await loadStore(), language));
 	const values = new Map(targets.map((target) => [target.nodeId, target.value]));
 	const batch = await withSnapshot(
 		nodes.filter((node) => values.has(node.id)),
@@ -66,7 +79,7 @@ export async function applyPreview(language: string): Promise<PreviewOutcome> {
 	if (batch.failed.length > 0) {
 		return { kind: 'error', code: 'mutation-failed', message: 'The preview failed and the canvas was restored.' };
 	}
-	session = { language, owners, mutated: new Set(batch.succeeded), blocked: batch.blocked };
+	session = { language, owners, mutated: new Set(batch.succeeded), blocked: [...foreignBlocked, ...batch.blocked] };
 	return outcomeFor(session);
 }
 
@@ -88,6 +101,11 @@ export async function reapplyEdit(
 
 	const empty = value === null || value === '';
 	if (empty) {
+		// Only restore a snapshot that is Preview's own. After a Cmd-Z of the apply, another feature may
+		// have mutated this layer since; restoring would tear down ITS snapshot (LS-34).
+		const current = await figma.getNodeByIdAsync(owner.nodeId);
+		const ours = current !== null && current.type === 'TEXT' && snapshotOp(current) === 'preview';
+		if (s.mutated.has(owner.nodeId) && !ours) s.mutated.delete(owner.nodeId);
 		if (s.mutated.has(owner.nodeId)) {
 			const result = await restoreNode(owner.nodeId);
 			// NODE_GONE (deleted) and "no durable snapshot" (reason undefined — already effectively
@@ -112,7 +130,7 @@ export async function reapplyEdit(
 	// about it, and a direct write onto that would overwrite the real source with no way back
 	// (Review Focus 2). When the snapshot is gone, fall through to `withSnapshot`, whose
 	// `already-mutated` eligibility gate recomputes fresh off the live node and is the real safety net.
-	const canDirectWrite = s.mutated.has(owner.nodeId) && node.getPluginData(SNAPSHOT_KEY) !== '';
+	const canDirectWrite = s.mutated.has(owner.nodeId) && snapshotOp(node) === 'preview';
 	if (canDirectWrite) {
 		try {
 			await ensureFontsLoaded(node);

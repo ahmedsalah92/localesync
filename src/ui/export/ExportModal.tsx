@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import type { ExtractedString } from '../../common/models';
 import { CloseIcon } from '../shell/icons/CloseIcon';
+import { ModalNotice } from '../shell/ModalNotice';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { Switch } from '../shell/primitives/Switch';
+import { useModalFocus } from '../shell/useModalFocus';
 import { FORMATS, LABELS, omittedNotice, remappedNotice } from './copy';
 import { downloadExport, serialize } from './index';
 import type { ExportFormat } from './types';
@@ -28,6 +30,7 @@ export function ExportModal(props: { entries: readonly ExtractedString[]; onClos
 	// Set by the last download, so the two rare not-verbatim outcomes are surfaced rather than
 	// silently swallowed (§2.1.2, §2.2.13). Cleared whenever the options change.
 	const [notices, setNotices] = useState<string[]>([]);
+	const focus = useModalFocus(props.onClose);
 
 	function onDownload() {
 		const result = serialize(props.entries, { format, dedup });
@@ -56,9 +59,11 @@ export function ExportModal(props: { entries: readonly ExtractedString[]; onClos
 			onClick={props.onClose}
 		>
 			<div
+				ref={focus.ref}
 				role="dialog"
 				aria-modal="true"
 				aria-label={LABELS.title}
+				onKeyDown={focus.onKeyDown}
 				// The overlay closes on click; the modal must not close when its own body is clicked.
 				onClick={(event) => event.stopPropagation()}
 				style={{
@@ -185,9 +190,9 @@ export function ExportModal(props: { entries: readonly ExtractedString[]; onClos
 					{notices.length > 0 ? (
 						<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacer-1)' }}>
 							{notices.map((notice) => (
-								<span key={notice} style={{ ...supportText, color: 'var(--ls-text-warning)' }}>
+								<ModalNotice key={notice} tone="warning">
 									{notice}
-								</span>
+								</ModalNotice>
 							))}
 						</div>
 					) : null}

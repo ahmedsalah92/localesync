@@ -35,4 +35,15 @@ describe('ImportModal', () => {
 	it('starts with Import disabled — nothing chosen yet', () => {
 		expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Import<\/button>/);
 	});
+
+	it('announces the panel error line politely', async () => {
+		const [{ renderToStaticMarkup }, { ImportModal }] = await Promise.all([
+			import('react-dom/server'),
+			import('./ImportModal'),
+		]);
+		const html = renderToStaticMarkup(
+			createElement(ImportModal, { languages: [], onClose: () => {}, onImport: () => {}, error: 'Nope' }),
+		);
+		expect(html).toMatch(/<span[^>]*aria-live="polite"[^>]*>Nope<\/span>/);
+	});
 });

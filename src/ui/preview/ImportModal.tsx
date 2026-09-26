@@ -1,6 +1,8 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import type { PreviewMap } from '../../common/models';
 import { CloseIcon } from '../shell/icons/CloseIcon';
+import { ModalNotice } from '../shell/ModalNotice';
+import { useModalFocus } from '../shell/useModalFocus';
 import { IMPORT, replaceNotice } from './copy';
 import { canonicalLocale } from './locale';
 import { isParseError, parseCsvTranslations, parseJsonTranslations, type ParseError } from './parse';
@@ -32,6 +34,7 @@ export function ImportModal(props: {
 	const inputRef = useRef<HTMLInputElement>(null);
 	// The maps the confirm is about, so Replace sends exactly what was confirmed.
 	const pending = useRef<PreviewMap[] | null>(null);
+	const focus = useModalFocus(props.onClose);
 
 	const kind =
 		file === null ? null : /\.json$/i.test(file.name) ? 'json' : /\.csv$/i.test(file.name) ? 'csv' : 'other';
@@ -104,9 +107,11 @@ export function ImportModal(props: {
 			onClick={props.onClose}
 		>
 			<div
+				ref={focus.ref}
 				role="dialog"
 				aria-modal="true"
 				aria-label={IMPORT.title}
+				onKeyDown={focus.onKeyDown}
 				// The overlay closes on click; the modal must not close when its own body is clicked.
 				onClick={(event) => event.stopPropagation()}
 				style={{
@@ -216,22 +221,14 @@ export function ImportModal(props: {
 								}}
 								style={{ ...textInput, color: 'var(--ls-text-default)' }}
 							/>
-							{languageInvalid ? (
-								<span style={{ ...supportText, color: 'var(--ls-text-danger)' }}>
-									{IMPORT.invalidLanguage}
-								</span>
-							) : null}
+							{languageInvalid ? <ModalNotice tone="danger">{IMPORT.invalidLanguage}</ModalNotice> : null}
 						</div>
 					) : null}
 
-					{error !== null ? (
-						<span style={{ ...supportText, color: 'var(--ls-text-danger)' }}>{error}</span>
-					) : null}
+					{error !== null ? <ModalNotice tone="danger">{error}</ModalNotice> : null}
 
 					{confirmReplace !== null ? (
-						<span style={{ ...supportText, color: 'var(--ls-text-warning)' }}>
-							{replaceNotice(confirmReplace)}
-						</span>
+						<ModalNotice tone="warning">{replaceNotice(confirmReplace)}</ModalNotice>
 					) : null}
 				</div>
 

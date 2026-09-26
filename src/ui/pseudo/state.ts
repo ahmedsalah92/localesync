@@ -115,3 +115,16 @@ export function isBusy(phase: PseudoPhase): boolean {
 export function missingFontCount(blocked: readonly BlockedNode[]): number {
 	return blocked.filter((entry) => entry.reason === 'missing-font').length;
 }
+
+/** The command the panel is waiting on. Held in a ref by the panel, never in React state. */
+export type PseudoOp = 'apply' | 'revert' | null;
+
+/**
+ * Whether a terminal `progress` clears the Pseudo-loc banner row (LS-34). The panel's always-on
+ * listener sees the apply's terminal progress as well as a revert's, because `runId` holds whichever
+ * command was sent last — so only a completed REVERT may clear it, or every apply would blank its own
+ * row the moment it landed.
+ */
+export function clearsBanner(op: PseudoOp): boolean {
+	return op === 'revert';
+}

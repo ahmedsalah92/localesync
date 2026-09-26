@@ -11,7 +11,15 @@ import { useApplied } from '../shell/applied';
 import { Button } from '../shell/primitives/Button';
 import { Dropdown } from '../shell/primitives/Dropdown';
 import { ACCENTS, EXPANSIONS, LABELS, MARKERS, STATES, appliedMessage, fontsUnavailable } from './copy';
-import { initialPseudoState, isBusy, missingFontCount, pseudoReducer, type PseudoState } from './state';
+import {
+	clearsBanner,
+	initialPseudoState,
+	isBusy,
+	missingFontCount,
+	pseudoReducer,
+	type PseudoOp,
+	type PseudoState,
+} from './state';
 
 /**
  * The Pseudo-loc tab: apply a padded/accented/bracketed transform to the canvas and revert it
@@ -33,9 +41,14 @@ export function PseudoPanel() {
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for an apply failure.
 	const jumpId = useRef<string | null>(null);
 
+	// Which command `runId` belongs to, so the always-on listener below can tell a revert's terminal
+	// progress from an apply's (LS-34).
+	const pendingOp = useRef<PseudoOp>(null);
+
 	const onRevert = useCallback(() => {
 		const id = send<RevertPseudoLoc>({ type: 'revert-pseudoloc' });
 		runId.current = id;
+		pendingOp.current = 'revert';
 		dispatch({ kind: 'revert-started' });
 	}, []);
 
@@ -46,6 +59,9 @@ export function PseudoPanel() {
 		const offProgress = on('progress', (msg) => {
 			if (msg.id !== runId.current) return;
 			dispatch({ kind: 'reverted' });
+			// A successful revert clears this feature's banner row; an apply's own progress must not.
+			if (clearsBanner(pendingOp.current)) setApplied(null);
+			pendingOp.current = null;
 		});
 		const offError = on('error', (msg) => {
 			if (msg.id === jumpId.current) return; // a failed jump is not an apply failure
@@ -78,6 +94,7 @@ export function PseudoPanel() {
 					options: state.options,
 				});
 				runId.current = id;
+				pendingOp.current = 'apply';
 
 				const blocked: typeof result.blocked = [];
 				const offWarning = on('error', (msg) => {

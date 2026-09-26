@@ -8,6 +8,7 @@ import {
 	missingFontCount,
 	pseudoReducer,
 	type PseudoState,
+	clearsBanner,
 } from './state';
 
 const entry = (key: string, value: string): ExtractedString => ({ key, nodeId: key, value, drifted: false });
@@ -37,11 +38,15 @@ describe('pseudoReducer', () => {
 	it('changing an option does NOT re-apply or touch what the canvas holds', () => {
 		// §2.6: apply is explicit. The banner must keep naming the ratio actually on canvas, so
 		// `appliedWith` cannot follow the selects.
-		const applied = reduce(initialPseudoState(), { kind: 'apply-started' }, {
-			kind: 'applied',
-			entries: ENTRIES,
-			blocked: [],
-		});
+		const applied = reduce(
+			initialPseudoState(),
+			{ kind: 'apply-started' },
+			{
+				kind: 'applied',
+				entries: ENTRIES,
+				blocked: [],
+			},
+		);
 		const changed = pseudoReducer(applied, { kind: 'set-options', options: { expansionPct: 50 } });
 
 		expect(changed.options.expansionPct).toBe(50);
@@ -117,5 +122,19 @@ describe('missingFontCount', () => {
 	it('counts only the missing-font blocks, not every skipped node', () => {
 		expect(missingFontCount(BLOCKED)).toBe(1);
 		expect(missingFontCount([])).toBe(0);
+	});
+});
+
+// LS-34: the always-on progress listener sees BOTH the apply's terminal progress and a revert's
+// (runId holds whichever command was last sent). Only a revert may clear the banner row — otherwise
+// every apply would blank its own row.
+describe('clearsBanner — which terminal progress clears the Pseudo-loc banner row', () => {
+	it('clears it when a revert completes', () => {
+		expect(clearsBanner('revert')).toBe(true);
+	});
+
+	it('leaves it for an apply, and for a progress nothing was waiting on', () => {
+		expect(clearsBanner('apply')).toBe(false);
+		expect(clearsBanner(null)).toBe(false);
 	});
 });

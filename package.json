@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "check:docs": "node scripts/check-doc-twins.mjs",
     "check:android": "node scripts/check-android-golden.mjs",
+    "check:release": "node scripts/check-release.mjs",
     "vitest": "npx vitest",
     "test": "vitest run"
   },

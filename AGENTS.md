@@ -14,6 +14,7 @@ JSON/iOS/Android export. Built with Plugma (React + Vite + TypeScript).
 - `npm test` — Vitest (`vitest run`), co-located `src/**/*.test.{ts,tsx}`
 - `npx tsc -b` — typecheck (no npm alias)
 - `npx eslint .` — lint
+- `npm run check:release` — pre-publish only: fails while the Pro waitlist URL is still the `example.invalid` placeholder (LS-13 D6). Not part of CI.
 
 Keep `npx tsc -b`, `npx eslint .`, and `npm test` green on every change. **CI enforces these on
 every PR** (`.github/workflows/ci.yml`), along with `npm run build` (which runs `check:dist`),

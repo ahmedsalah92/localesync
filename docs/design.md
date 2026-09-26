@@ -537,6 +537,9 @@ Copy and the `openExternal` wiring remain LS-13's.
 
 ## 🔲 To be done
 
+- **LS-13 — Pro stub tooltip.** Draw the tooltip on a Pro Stub: "Coming soon in Pro. Opens the
+  waitlist in your browser. LocaleSync doesn't send any data from the plugin." The RTL Sync stub is
+  now built in code, matching `351:1411`.
 - **LS-34 — stacked applied banner.** Draw the banner with two stacked 40px rows, e.g.
   `Preview: French (fr-FR) · Revert` above `Pseudo-loc applied · Revert`, on a Preview shell. Rows
   are in tab order (Preview, Pseudo-loc, RTL), at most three.

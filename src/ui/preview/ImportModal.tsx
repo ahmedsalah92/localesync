@@ -117,7 +117,7 @@ export function ImportModal(props: {
 				role="dialog"
 				aria-modal="true"
 				aria-label={IMPORT.title}
-				onKeyDown={focus.onKeyDown}
+				tabIndex={-1}
 				// The overlay closes on click; the modal must not close when its own body is clicked.
 				onClick={(event) => event.stopPropagation()}
 				style={{

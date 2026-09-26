@@ -99,8 +99,9 @@ export function ResultsRow(
 		onEdit === undefined
 			? {}
 			: {
-					role: 'button',
-					'aria-label': props.editLabel,
+					// No role and no aria-label: the row keeps its content as its name and Jump stays a real
+					// nested control; the edit hint is a description (LS-34 final review).
+					'aria-description': props.editLabel,
 					tabIndex: 0,
 					'data-editable': 'true',
 					onDoubleClick: onEdit,

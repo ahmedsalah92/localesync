@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, type KeyboardEvent } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Modal focus handling shared by the Export and Import modals (LS-34): on open, focus moves to the
  * dialog's first focusable control; Tab and Shift-Tab wrap inside it; Esc calls `onClose`; on close,
  * focus goes back to whatever had it before the modal opened.
  *
- * Spread `ref` and `onKeyDown` on the `role="dialog"` element. The index arithmetic is the pure
+ * Put `ref` and `tabIndex={-1}` on the `role="dialog"` element (so a click inside it keeps focus there). The index arithmetic is the pure
  * `nextFocusIndex` below, unit-tested; the DOM half is an in-Figma check (no jsdom, §6).
  */
 export function useModalFocus(onClose: () => void) {
@@ -17,32 +17,54 @@ export function useModalFocus(onClose: () => void) {
 	useEffect(() => {
 		const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		focusables(ref.current)[0]?.focus();
+		const detach = attachModalKeys(
+			document,
+			() => focusables(ref.current),
+			() => document.activeElement,
+			() => onCloseRef.current(),
+		);
 		return () => {
+			detach();
 			// The opener may be gone (unmounted with its panel state) — then there is nothing to return to.
 			if (previous !== null && previous.isConnected) previous.focus();
 		};
 	}, []);
 
-	const onKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
-		if (event.key === 'Escape') {
+	return { ref };
+}
+
+/**
+ * Esc and the Tab trap, listened for on `target` (the document) rather than on the dialog, so they
+ * still work once focus has left it — a click on the dialog's padding, or a busy primary disabled
+ * while focused, drops focus to the body (LS-34 final review). Returns the detach function.
+ */
+export function attachModalKeys(
+	target: EventTarget,
+	items: () => readonly { focus(): void }[],
+	active: () => unknown,
+	onClose: () => void,
+): () => void {
+	const onKeyDown = (event: Event) => {
+		const { key, shiftKey } = event as KeyboardEvent;
+		if (key === 'Escape') {
 			event.preventDefault();
 			event.stopPropagation();
-			onCloseRef.current();
+			onClose();
 			return;
 		}
-		if (event.key !== 'Tab') return;
-		const items = focusables(ref.current);
-		const active = document.activeElement;
+		if (key !== 'Tab') return;
+		const list = items();
+		const focused = active();
 		const next = nextFocusIndex(
-			items.findIndex((item) => item === active),
-			items.length,
-			event.shiftKey,
+			list.findIndex((item) => item === focused),
+			list.length,
+			shiftKey,
 		);
 		event.preventDefault();
-		if (next !== null) items[next]?.focus();
-	}, []);
-
-	return { ref, onKeyDown };
+		if (next !== null) list[next]?.focus();
+	};
+	target.addEventListener('keydown', onKeyDown);
+	return () => target.removeEventListener('keydown', onKeyDown);
 }
 
 /**

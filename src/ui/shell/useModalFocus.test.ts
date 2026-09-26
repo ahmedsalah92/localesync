@@ -2,7 +2,7 @@
 // notice line. The DOM half (focusing, restoring) needs a real document and is an in-Figma check.
 import { createElement } from 'react';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { nextFocusIndex } from './useModalFocus';
+import { attachModalKeys, nextFocusIndex } from './useModalFocus';
 
 describe('nextFocusIndex — Tab wraps inside the dialog', () => {
 	it('moves forward and back one control', () => {
@@ -52,5 +52,62 @@ describe('ModalNotice', () => {
 	it('colours the line by tone', () => {
 		expect(render('danger', 'Broken')).toContain('var(--ls-text-danger)');
 		expect(render('warning', 'Careful')).toContain('var(--ls-text-warning)');
+	});
+});
+
+// LS-34 final review: the keys were a React handler on the dialog, so once focus left it (a click on
+// the dialog's padding, or a busy primary disabled under focus) Esc did nothing and Tab escaped to
+// the panel behind. They are now handled on the document, whatever has focus.
+describe('attachModalKeys — Esc and Tab work with focus outside the dialog', () => {
+	function keyEvent(key: string, shiftKey = false) {
+		const event = new Event('keydown', { cancelable: true }) as Event & { key: string; shiftKey: boolean };
+		event.key = key;
+		event.shiftKey = shiftKey;
+		return event;
+	}
+
+	it('closes on Esc when focus is on the body', () => {
+		const doc = new EventTarget();
+		let closed = 0;
+		attachModalKeys(
+			doc,
+			() => [],
+			() => null,
+			() => (closed += 1),
+		);
+		doc.dispatchEvent(keyEvent('Escape'));
+		expect(closed).toBe(1);
+	});
+
+	it('pulls Tab back into the dialog from outside it', () => {
+		const doc = new EventTarget();
+		const focused: string[] = [];
+		const items = ['first', 'last'].map((name) => ({ focus: () => focused.push(name) }));
+		attachModalKeys(
+			doc,
+			() => items,
+			() => null,
+			() => {},
+		);
+		const tab = keyEvent('Tab');
+		doc.dispatchEvent(tab);
+		expect(tab.defaultPrevented).toBe(true);
+		expect(focused).toEqual(['first']);
+		doc.dispatchEvent(keyEvent('Tab', true));
+		expect(focused).toEqual(['first', 'last']);
+	});
+
+	it('stops listening once detached', () => {
+		const doc = new EventTarget();
+		let closed = 0;
+		const detach = attachModalKeys(
+			doc,
+			() => [],
+			() => null,
+			() => (closed += 1),
+		);
+		detach();
+		doc.dispatchEvent(keyEvent('Escape'));
+		expect(closed).toBe(0);
 	});
 });

@@ -63,7 +63,7 @@ export function ExportModal(props: { entries: readonly ExtractedString[]; onClos
 				role="dialog"
 				aria-modal="true"
 				aria-label={LABELS.title}
-				onKeyDown={focus.onKeyDown}
+				tabIndex={-1}
 				// The overlay closes on click; the modal must not close when its own body is clicked.
 				onClick={(event) => event.stopPropagation()}
 				style={{

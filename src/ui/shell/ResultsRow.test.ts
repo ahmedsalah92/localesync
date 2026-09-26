@@ -95,10 +95,20 @@ describe('ResultsRow trailing slot and depth (LS-28 §1.3)', () => {
 		expect(html).toContain('data-editable="true"');
 	});
 
-	it('announces an editable row as a button with its edit label', () => {
-		const html = render({ ...base, onEdit: () => {}, editLabel: 'Edit translation' });
-		expect(html).toContain('role="button"');
-		expect(html).toContain('aria-label="Edit translation"');
+	// LS-34 final review: role="button" made the nested Jump button presentational, and aria-label
+	// replaced the row's name, so every editable row read "Edit translation". The row keeps its own
+	// content as its name; the edit hint is a description.
+	it('keeps an editable row named by its content, with the edit hint as a description', () => {
+		const html = render({
+			...base,
+			onJump: () => {},
+			jumpLabel: 'Jump to node',
+			onEdit: () => {},
+			editLabel: 'Edit translation',
+		});
+		expect(html).not.toContain('role="button"');
+		expect(html).not.toContain('aria-label="Edit translation"');
+		expect(html).toContain('aria-description="Edit translation"');
 	});
 
 	it('replaces the primary line with the editor when one is given', () => {

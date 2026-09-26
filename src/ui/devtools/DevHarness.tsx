@@ -128,6 +128,12 @@ export function DevHarness() {
 				</button>
 				<button
 					type="button"
+					onClick={() => parent.postMessage({ pluginMessage: { type: '__dev:clear-telemetry-flags' } }, '*')}
+				>
+					Clear telemetry flags
+				</button>
+				<button
+					type="button"
 					onClick={() =>
 						parent.postMessage({ pluginMessage: { type: '__dev:generate-snapshot-restore' } }, '*')
 					}

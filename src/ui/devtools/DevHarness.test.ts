@@ -53,6 +53,8 @@ describe('DevHarness reachability in DEV builds', () => {
 			'Run LS-9 extract check',
 			'Resize probe 100x100',
 			'Clear window size',
+			// LS-13 §3.3: the only way to replay the install / first_scan events on one machine.
+			'Clear telemetry flags',
 			'Generate overflow-spike',
 			'Generate extract-keys',
 			'Generate large-file',

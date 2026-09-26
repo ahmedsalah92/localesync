@@ -19,6 +19,8 @@ import { registerRtlMirror } from './rtl';
 import { runRtlCheck } from './rtl/check';
 import { runPseudoLocCheck } from './pseudoloc/check';
 import { registerRoundtrip } from './roundtrip';
+import { registerTelemetry } from './telemetry';
+import { TELEMETRY_KEY } from './telemetry-flags';
 import { registerCloseHandler, restoreAll } from './snapshot';
 import { registerSnapshotCheck } from './snapshot/check';
 import { registerTraversal } from './traversal';
@@ -64,6 +66,8 @@ export default async function () {
 	registerPseudoLoc();
 	registerRtlMirror();
 	registerPreview();
+	// LS-13: the Pro waitlist handoff and the first-run telemetry flags.
+	registerTelemetry();
 	registerWindow();
 	// Dev scaffolds, dev builds only (Vite strips these branches): LS-3 kitchen-sink golden checks,
 	// the LS-4 snapshot apply→restore acceptance cycle (both piggyback on page scan-request), and
@@ -131,6 +135,21 @@ export default async function () {
 					.catch((err: unknown) => {
 						console.error(
 							`[ls21] clear stored window size failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
+					});
+				return;
+			}
+
+			// LS-13 §3.3: replay the install / first_scan events on one machine.
+			if (devType === '__dev:clear-telemetry-flags') {
+				void figma.clientStorage
+					.deleteAsync(TELEMETRY_KEY)
+					.then(() => {
+						console.log('[dev] telemetry flags cleared');
+					})
+					.catch((err: unknown) => {
+						console.error(
+							`[dev] clear telemetry flags failed: ${err instanceof Error ? err.message : String(err)}`,
 						);
 					});
 				return;

@@ -14,3 +14,14 @@ export function selectPanel<T extends { id: PanelId }>(panels: readonly T[], id:
 	}
 	return found;
 }
+
+/** Every panel, in registry order, with whether it is the visible one. The shell renders all of
+ *  them and hides the rest, so no panel unmounts on a tab switch and none loses its state or its
+ *  message listeners (LS-34). Throws on an unknown id, exactly as selectPanel does. */
+export function panelVisibility<T extends { id: PanelId }>(
+	panels: readonly T[],
+	activeId: PanelId,
+): { panel: T; visible: boolean }[] {
+	selectPanel(panels, activeId);
+	return panels.map((panel) => ({ panel, visible: panel.id === activeId }));
+}

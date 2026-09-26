@@ -4,6 +4,7 @@ import type { PreviewRow } from '../../common/models';
 import {
 	commitDecision,
 	initialPreviewState,
+	messageExchange,
 	onCommandError,
 	previewReducer,
 	reapplyAfterImport,
@@ -188,10 +189,6 @@ describe('onCommandError (fix round 1)', () => {
 		expect(onCommandError('revert', 'mutation-failed')).toBe('revert-failed');
 	});
 
-	it('reports an import failure in the modal', () => {
-		expect(onCommandError('import', 'storage-failed')).toBe('import-failed');
-	});
-
 	it('fails an apply the ordinary way — its restore makes the copy true', () => {
 		expect(onCommandError('apply', 'mutation-failed')).toBe('failed');
 		expect(onCommandError('apply', 'no-keys')).toBe('failed');
@@ -202,5 +199,26 @@ describe('onCommandError (fix round 1)', () => {
 		const reapplying = run([{ kind: 'apply-started', language: 'de' }], applied());
 		const failed = run([{ kind: 'failed', code: 'mutation-failed' }], reapplying);
 		expect(reapplyAfterImport(failed, ['de'])).toBeNull();
+	});
+});
+
+describe('messageExchange (LS-34)', () => {
+	const ids = { importId: 'i', runId: 'r', jumpId: 'j' };
+
+	it('routes each id to the exchange that sent it', () => {
+		expect(messageExchange('i', ids)).toBe('import');
+		expect(messageExchange('r', ids)).toBe('run');
+		expect(messageExchange('j', ids)).toBe('jump');
+		expect(messageExchange('x', ids)).toBeNull();
+	});
+
+	// The import no longer shares the run id: an apply started after closing the modal mid-import
+	// must not drop the import's progress, which is what refreshes the language list.
+	it('still routes an import that an apply has since overtaken', () => {
+		expect(messageExchange('i', { importId: 'i', runId: 'r2', jumpId: null })).toBe('import');
+	});
+
+	it('routes nothing once every exchange has settled', () => {
+		expect(messageExchange('i', { importId: null, runId: null, jumpId: null })).toBeNull();
 	});
 });

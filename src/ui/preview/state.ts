@@ -193,12 +193,27 @@ export function reapplyAfterImport(s: PreviewState, imported: readonly string[])
 	return onCanvas ? s.language : null;
 }
 
-/** The command a Preview message answers. */
-export type PendingOp = 'apply' | 'edit' | 'revert' | 'import' | null;
+/**
+ * Which of the panel's exchanges a `progress`/`error` answers (LS-34). An import has its own id,
+ * apart from the apply/edit/revert `runId`: closing the modal mid-import and then picking a language
+ * must not drop the import's progress — that progress is what refreshes the language list. A jump is
+ * checked first so a `node-gone` can never pass for a preview failure.
+ */
+export function messageExchange(
+	id: string,
+	ids: { importId: string | null; runId: string | null; jumpId: string | null },
+): 'import' | 'run' | 'jump' | null {
+	if (id === ids.jumpId) return 'jump';
+	if (id === ids.importId) return 'import';
+	if (id === ids.runId) return 'run';
+	return null;
+}
+
+/** The command a Preview `runId` message answers. An import has its own id (`messageExchange`). */
+export type PendingOp = 'apply' | 'edit' | 'revert' | null;
 
 /**
  * What the panel does with a terminal `error`, so the banner and body never contradict the canvas:
- * - `import-failed`: the modal shows it; nothing changed (§2.1.7).
  * - `reapply`: a failed edit may leave other layers translated; re-applying restores first, then
  *   applies, so canvas and panel converge — and if that apply fails, its "restored" copy is true.
  * - `revert-failed`: the preview is still on the canvas; stay applied, banner kept (its Revert
@@ -206,11 +221,7 @@ export type PendingOp = 'apply' | 'edit' | 'revert' | 'import' | null;
  * - `failed`: the ordinary failure state — an apply's failure restores the canvas, and a failed edit
  *   save (`storage-failed`) changed nothing.
  */
-export function onCommandError(
-	op: PendingOp,
-	code: ErrorCode,
-): 'import-failed' | 'reapply' | 'revert-failed' | 'failed' {
-	if (op === 'import') return 'import-failed';
+export function onCommandError(op: PendingOp, code: ErrorCode): 'reapply' | 'revert-failed' | 'failed' {
 	if (op === 'revert') return 'revert-failed';
 	if (op === 'edit' && code !== 'storage-failed') return 'reapply';
 	return 'failed';

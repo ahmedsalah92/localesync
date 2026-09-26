@@ -47,3 +47,31 @@ describe('ImportModal', () => {
 		expect(html).toMatch(/<span[^>]*aria-live="polite"[^>]*>Nope<\/span>/);
 	});
 });
+
+describe('importReadiness', () => {
+	let importReadiness: typeof import('./ImportModal').importReadiness;
+	beforeAll(async () => {
+		({ importReadiness } = await import('./ImportModal'));
+	});
+
+	it('detects the format from the extension, case-insensitively', () => {
+		expect(importReadiness(null, '', false).kind).toBeNull();
+		expect(importReadiness('a.JSON', '', false).kind).toBe('json');
+		expect(importReadiness('a.csv', '', false).kind).toBe('csv');
+		expect(importReadiness('a.txt', '', false).kind).toBe('other');
+	});
+
+	it('is ready for a CSV, or a JSON with a valid language', () => {
+		expect(importReadiness('a.csv', '', false).enabled).toBe(true);
+		expect(importReadiness('a.json', '', false).enabled).toBe(false);
+		expect(importReadiness('a.json', 'de', false)).toMatchObject({ canonical: 'de', enabled: true });
+		expect(importReadiness('a.json', 'zz-!!', false)).toMatchObject({ languageInvalid: true, enabled: false });
+		expect(importReadiness('a.txt', '', false).enabled).toBe(false);
+	});
+
+	// A second click while the first import is still saving would send it twice (LS-34).
+	it('keeps the primary disabled while an import is in flight', () => {
+		expect(importReadiness('a.csv', '', true).enabled).toBe(false);
+		expect(importReadiness('a.json', 'de', true).enabled).toBe(false);
+	});
+});

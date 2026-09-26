@@ -18,6 +18,7 @@ import {
 	commitDecision,
 	initialPreviewState,
 	isBusy,
+	messageExchange,
 	onCommandError,
 	previewReducer,
 	reapplyAfterImport,
@@ -39,11 +40,16 @@ export function PreviewPanel() {
 	const [state, dispatch] = useReducer(previewReducer, undefined, initialPreviewState);
 	const [importing, setImporting] = useState(false);
 	const [importError, setImportError] = useState<string | null>(null);
+	// Sent `preview-import`, no progress or error back yet: the modal's primary stays disabled.
+	const [importBusy, setImportBusy] = useState(false);
 	const { setApplied } = useApplied('preview');
 	// The command in flight — also the correlation id its result/progress/error arrive under.
 	const runId = useRef<string | null>(null);
 	// A jump is a separate exchange, kept apart so a `node-gone` cannot pass for a preview failure.
 	const jumpId = useRef<string | null>(null);
+	// The import in flight has its own id (LS-34), so closing the modal mid-import and then applying
+	// a language cannot overwrite `runId` and drop the import's progress — the language-list refresh.
+	const importId = useRef<string | null>(null);
 	const pending = useRef<PendingOp>(null);
 	// Accumulated from the `nodes-blocked` warning that precedes the terminal progress.
 	const blocked = useRef<BlockedNode[]>([]);
@@ -97,11 +103,14 @@ export function PreviewPanel() {
 			if (msg.id !== runId.current) return;
 			dispatch({ kind: 'result', language: msg.language, rows: msg.rows, unmatched: msg.unmatched });
 		});
+		const route = (id: string) =>
+			messageExchange(id, { importId: importId.current, runId: runId.current, jumpId: jumpId.current });
 		const offProgress = on('progress', (msg) => {
-			if (msg.id !== runId.current) return;
-			const op = pending.current;
-			pending.current = null;
-			if (op === 'import') {
+			const exchange = route(msg.id);
+			if (exchange === 'import') {
+				importId.current = null;
+				setImportBusy(false);
+				// Closes the modal if it is still open; refreshes the list whether or not it was.
 				setImporting(false);
 				refreshLanguages();
 				// The main thread only saves (ruling I4); a replaced language that is on the canvas
@@ -110,6 +119,9 @@ export function PreviewPanel() {
 				if (again !== null) apply(again);
 				return;
 			}
+			if (exchange !== 'run') return;
+			const op = pending.current;
+			pending.current = null;
 			if (op === 'revert') {
 				languageRef.current = null;
 				dispatch({ kind: 'reverted' });
@@ -128,8 +140,16 @@ export function PreviewPanel() {
 			}
 		});
 		const offError = on('error', (msg) => {
-			if (msg.id === jumpId.current) return; // a failed jump is not a preview failure
-			if (msg.id !== runId.current) return;
+			const exchange = route(msg.id);
+			if (exchange === 'import' && msg.severity !== 'warning') {
+				if (import.meta.env.DEV) console.error(`[dev] preview import ${msg.code}: ${msg.message}`);
+				importId.current = null;
+				setImportBusy(false);
+				// The modal stays open with the reason; nothing changed (§2.1.7).
+				setImportError(msg.code === 'storage-failed' ? IMPORT.storageFailed : msg.message);
+				return;
+			}
+			if (exchange !== 'run') return; // a failed jump is not a preview failure
 			// `nodes-blocked` precedes the terminal progress; hold it rather than finishing early.
 			if (msg.severity === 'warning') {
 				blocked.current = msg.blocked ?? [];
@@ -139,11 +159,6 @@ export function PreviewPanel() {
 			pending.current = null;
 			if (import.meta.env.DEV) console.error(`[dev] preview ${msg.code}: ${msg.message}`);
 			const outcome = onCommandError(op, msg.code);
-			if (outcome === 'import-failed') {
-				// The modal stays open with the reason; nothing changed (§2.1.7).
-				setImportError(msg.code === 'storage-failed' ? IMPORT.storageFailed : msg.message);
-				return;
-			}
 			if (outcome === 'revert-failed') {
 				// The preview is still on the canvas: stay applied, keep the banner — its Revert retries.
 				dispatch({ kind: 'revert-failed' });
@@ -169,9 +184,9 @@ export function PreviewPanel() {
 
 	const onImport = useCallback((maps: PreviewMap[]) => {
 		setImportError(null);
-		pending.current = 'import';
+		setImportBusy(true);
 		importedLanguages.current = maps.map((m) => m.language);
-		runId.current = send<PreviewImport>({ type: 'preview-import', maps });
+		importId.current = send<PreviewImport>({ type: 'preview-import', maps });
 	}, []);
 
 	// Reads `stateRef`, never a closed-over `state`: the editor's onBlur/onKeyDown and a row's onEdit
@@ -227,7 +242,8 @@ export function PreviewPanel() {
 						ariaLabel={LABELS.language}
 						value={state.language ?? ''}
 						options={languageOptions}
-						disabled={busy}
+						// Also held while an import saves: an apply racing it could read the old map.
+						disabled={busy || importBusy}
 						fill
 						onChange={(value) => {
 							if (value !== '' && value !== state.language) apply(value);
@@ -285,6 +301,8 @@ export function PreviewPanel() {
 				<ImportModal
 					languages={state.languages}
 					error={importError}
+					busy={importBusy}
+					onFileChange={() => setImportError(null)}
 					onClose={() => {
 						setImporting(false);
 						setImportError(null);

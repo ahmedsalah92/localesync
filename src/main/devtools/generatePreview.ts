@@ -116,7 +116,6 @@ export async function generatePreview(): Promise<PreviewFixtureReport> {
 	const manualSteps = [
 		"missing-font: add a text layer in a font this machine does NOT have, INSIDE the 'preview' frame, named `missing-font`, text 'Font gone' (fixtures/preview.md).",
 		'Extract: run an Extract page scan (dot scheme) so every text layer is stamped.',
-		"Copy: select `title` in 'preview' and duplicate it (Cmd-D) — AFTER the scan, so the copy carries the original's stamp.",
 		'Save as fixtures/preview.fig and record the bare link in fixtures/README.md.',
 		'Run the LS-12 check: "Run LS-12 preview check" → every ls12: line PASS in the console, then the MANUAL Cmd-Z step.',
 	];

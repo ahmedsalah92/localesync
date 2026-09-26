@@ -12,7 +12,8 @@
 //
 // **It mutates the canvas AND the file's stored translations, and restores both.** `finally` always
 // reverts the preview and puts the user's store back as it was found — including removing the
-// file id and store entry if this run was the first to create them.
+// file id and store entry if this run was the first to create them. It also adds one layer — a
+// `clone()` of `title`, the stamped copy — and `finally` removes it again.
 //
 // Scaffolding only — never run by Vitest. Wired behind import.meta.env.DEV in main.ts.
 import type { PreviewMap } from '../../common/models';
@@ -87,18 +88,18 @@ export async function runPreviewCheck(): Promise<PreviewCheckReport> {
 	// The user's store, exactly as found, and whether this file had an id before we touched it.
 	const hadFileId = figma.root.getPluginData(PREVIEW_FILE_ID_KEY) !== '';
 	const saved = await loadStore();
+	// The run-time copy of `title` (LS-34), removed in `finally`.
+	let made: TextNode | null = null;
 
 	try {
 		// Start from source: a preview left active by the panel would otherwise become the baseline.
 		await revertPreview();
 
-		const texts = figma.currentPage.findAllWithCriteria({ types: ['TEXT'] });
-		const chars = (): Map<string, string> => new Map(texts.map((node) => [node.id, node.characters]));
-		const baseline = chars();
+		const found = figma.currentPage.findAllWithCriteria({ types: ['TEXT'] });
 
 		// Owners by key — the same rule applyPreview uses (a stamp whose `n` is the node's own id).
 		const owners = new Map<string, TextNode>();
-		for (const node of texts) {
+		for (const node of found) {
 			const stored = readStoredKey(node);
 			if (stored !== null && stored.n === node.id) owners.set(stored.k, node);
 		}
@@ -119,9 +120,31 @@ export async function runPreviewCheck(): Promise<PreviewCheckReport> {
 		const mixed = owners.get(KEY.mixed) as TextNode;
 		const inst = owners.get(KEY.inst) as TextNode;
 		const missingFont = owners.get(KEY.missingFont);
-		const copy = texts.find((node) => node.id !== title.id && readStoredKey(node)?.k === KEY.title);
+
+		// The stamped copy (LS-34): made here rather than by a human Cmd-D. `clone()` carries plugin
+		// data (agent-guidelines, "Plugin data on real nodes — measured", probe 4), so the copy holds
+		// `title`'s stamp and is not an owner. Placed right after `title` in its frame. A human-made
+		// copy, if the file has one, is checked alongside it.
+		const parent = title.parent;
+		if (parent === null) {
+			note(notes, 'fixture', false, '`title` has no parent');
+			return { notes };
+		}
+		made = title.clone();
+		parent.insertChild(parent.children.indexOf(title) + 1, made);
+		note(
+			notes,
+			'copy-stamp',
+			readStoredKey(made)?.k === KEY.title,
+			`clone stamp=${readStoredKey(made)?.k ?? 'none'}`,
+		);
+
+		const texts = figma.currentPage.findAllWithCriteria({ types: ['TEXT'] });
+		const chars = (): Map<string, string> => new Map(texts.map((node) => [node.id, node.characters]));
+		const baseline = chars();
+		const copies = texts.filter((node) => node.id !== title.id && readStoredKey(node)?.k === KEY.title);
 		notes.push(
-			`ls12:census ${texts.length} text node(s), ${owners.size} owner(s), copy=${copy !== undefined}, missing-font=${missingFont !== undefined}`,
+			`ls12:census ${texts.length} text node(s), ${owners.size} owner(s), copies=${copies.length} (1 made by this run), missing-font=${missingFont !== undefined}`,
 		);
 		if (missingFont !== undefined && !missingFont.hasMissingFont) {
 			note(notes, 'fixture-missing-font', false, "'missing-font' renders on this machine — use a font it lacks");
@@ -145,29 +168,37 @@ export async function runPreviewCheck(): Promise<PreviewCheckReport> {
 			`title='${read(title)}' cta='${read(cta)}' inst='${read(inst)}'`,
 		);
 		note(notes, 'apply-de-fallback', read(fallback) === baseline.get(fallback.id), `fallback='${read(fallback)}'`);
-		if (copy === undefined)
-			skip(notes, 'apply-de-copy', 'no copy of `title` — duplicate it after the Extract scan');
-		else note(notes, 'apply-de-copy', read(copy) === baseline.get(copy.id), `copy='${read(copy)}'`);
-		// The general form of the three above: every owner reads German, or its source when it has no
-		// German or was blocked; every non-owner reads its source.
-		const blockedIds = new Set(applied.blocked.map((b) => b.nodeId));
-		const ownerIds = new Map([...owners].map(([key, node]) => [node.id, key]));
-		const wrong = texts.filter((node) => {
-			const key = ownerIds.get(node.id);
-			const want =
-				key !== undefined && de[key] !== undefined && !blockedIds.has(node.id)
-					? de[key]
-					: baseline.get(node.id);
-			return node.characters !== want;
-		});
+		const changedCopies = copies.filter((node) => read(node) !== baseline.get(node.id));
 		note(
 			notes,
-			'apply-de-every-layer',
-			wrong.length === 0,
-			wrong.length === 0
-				? `${texts.length} layer(s)`
-				: wrong.map((n) => `${n.name}='${n.characters}'`).join(' | '),
+			'apply-de-copy',
+			changedCopies.length === 0,
+			`${copies.length} cop${copies.length === 1 ? 'y' : 'ies'}${changedCopies.map((n) => ` '${read(n)}'`).join('')}`,
 		);
+		// The general form of the three above: every owner reads the language's value, or its source
+		// when it has none or was blocked; every non-owner reads its source. Used for `de` and `fr`.
+		const ownerIds = new Map([...owners].map(([key, node]) => [node.id, key]));
+		const wrongLayers = (values: Record<string, string>, blocked: readonly { nodeId: string }[]): TextNode[] => {
+			const blockedIds = new Set(blocked.map((b) => b.nodeId));
+			return texts.filter((node) => {
+				const key = ownerIds.get(node.id);
+				const want =
+					key !== undefined && values[key] !== undefined && !blockedIds.has(node.id)
+						? values[key]
+						: baseline.get(node.id);
+				return node.characters !== want;
+			});
+		};
+		const everyLayer = (label: string, wrong: TextNode[]): void =>
+			note(
+				notes,
+				label,
+				wrong.length === 0,
+				wrong.length === 0
+					? `${texts.length} layer(s)`
+					: wrong.map((n) => `${n.name}='${n.characters}'`).join(' | '),
+			);
+		everyLayer('apply-de-every-layer', wrongLayers(de, applied.blocked));
 		const expectedUnmatched = ['checkout.old', ...(missingFont === undefined ? [KEY.missingFont] : [])].sort();
 		note(
 			notes,
@@ -183,6 +214,15 @@ export async function runPreviewCheck(): Promise<PreviewCheckReport> {
 			'blocked-mixed',
 			reasonOf(mixed) === 'mixed-font-char-mutation' && read(mixed) === baseline.get(mixed.id),
 			`reason=${reasonOf(mixed) ?? 'not blocked'} characters='${read(mixed)}'`,
+		);
+		// Exactly those two: no other layer may be blocked (LS-34).
+		const blockedWant = [mixed.id, ...(missingFont === undefined ? [] : [missingFont.id])].sort();
+		const blockedGot = applied.blocked.map((b) => b.nodeId).sort();
+		note(
+			notes,
+			'blocked-exact',
+			blockedGot.join(',') === blockedWant.join(','),
+			`[${applied.blocked.map((b) => `${texts.find((n) => n.id === b.nodeId)?.name ?? b.nodeId}:${b.reason}`).join(', ')}]`,
 		);
 		if (missingFont === undefined) {
 			skip(notes, 'blocked-missing-font', 'no missing-font row on this page — see fixtures/preview.md');
@@ -207,6 +247,7 @@ export async function runPreviewCheck(): Promise<PreviewCheckReport> {
 				germanLeft.length === 0,
 			`${describe(switched)} title='${read(title)}' cta='${read(cta)}' german-left=${germanLeft.map((n) => n.name).join(',') || 'none'}`,
 		);
+		everyLayer('switch-fr-every-layer', wrongLayers(fr, switched.kind === 'ok' ? switched.blocked : []));
 
 		// ── [4] revert — byte-identical to the baseline ──────────────────────────────────────────
 		const reverted = await revertPreview();
@@ -308,6 +349,8 @@ export async function runPreviewCheck(): Promise<PreviewCheckReport> {
 		// Never leave the canvas previewed or the user's translations replaced.
 		try {
 			await revertPreview();
+			// After the revert, so the copy leaves a canvas that is already back to source.
+			if (made !== null) made.remove();
 			if (hadFileId) {
 				await saveStore(saved);
 			} else {
@@ -315,7 +358,7 @@ export async function runPreviewCheck(): Promise<PreviewCheckReport> {
 				if (id !== '') await figma.clientStorage.deleteAsync(storeKeyFor(id));
 				figma.root.setPluginData(PREVIEW_FILE_ID_KEY, ''); // '' removes the entry
 			}
-			notes.push('ls12:cleanup:PASS canvas reverted and store restored');
+			notes.push('ls12:cleanup:PASS canvas reverted, run-time copy removed, store restored');
 		} catch (cleanupErr) {
 			notes.push(
 				`ls12:cleanup:FAIL ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)} — reopen the plugin; restore-on-launch heals the canvas, but the store may need re-importing`,

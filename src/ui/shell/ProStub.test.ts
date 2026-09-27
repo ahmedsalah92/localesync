@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PRO_LABEL, type ProPillar } from '../../common/pro';
 
 const TOOLTIP =
-	"Coming soon in Pro. Opens the waitlist in your browser. LocaleSync doesn't send any data from the plugin.";
+	"Join the Pro waitlist. Opens localesync.dev in your browser. LocaleSync doesn't send any data from the plugin.";
 
 let render: (pillar: ProPillar) => string = () => '';
 
@@ -37,6 +37,11 @@ describe('ProStub', () => {
 	// so the button's 100% width, space-between and top border covered only the label.
 	it('stretches the tooltip anchor across the band', () => {
 		expect(render('matrix')).toMatch(/<span style="[^"]*flex:1/);
+	});
+
+	// LS-16: Figma's review checklist rules out "coming soon" placeholders; the stub names its real action.
+	it('never says "coming soon"', () => {
+		for (const pillar of ['matrix', 'report', 'translate', 'sync'] as ProPillar[]) expect(render(pillar).toLowerCase()).not.toContain('coming soon');
 	});
 
 	it('binds colour through tokens only', () => {

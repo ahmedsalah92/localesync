@@ -7,7 +7,7 @@ import { ArrowIcon } from './icons/ArrowIcon';
 import { Tooltip } from './primitives/Tooltip';
 
 export const PRO_TOOLTIP =
-	"Coming soon in Pro. Opens the waitlist in your browser. LocaleSync doesn't send any data from the plugin.";
+	"Join the Pro waitlist. Opens localesync.dev in your browser. LocaleSync doesn't send any data from the plugin.";
 
 function openWaitlist(pillar: ProPillar): void {
 	send<OpenWaitlist>({ type: 'open-waitlist', pillar });

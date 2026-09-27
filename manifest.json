@@ -2,7 +2,7 @@
   "documentAccess": "dynamic-page",
   "api": "1.0.0",
   "networkAccess": { "allowedDomains": ["none"] },
-  "id": "com.LocaleSync",
+  "id": "1686133899389630393",
   "name": "LocaleSync",
   "main": "src/main/main.ts",
   "ui": "src/ui/ui.tsx",

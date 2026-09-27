@@ -6,9 +6,10 @@
 
 export type ProPillar = 'matrix' | 'report' | 'translate' | 'sync';
 
-/** D2 placeholder until the waitlist exists. `.invalid` is reserved: it can never resolve.
- *  `npm run check:release` refuses to pass while this is still in the bundle (D6). */
-export const WAITLIST_URL = 'https://example.invalid/waitlist';
+/** The permanent waitlist path (D2). It is compiled into the plugin, so it must keep resolving: a
+ *  moved landing page redirects here with the query string intact, or Umami loses `utm_content`. */
+export const WAITLIST_URL = 'https://localesync.dev/waitlist';
+/** The reserved placeholder this URL replaced. `npm run check:release` fails if it ever returns (D6). */
 export const WAITLIST_PLACEHOLDER_HOST = 'example.invalid';
 
 export const PRO_LABEL: Record<ProPillar, string> = {
